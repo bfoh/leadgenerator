@@ -1,10 +1,9 @@
 -- Pre-production inspection (phase 10). READ ONLY: run it in the Supabase SQL editor before applying
 -- migrations 003–008 to a project that already holds data, and keep the output with the change
--- record. It changes nothing (the transaction is read only and rolled back) and returns one table:
--- section, check, value, what it means. It needs migration 002; every later migration is optional.
+-- record. It is one SELECT that calls no writing function, so it changes nothing, and it returns one
+-- table: section, check, value, what it means. (No transaction wrapper: the SQL editor shows only
+-- the last statement's result.) It needs migration 002; every later migration is optional.
 -- See docs/MIGRATION_REVIEW.md for how to read the result.
-
-begin transaction read only;
 
 select section, "check", value, meaning from (
   -- Which migrations are installed (by an object each one creates).
@@ -40,5 +39,3 @@ select section, "check", value, meaning from (
   union all select 4, 'records', 'audit events', count(*)::text, 'Append-only; migrations add events only for later changes.' from public.audit_events
 ) checks
 order by ord, section, "check";
-
-rollback;

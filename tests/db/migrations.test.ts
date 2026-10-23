@@ -179,8 +179,8 @@ describe('upgrading an existing database from 002', () => {
 
 describe('pre-production inspection script', () => {
   const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight.sql');
-  /** The SELECT on its own, run inside a read-only transaction like the script's own. */
-  const query = preflight.slice(preflight.indexOf('select section'), preflight.lastIndexOf(';', preflight.indexOf('\nrollback;')) + 1);
+  /** The script is one SELECT after its comments; the test runs it inside a read-only transaction. */
+  const query = preflight.slice(preflight.indexOf('select section'));
 
   it('runs read-only at 002 and at 008, and reports what is installed and what the upgrade will do', async () => {
     const db = await createDatabase({ skip: upgrades.map((f) => f.slice(0, 3)) });
@@ -206,11 +206,45 @@ describe('pre-production inspection script', () => {
     const at008 = await run();
     expect(at008['008 replies and conversion']).toBe('yes');
     expect(at008['businesses']).toBe('6');
-    // The whole script, as written, also runs and changes nothing.
-    await db.exec(preflight);
+    // The whole script, as pasted into the SQL editor, is exactly one statement, so the editor shows its result.
+    expect((await db.exec(preflight)).length).toBe(1);
   });
 
   it('contains nothing that writes', () => {
     expect(code(preflight)).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+  });
+});
+
+describe('after-migrations check', () => {
+  const check = read(join(process.cwd(), 'supabase', 'checks'), 'after-migrations.sql');
+  const results = async (db: PGlite) => (await db.exec(check))[0].rows as { check: string; result: string }[];
+
+  it('is one read-only statement that passes after upgrading existing records from 002 to 008, and flags a missing guard', async () => {
+    const db = await createDatabase({ skip: upgrades.map((f) => f.slice(0, 3)) });
+    await seedExistingWorkspace(db);
+    for (const f of upgrades) await db.exec(read(MIGRATIONS_DIR, f));
+
+    await db.exec('begin transaction read only');
+    try {
+      expect(await db.exec(check)).toHaveLength(1);
+      const ok = await results(db);
+      expect(ok).toHaveLength(18);
+      expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
+    } finally {
+      await db.exec('rollback');
+    }
+
+    await db.exec('begin');
+    try {
+      await db.exec('drop trigger proposals_acceptance_guard on public.proposals');
+      expect((await results(db)).filter((r) => r.result !== 'ok').map((r) => r.check)).toEqual(['safety triggers installed']);
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+
+  it('contains nothing that writes', () => {
+    // Privilege names ('delete', 'update') and labels are string literals here, not statements.
+    expect(code(check).replace(/'[^']*'/g, "''")).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
   });
 });

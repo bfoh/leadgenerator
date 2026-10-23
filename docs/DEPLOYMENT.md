@@ -15,7 +15,7 @@ Never point local development or tests at the production project.
 ## 2. Prerequisites
 
 - Node 20.9 or later (CI uses 22). `npm ci` installs the exact pinned versions.
-- A Supabase project with migrations 001–002 (the production project has them). 003–008 follow docs/MIGRATION_REVIEW.md, after a backup and with the owner's approval.
+- A Supabase project with migrations 001–008 (the production project has them since 2026-10-23). A new project applies them in order following docs/MIGRATION_REVIEW.md, then runs `supabase/checks/after-migrations.sql`.
 - A host project with the repository connected.
 - **Automation defaults to Research only.** Messages to businesses are blocked in this version whatever keys are set. Only the agency's own sandbox recipients can receive anything.
 

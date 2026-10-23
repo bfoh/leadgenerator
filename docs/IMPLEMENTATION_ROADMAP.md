@@ -2,6 +2,8 @@
 
 Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ not started · ⛔ blocked on an external dependency
 
+**Update 2026-10-23:** the owner applied migrations 003–008 to production, and the read-only `supabase/checks/after-migrations.sql` passed there. Phase notes below that say a migration is not applied describe the state when that phase ended. The phases stay 🟡 until their cloud paths and live providers have run for real.
+
 The v7 history is in [IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md). Each phase ends with a report: functionality, files, migrations, environment variables, tests, results, API cost, missing credentials, security notes, remaining work.
 
 | Phase | Scope | Status |

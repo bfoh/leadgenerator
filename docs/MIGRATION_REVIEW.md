@@ -1,6 +1,6 @@
 # Database Migration Review (Phase 10)
 
-Status on 2026-10-23: migrations **001–002 are on the production project; 003–008 are not.** They are tested on PGlite only. Nothing in this review has been run against production.
+Status on 2026-10-23: migrations **001–008 are on the production project.** The owner applied 003–008 on 2026-10-23, and `supabase/checks/after-migrations.sql` passed on production (all 18 checks ok). Before that they were tested on PGlite only.
 
 ## 1. What each migration does to existing data
 
@@ -24,13 +24,14 @@ Every forward migration is additive and re-runnable (`if not exists`, `create or
   - the production path: a 002 database with a v6 lead, five prospects (opted out, permission recorded, outreach stage, won) and an issued proposal is upgraded to 008. Records are unchanged column for column; workflow states are derived correctly; the opted-out business is suppressed; no consent is invented; the old issued proposal can still be decided. The chain is then rolled back to **exactly** the 002 schema (tables, triggers, policies) with records intact, re-applied and run again.
 - Per-migration suites in `tests/db/` (guards, RLS, re-running, rollback order).
 - `supabase/checks/preflight.sql` runs read-only at 002 and at 008 (tested).
+- `supabase/checks/after-migrations.sql` passes after the upgrade and flags a missing safety trigger (tested).
 
 **Limits of PGlite.** The auth schema and roles are stubbed. pg_cron, pg_net and Supabase's own extensions are absent. Default privileges are approximated. Performance on large tables is not measured. A staging run on real Supabase (§3 step 3) covers these.
 
 ## 3. Applying 003–008 to production
 
 1. **Back up** (docs/BACKUPS.md §2) and note the point-in-time recovery timestamp.
-2. **Inspect:** run `supabase/checks/preflight.sql` in the SQL editor and save the output. It is read only and rolled back. Look at:
+2. **Inspect:** run `supabase/checks/preflight.sql` in the SQL editor and save the output. It is a single read-only SELECT. Look at:
    - opted-out businesses (they will be suppressed);
    - businesses with permission on the profile (no consent record is created; people record consent before any message);
    - the businesses table size (003 rewrites each row once).
@@ -40,6 +41,6 @@ Every forward migration is additive and re-runnable (`if not exists`, `create or
    ```bash
    psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f supabase/migrations/003_automation_infrastructure.sql
    ```
-   (or paste one whole file per run in the SQL editor). Re-run the preflight after each file; the matching `installed` row turns to `yes`.
+   (or paste one whole file per run in the SQL editor). Re-run the preflight after each file; the matching `installed` row turns to `yes`. After 008, run `supabase/checks/after-migrations.sql`: every row should say `ok` (tested on PGlite after a 002→008 upgrade with existing records).
 6. **Deploy** the application. It works with any prefix of the migrations; features whose tables are missing say "database update required".
 7. **If a step fails:** the transaction leaves nothing behind. Fix the cause and re-run the same file. To undo a completed migration, use its rollback (newest first), or restore the backup (docs/BACKUPS.md §4).

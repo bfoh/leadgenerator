@@ -40,7 +40,7 @@ Date: 2026-10-23. Scope: the Next.js application (pages, route handlers, proxy),
 | R-2 | Medium | **Open sign-up.** With Supabase sign-ups on, anyone can create a workspace and use metered tools within the quotas. | Turn off "Allow new users to sign up" and invite teammates (runbook §1). |
 | R-3 | Low | **`'unsafe-inline'` scripts in the CSP.** Needed for Next's bootstrap and the theme script without nonces (nonces would make every page dynamic). Mitigated by React escaping, no HTML rendering of stored text, and `connect-src` limits. | Revisit with Next's hash-based (SRI) CSP once it is stable. |
 | R-4 | Low | **Supabase session cookies are readable by page script** (the browser client needs them). An XSS could use the session. | Same mitigations as R-3; keep `dangerouslySetInnerHTML` limited to the static theme script (it is today). |
-| R-5 | Low | **Production schema unverified.** Migrations 003–008 are tested on PGlite, not yet on the live Supabase project. | Follow `docs/MIGRATION_REVIEW.md` §3 (backup, preflight, staging copy, then production with approval). |
+| R-5 | Low (closed) | **Production schema unverified.** Closed on 2026-10-23: the owner applied 003–008 to the live project, and `supabase/checks/after-migrations.sql` passed there (opt-outs suppressed, outbound blocked, append-only privileges and safety triggers in place). A probe with the public key was refused on every new table. | For later migrations, follow `docs/MIGRATION_REVIEW.md` §3. |
 | R-6 | Info | **No third-party test.** | Commission a penetration test before real outbound messaging is turned on. |
 | R-7 | Info | **Webhook endpoints are not rate limited**; signature checks run first and are cheap, and unsigned requests are refused. | Covered by R-1. |
 
