@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { settleTransitions } from './settle';
 
 const PAGES = [
   ['/', 'Overview'],
@@ -33,6 +34,7 @@ for (const [path, heading] of PAGES) {
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
     for (const scheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: scheme });
+      await settleTransitions(page);
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
       expect(serious.map((v) => `${scheme}: ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);

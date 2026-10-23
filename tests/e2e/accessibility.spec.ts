@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { settleTransitions } from './settle';
 
 // Accessibility review (phase 10), beyond the page sweep in navigation.spec.ts: every tab of a
 // prospect profile, the proposal editor and the print views, in light and dark; keyboard use (skip
@@ -8,6 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function axe(page: Page, label: string) {
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settleTransitions(page);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     expect(serious.map((v) => `${label} (${scheme}): ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);
