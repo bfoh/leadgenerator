@@ -1,0 +1,431 @@
+'use client';
+
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import type { z } from 'zod';
+import * as svc from '@/lib/data/services';
+import {
+  BUDGET_LABELS,
+  BUDGET_SIGNALS,
+  BUSINESS_STATUSES,
+  BUSINESS_STATUS_LABELS,
+  INTEREST_LABELS,
+  INTEREST_LEVELS,
+  SOCIAL_PLATFORMS,
+  SOURCE_KINDS,
+  SOURCE_KIND_LABELS,
+  type SocialPlatform,
+} from '@/lib/domain/constants';
+import { findDuplicates } from '@/lib/domain/dedupe';
+import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
+import { businessFormSchema, businessToForm, fieldErrors, type BusinessForm } from '@/lib/domain/schemas';
+import { allCategories } from '@/lib/domain/settings';
+import type { Business, BusinessInsert } from '@/lib/domain/types';
+import { useAction, useBusinesses } from '@/lib/workspace/hooks';
+import { useWorkspace } from '@/lib/workspace/workspace-provider';
+import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
+import { Field, FormError, Input, Select, Textarea } from '@/components/ui/field';
+import { Notice } from '@/components/ui/misc';
+
+type FormInput = z.input<typeof businessFormSchema>;
+
+const PLATFORM_LABELS: Record<SocialPlatform, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  x: 'X',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  whatsapp_business: 'WhatsApp Business',
+  other: 'Other',
+};
+
+export function emptyBusinessForm(overrides: Partial<FormInput> = {}): FormInput {
+  return {
+    name: '',
+    category: '',
+    country: 'GH',
+    region: 'Greater Accra',
+    city: 'Accra',
+    neighborhood: '',
+    address: '',
+    businessStatus: 'unknown',
+    officialWebsite: '',
+    socialProfiles: [],
+    enquiryChannel: '',
+    phone: '',
+    email: '',
+    contactSource: '',
+    interestLevel: 'unknown',
+    budgetSignal: 'unknown',
+    serviceNeeds: [],
+    estimatedValue: '',
+    expectedCloseDate: '',
+    nextAction: '',
+    nextActionDue: '',
+    notes: '',
+    sourceUrl: '',
+    sourceKind: 'manual',
+    placesPlaceId: '',
+    ...overrides,
+  };
+}
+
+function text(v: unknown) {
+  return v == null ? '' : String(v);
+}
+
+export function BusinessFormDialog({
+  open,
+  onOpenChange,
+  business,
+  initial,
+  extra,
+  notice,
+  requireIndependentSource,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  business?: Business;
+  initial?: Partial<FormInput>;
+  extra?: Partial<BusinessInsert>;
+  notice?: React.ReactNode;
+  /** Places content cannot be stored: the record must cite a non-Google source for its details. */
+  requireIndependentSource?: boolean;
+  onSaved?: (business: Business) => void;
+}) {
+  const { settings } = useWorkspace();
+  const { data: existing = [] } = useBusinesses();
+  const [form, setForm] = useState<FormInput>(() => (business ? businessToForm(business) : emptyBusinessForm(initial)));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const create = useAction((ctx, f: BusinessForm) => svc.createBusiness(ctx, f, extra), {
+    success: 'Research candidate added',
+    onSuccess: (b) => {
+      onOpenChange(false);
+      onSaved?.(b);
+    },
+  });
+  const update = useAction((ctx, b: Business, f: BusinessForm) => svc.updateBusinessProfile(ctx, b, f), {
+    success: 'Profile saved',
+    onSuccess: (b) => {
+      onOpenChange(false);
+      onSaved?.(b);
+    },
+  });
+
+  const set = <K extends keyof FormInput>(key: K, value: FormInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const country = findCountry(text(form.country));
+  const categories = allCategories(settings);
+  const duplicates = useMemo(
+    () =>
+      text(form.name).trim().length > 2
+        ? findDuplicates(
+            { id: business?.id, name: text(form.name), city: text(form.city), officialWebsite: text(form.officialWebsite) || null, phone: text(form.phone) || null, placesPlaceId: text(form.placesPlaceId) || null },
+            existing,
+          ).slice(0, 3)
+        : [],
+    [form.name, form.city, form.officialWebsite, form.phone, form.placesPlaceId, existing, business?.id],
+  );
+  const socials = (form.socialProfiles ?? []) as { platform: SocialPlatform; url: string }[];
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    const parsed = businessFormSchema.safeParse({
+      ...form,
+      socialProfiles: socials.filter((s) => s.url.trim()),
+      serviceNeeds: ((form.serviceNeeds ?? []) as string[]).map((s) => s.trim()).filter(Boolean),
+    });
+    if (!parsed.success) {
+      setErrors(fieldErrors(parsed.error));
+      setFormError('Check the highlighted fields.');
+      return;
+    }
+    if (requireIndependentSource) {
+      const source = parsed.data.sourceUrl;
+      if (!source || /(^|\.)(google\.[a-z.]+|goo\.gl|g\.page)$/i.test(new URL(source).hostname)) {
+        setErrors({ sourceUrl: 'Add a non-Google source that confirms these details (e.g. the business’s own page or a directory listing).' });
+        setFormError('Check the highlighted fields.');
+        return;
+      }
+    }
+    setErrors({});
+    if (duplicates.some((d) => d.strength === 'exact') && !business) {
+      setFormError('This business is already tracked. Open the existing record instead.');
+      return;
+    }
+    if (business) await update.run(business, parsed.data);
+    else await create.run(parsed.data);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      size="lg"
+      title={business ? `Edit ${business.name}` : 'Add research candidate'}
+      description={business ? 'Changes are recorded in the audit trail.' : 'Record what you know. Leave anything unconfirmed blank — it will show as unknown.'}
+      footer={
+        <>
+          <Button onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="primary" type="submit" form="business-form" loading={create.pending || update.pending}>
+            {business ? 'Save changes' : 'Add candidate'}
+          </Button>
+        </>
+      }
+    >
+      <form id="business-form" onSubmit={submit} noValidate className="space-y-6">
+        {notice}
+        {duplicates.length > 0 && (
+          <Notice tone={duplicates[0].strength === 'exact' ? 'danger' : 'warning'} icon={AlertTriangle} title="Possible duplicate">
+            <ul className="space-y-0.5">
+              {duplicates.map((d) => (
+                <li key={d.record.id}>
+                  <Link href={`/prospects/${d.record.id}`} target="_blank">
+                    {d.record.name}
+                  </Link>{' '}
+                  ({d.record.city}) — {d.reasons.join(', ')}
+                </li>
+              ))}
+            </ul>
+          </Notice>
+        )}
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Business</legend>
+          <Field label="Business name" required error={errors.name} className="sm:col-span-2">
+            {(p) => <Input {...p} value={text(form.name)} onChange={(e) => set('name', e.target.value)} autoFocus />}
+          </Field>
+          <Field label="Category" required error={errors.category}>
+            {(p) => (
+              <>
+                <Input {...p} list="category-options" value={text(form.category)} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Furniture showroom" />
+                <datalist id="category-options">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
+          <Field label="Operating status" error={errors.businessStatus}>
+            {(p) => (
+              <Select {...p} value={text(form.businessStatus)} onChange={(e) => set('businessStatus', e.target.value as FormInput['businessStatus'])}>
+                {BUSINESS_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {BUSINESS_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Location</legend>
+          <Field label="Country" error={errors.country}>
+            {(p) => (
+              <Select {...p} value={text(form.country)} onChange={(e) => set('country', e.target.value)}>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Region" error={errors.region}>
+            {(p) => (
+              <Select {...p} value={text(form.region)} onChange={(e) => set('region', e.target.value)}>
+                <option value="">Not recorded</option>
+                {country?.regions.map((r) => (
+                  <option key={r.name} value={r.name}>
+                    {r.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="City / town" required error={errors.city}>
+            {(p) => (
+              <>
+                <Input
+                  {...p}
+                  list="city-options"
+                  value={text(form.city)}
+                  onChange={(e) => {
+                    const city = e.target.value;
+                    setForm((f) => ({ ...f, city, region: regionForCity(city, text(f.country)) ?? f.region }));
+                  }}
+                />
+                <datalist id="city-options">
+                  {citiesFor(text(form.country), text(form.region) || null).map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
+          <Field label="Neighbourhood" error={errors.neighborhood}>
+            {(p) => (
+              <>
+                <Input {...p} list="neighborhood-options" value={text(form.neighborhood)} onChange={(e) => set('neighborhood', e.target.value)} />
+                <datalist id="neighborhood-options">
+                  {neighborhoodsFor(text(form.city), text(form.country)).map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
+          <Field label="Address or landmark" error={errors.address} className="sm:col-span-2">
+            {(p) => <Input {...p} value={text(form.address)} onChange={(e) => set('address', e.target.value)} />}
+          </Field>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Online presence</legend>
+          <Field
+            label="Official website (if confirmed)"
+            error={errors.officialWebsite}
+            hint="Website status is set by documented verification, not here."
+            className="sm:col-span-2"
+          >
+            {(p) => <Input {...p} value={text(form.officialWebsite)} onChange={(e) => set('officialWebsite', e.target.value)} placeholder="example.com.gh" />}
+          </Field>
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-xs font-medium text-muted">Business-declared social profiles</p>
+            {socials.map((s, i) => (
+              <div key={i} className="flex gap-2">
+                <Select
+                  aria-label="Platform"
+                  className="w-40"
+                  value={s.platform}
+                  onChange={(e) => set('socialProfiles', socials.map((x, j) => (j === i ? { ...x, platform: e.target.value as SocialPlatform } : x)))}
+                >
+                  {SOCIAL_PLATFORMS.map((pl) => (
+                    <option key={pl} value={pl}>
+                      {PLATFORM_LABELS[pl]}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  aria-label="Profile URL"
+                  aria-invalid={errors[`socialProfiles.${i}.url`] ? true : undefined}
+                  value={s.url}
+                  placeholder="https://"
+                  onChange={(e) => set('socialProfiles', socials.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                />
+                <Button size="icon" variant="ghost" aria-label="Remove profile" onClick={() => set('socialProfiles', socials.filter((_, j) => j !== i))}>
+                  <Trash2 />
+                </Button>
+              </div>
+            ))}
+            {Object.keys(errors).some((k) => k.startsWith('socialProfiles')) && <p className="text-xs text-danger">Each profile needs a full http(s) URL.</p>}
+            <Button size="sm" variant="ghost" onClick={() => set('socialProfiles', [...socials, { platform: 'facebook', url: '' }])}>
+              <Plus /> Add profile
+            </Button>
+          </div>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-subtle">Business contact details</legend>
+          <p className="text-xs text-subtle sm:col-span-2">
+            Record only business contact details the business published itself. A listed number is not permission to market to it — permission is recorded separately.
+          </p>
+          <Field label="Enquiry channel" hint="e.g. Showroom front desk, Instagram DMs" error={errors.enquiryChannel}>
+            {(p) => <Input {...p} value={text(form.enquiryChannel)} onChange={(e) => set('enquiryChannel', e.target.value)} />}
+          </Field>
+          <Field label="Business phone" error={errors.phone}>
+            {(p) => <Input {...p} type="tel" value={text(form.phone)} onChange={(e) => set('phone', e.target.value)} />}
+          </Field>
+          <Field label="Business email" error={errors.email}>
+            {(p) => <Input {...p} type="email" value={text(form.email)} onChange={(e) => set('email', e.target.value)} />}
+          </Field>
+          <Field label="Where the contact details were published" error={errors.contactSource}>
+            {(p) => <Input {...p} value={text(form.contactSource)} onChange={(e) => set('contactSource', e.target.value)} placeholder="e.g. Facebook page About section" />}
+          </Field>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Commercial (as stated by the business)</legend>
+          <Field label="Interest level" error={errors.interestLevel}>
+            {(p) => (
+              <Select {...p} value={text(form.interestLevel)} onChange={(e) => set('interestLevel', e.target.value as FormInput['interestLevel'])}>
+                {INTEREST_LEVELS.map((s) => (
+                  <option key={s} value={s}>
+                    {INTEREST_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Budget signal" error={errors.budgetSignal}>
+            {(p) => (
+              <Select {...p} value={text(form.budgetSignal)} onChange={(e) => set('budgetSignal', e.target.value as FormInput['budgetSignal'])}>
+                {BUDGET_SIGNALS.map((s) => (
+                  <option key={s} value={s}>
+                    {BUDGET_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Service needs" hint="Comma-separated, e.g. Online catalogue, Booking" error={errors.serviceNeeds} className="sm:col-span-2">
+            {(p) => (
+              <Input
+                {...p}
+                value={((form.serviceNeeds ?? []) as string[]).join(', ')}
+                onChange={(e) =>
+                  set(
+                    'serviceNeeds',
+                    e.target.value.split(',').map((s, i, all) => (i < all.length - 1 ? s.trim() : s.trimStart())).filter((s, i, all) => s || i === all.length - 1),
+                  )
+                }
+              />
+            )}
+          </Field>
+          <Field label="Estimated value (GHS)" hint="Only once discussed with the business" error={errors.estimatedValue}>
+            {(p) => <Input {...p} inputMode="decimal" value={text(form.estimatedValue)} onChange={(e) => set('estimatedValue', e.target.value)} />}
+          </Field>
+          <Field label="Expected close date" error={errors.expectedCloseDate}>
+            {(p) => <Input {...p} type="date" value={text(form.expectedCloseDate)} onChange={(e) => set('expectedCloseDate', e.target.value)} />}
+          </Field>
+          <Field label="Next action" error={errors.nextAction}>
+            {(p) => <Input {...p} value={text(form.nextAction)} onChange={(e) => set('nextAction', e.target.value)} />}
+          </Field>
+          <Field label="Next action due" error={errors.nextActionDue}>
+            {(p) => <Input {...p} type="date" value={text(form.nextActionDue)} onChange={(e) => set('nextActionDue', e.target.value)} />}
+          </Field>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Source and notes</legend>
+          <Field label="Source URL" hint="Where this business was found (directory page, search result, referral note link)" error={errors.sourceUrl}>
+            {(p) => <Input {...p} value={text(form.sourceUrl)} onChange={(e) => set('sourceUrl', e.target.value)} placeholder="https://" />}
+          </Field>
+          <Field label="Source type" error={errors.sourceKind}>
+            {(p) => (
+              <Select {...p} value={text(form.sourceKind)} onChange={(e) => set('sourceKind', e.target.value as FormInput['sourceKind'])}>
+                {SOURCE_KINDS.filter((s) => s !== 'legacy_seed' || form.sourceKind === 'legacy_seed').map((s) => (
+                  <option key={s} value={s}>
+                    {SOURCE_KIND_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Research notes" error={errors.notes} className="sm:col-span-2">
+            {(p) => <Textarea {...p} rows={4} value={text(form.notes)} onChange={(e) => set('notes', e.target.value)} />}
+          </Field>
+        </fieldset>
+        <FormError message={formError} />
+      </form>
+    </Dialog>
+  );
+}

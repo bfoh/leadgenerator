@@ -1,0 +1,49 @@
+import 'server-only';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { processQueue, type QueueRunSummary } from '@/lib/automation/engine';
+import { MIGRATION_REQUIRED, SupabaseAutomationStore } from '@/lib/automation/supabase-store';
+import type { ServiceContext } from '@/lib/data/services';
+import { SupabaseStore } from '@/lib/data/supabase-store';
+import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { serviceRoleKey } from '@/lib/supabase/service';
+import type { RequestContext } from '../context';
+import { serverEnv } from '../env';
+import { HttpError } from '../http';
+import { serverToolGateway } from './tools';
+
+/** The scheduled worker runs only when Supabase, CRON_SECRET and the service-role key are all set. */
+export function isBackgroundWorkerConfigured() {
+  return Boolean(isSupabaseConfigured() && serverEnv.cronSecret() && serviceRoleKey());
+}
+
+/** Placeholder actor for the scheduled worker. Agents never write it into user-id columns. */
+export const WORKER_ACTOR = 'automation-worker';
+
+/**
+ * Processes due jobs for one organization. With a member's session the worker can do only what that
+ * member's role allows (RLS); with the service-role client every query is still scoped to `orgId`.
+ */
+export async function runOrganizationQueue(options: {
+  supabase: SupabaseClient;
+  orgId: string;
+  requestCtx: Exclude<RequestContext, { mode: 'demo' }>;
+  actorLabel: string;
+  workerId: string;
+  maxJobs: number;
+  deadlineMs: number;
+}): Promise<QueueRunSummary> {
+  const automation = new SupabaseAutomationStore(options.supabase, options.orgId);
+  if (!(await automation.isAvailable())) throw new HttpError(409, MIGRATION_REQUIRED);
+  const store = new SupabaseStore(options.supabase, options.orgId);
+  const svc: ServiceContext = {
+    store,
+    settings: await store.getSettings(),
+    userId: options.requestCtx.userId ?? WORKER_ACTOR,
+    userLabel: options.actorLabel,
+  };
+  return processQueue(
+    { automation, svc, tools: serverToolGateway(options.requestCtx), workerId: options.workerId, outboundAvailable: false },
+    { maxJobs: options.maxJobs, deadlineMs: options.deadlineMs },
+  );
+}

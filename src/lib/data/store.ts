@@ -1,0 +1,221 @@
+// Persistence contract shared by demo mode (LocalStore) and cloud mode (SupabaseStore).
+// Business rules live in services.ts, not in implementations.
+
+import type { WorkflowTransition } from '@/lib/automation/types';
+import type { Role } from '@/lib/domain/constants';
+import type { ConsentInsert, ConsentRecord, ContactPoint, ContactPointInsert, ContactPointPatch, Suppression, SuppressionInsert } from '@/lib/domain/contacts';
+import type { ChangeRequest, ChangeRequestInsert, ChangeRequestPatch } from '@/lib/domain/conversion';
+import type { MergeableField } from '@/lib/domain/identity';
+import type {
+  DecisionInsert,
+  EligibilityDecision,
+  InboundInsert,
+  InboundMessage,
+  InboundPatch,
+  MessageEventPatch,
+  MessagePolicy,
+  MessagePolicyInsert,
+  MessagePolicyPatch,
+  MessageStatus,
+  MessageTemplate,
+  OutreachMessage,
+  OutreachMessageInsert,
+  OutreachMessagePatch,
+  TemplateInsert,
+  TemplatePatch,
+} from '@/lib/domain/messaging';
+import type { ClassificationInsert, ReplyClassification } from '@/lib/domain/replies';
+import type { OrgSettings } from '@/lib/domain/settings';
+import type {
+  Activity,
+  ActivityInsert,
+  AuditEvent,
+  AuditFinding,
+  AuditFindingInsert,
+  Business,
+  BusinessInsert,
+  IdentityLink,
+  IdentityLinkInsert,
+  Invitation,
+  Member,
+  MilestoneInsert,
+  OpportunityReport,
+  Project,
+  ProjectInsert,
+  ProjectMilestone,
+  Proposal,
+  ProposalInsert,
+  ProposalVersion,
+  ReportInsert,
+  Task,
+  TaskInsert,
+  UsageInsert,
+  UsageRecord,
+  VerificationInsert,
+  WebsiteVerification,
+} from '@/lib/domain/types';
+
+export interface DataStore {
+  readonly mode: 'demo' | 'cloud';
+
+  listBusinesses(): Promise<Business[]>;
+  getBusiness(id: string): Promise<Business | null>;
+  createBusiness(input: BusinessInsert): Promise<Business>;
+  updateBusiness(id: string, patch: Partial<BusinessInsert>): Promise<Business>;
+  deleteBusiness(id: string): Promise<void>;
+  /** Automation lifecycle history (migration 003); empty when the database predates it. */
+  listWorkflowTransitions(businessId?: string): Promise<WorkflowTransition[]>;
+
+  listVerifications(businessId?: string): Promise<WebsiteVerification[]>;
+  createVerification(input: VerificationInsert): Promise<WebsiteVerification>;
+  /** Agent records accept only review changes (reviewStatus, reviewNote); see migration 004. */
+  updateVerification(id: string, patch: Partial<VerificationInsert>): Promise<WebsiteVerification>;
+
+  /** False when the cloud database has not had migration 004 (identity, audit, agent evidence). */
+  researchSchemaAvailable(): Promise<boolean>;
+  listIdentityLinks(businessId?: string): Promise<IdentityLink[]>;
+  createIdentityLink(input: IdentityLinkInsert): Promise<IdentityLink>;
+  updateIdentityLink(id: string, patch: Partial<Pick<IdentityLink, 'relation' | 'status' | 'note'>>): Promise<IdentityLink>;
+  /** Owners/admins: archives the secondary as merged into the primary, copies the listed empty fields, carries opt-outs over. */
+  mergeBusinesses(primaryId: string, secondaryId: string, fields: MergeableField[], note: string | null): Promise<{ primary: Business; secondary: Business }>;
+  /** Owners/admins: restores a merged record to its previous stage and marks the pair as different businesses. */
+  undoMerge(secondaryId: string): Promise<Business>;
+  listAuditFindings(businessId?: string): Promise<AuditFinding[]>;
+  createAuditFindings(input: AuditFindingInsert[]): Promise<AuditFinding[]>;
+  /** Findings are evidence records: only their review fields change. */
+  updateAuditFinding(id: string, patch: Partial<Pick<AuditFinding, 'reviewStatus' | 'reviewNote'>>): Promise<AuditFinding>;
+
+  /** False when the cloud database has not had migration 005 (contact points, consent, suppression). */
+  contactSchemaAvailable(): Promise<boolean>;
+  listContactPoints(businessId?: string): Promise<ContactPoint[]>;
+  /** Provenance is fixed at insert; a corrected value is a new record. */
+  createContactPoints(input: ContactPointInsert[]): Promise<ContactPoint[]>;
+  updateContactPoint(id: string, patch: ContactPointPatch): Promise<ContactPoint>;
+  /** Owners/admins. Consent history and suppressions are kept. */
+  deleteContactPoints(ids: string[]): Promise<void>;
+  listConsentRecords(businessId?: string): Promise<ConsentRecord[]>;
+  /** Append-only and recorded by a signed-in person. A withdrawal suppresses the contact. */
+  createConsentRecord(input: ConsentInsert): Promise<ConsentRecord>;
+  listSuppressions(): Promise<Suppression[]>;
+  createSuppression(input: SuppressionInsert): Promise<Suppression>;
+  /** Owners/admins, against a newer consent record. Suppressions are never deleted. */
+  liftSuppression(id: string, lift: { reason: string; consentId: string }): Promise<Suppression>;
+
+  /** False when the cloud database has not had migration 006 (templates, outbound queue, received messages). */
+  messagingSchemaAvailable(): Promise<boolean>;
+  listTemplates(): Promise<MessageTemplate[]>;
+  /** Owners/admins. New templates are drafts; editing content returns a template to draft. */
+  createTemplate(input: TemplateInsert): Promise<MessageTemplate>;
+  /** Email: owners/admins approve, pause and disable. WhatsApp status comes from Meta (people may only disable). */
+  updateTemplate(id: string, patch: TemplatePatch): Promise<MessageTemplate>;
+  deleteTemplate(id: string): Promise<void>;
+  listOutreachMessages(businessId?: string): Promise<OutreachMessage[]>;
+  getOutreachMessage(id: string): Promise<OutreachMessage | null>;
+  /** Always a draft; the store computes the body hash. */
+  createOutreachMessage(input: OutreachMessageInsert): Promise<OutreachMessage>;
+  /** Draft edits, and the moves people make: approve (with a current decision), back to draft, queue, cancel. */
+  updateOutreachMessage(id: string, patch: OutreachMessagePatch): Promise<OutreachMessage>;
+  /**
+   * Dispatch and delivery facts. The database accepts them only from the server's service-role
+   * client; demo mode's simulated provider uses it too. With expectedStatus the change applies only
+   * if the message still has that status (null otherwise), so two dispatchers cannot both send.
+   */
+  recordMessageEvent(id: string, patch: MessageEventPatch, expectedStatus?: MessageStatus): Promise<OutreachMessage | null>;
+  /** Owners/admins; drafts and cancelled messages only. */
+  deleteOutreachMessage(id: string): Promise<void>;
+  listDecisions(messageId?: string): Promise<EligibilityDecision[]>;
+  /** Append-only. */
+  createDecision(input: DecisionInsert): Promise<EligibilityDecision>;
+  listInboundMessages(businessId?: string): Promise<InboundMessage[]>;
+  /** Idempotent per provider message ID. People may only log provider 'manual'; an opt-out suppresses the sender. */
+  createInboundMessage(input: InboundInsert): Promise<{ message: InboundMessage; created: boolean }>;
+  updateInboundMessage(id: string, patch: InboundPatch): Promise<InboundMessage>;
+
+  /** False when the cloud database has not had migration 007 (approved-message policies, sending policy). */
+  sendingSchemaAvailable(): Promise<boolean>;
+  listMessagePolicies(): Promise<MessagePolicy[]>;
+  /** Owners/admins. Covers the template's current approved version; the creator is the approver. */
+  createMessagePolicy(input: MessagePolicyInsert): Promise<MessagePolicy>;
+  /** Owners/admins: rename, change the cap or note, pause, resume, revoke (final). Policies are never deleted. */
+  updateMessagePolicy(id: string, patch: MessagePolicyPatch): Promise<MessagePolicy>;
+  /** Audit events for the named tables (database names), newest first. */
+  listAuditTrail(tables: string[], limit?: number): Promise<AuditEvent[]>;
+
+  /** False when the cloud database has not had migration 008 (reply classifications, proposal change requests). */
+  conversionSchemaAvailable(): Promise<boolean>;
+  /** Newest first; for the given received messages only, when listed (a message's prospect can change after it arrives). */
+  listReplyClassifications(inboundMessageIds?: readonly string[]): Promise<ReplyClassification[]>;
+  /** Append-only. An opt-out reply can only be classified as an opt-out; corrections by people use source 'person'. */
+  createReplyClassification(input: ClassificationInsert): Promise<ReplyClassification>;
+  listChangeRequests(businessId?: string): Promise<ChangeRequest[]>;
+  /** Against an approved or issued proposal; starts open. */
+  createChangeRequest(input: ChangeRequestInsert): Promise<ChangeRequest>;
+  /** Owners/admins approve or decline (with a note); the requester or an owner/admin withdraws. Final. */
+  updateChangeRequest(id: string, patch: ChangeRequestPatch): Promise<ChangeRequest>;
+
+  listActivities(businessId?: string): Promise<Activity[]>;
+  createActivity(input: ActivityInsert): Promise<Activity>;
+
+  listTasks(): Promise<Task[]>;
+  createTask(input: TaskInsert): Promise<Task>;
+  updateTask(id: string, patch: Partial<TaskInsert>): Promise<Task>;
+  deleteTask(id: string): Promise<void>;
+
+  listReports(businessId?: string): Promise<OpportunityReport[]>;
+  createReport(input: ReportInsert): Promise<OpportunityReport>;
+
+  listProposals(): Promise<Proposal[]>;
+  getProposal(id: string): Promise<Proposal | null>;
+  createProposal(input: ProposalInsert): Promise<Proposal>;
+  updateProposal(id: string, patch: Partial<ProposalInsert>): Promise<Proposal>;
+  deleteProposal(id: string): Promise<void>;
+  listProposalVersions(proposalId: string): Promise<ProposalVersion[]>;
+
+  listProjects(): Promise<Project[]>;
+  createProject(input: ProjectInsert): Promise<Project>;
+  updateProject(id: string, patch: Partial<ProjectInsert>): Promise<Project>;
+  listMilestones(projectId?: string): Promise<ProjectMilestone[]>;
+  createMilestone(input: MilestoneInsert): Promise<ProjectMilestone>;
+  updateMilestone(id: string, patch: Partial<MilestoneInsert>): Promise<ProjectMilestone>;
+  deleteMilestone(id: string): Promise<void>;
+
+  getSettings(): Promise<OrgSettings>;
+  updateSettings(settings: OrgSettings, organizationName?: string): Promise<OrgSettings>;
+
+  listAuditEvents(recordId: string): Promise<AuditEvent[]>;
+  listUsage(sinceIso: string): Promise<UsageRecord[]>;
+  /** Insert-only usage log: client-side charges in demo mode, and data exports in both modes. */
+  recordUsage(usage: UsageInsert): Promise<void>;
+
+  listMembers(): Promise<Member[]>;
+  listInvitations(): Promise<Invitation[]>;
+  createInvitation(email: string, role: Role): Promise<Invitation>;
+  deleteInvitation(id: string): Promise<void>;
+  updateMemberRole(userId: string, role: Role): Promise<void>;
+  removeMember(userId: string): Promise<void>;
+}
+
+export class StoreError extends Error {
+  constructor(
+    message: string,
+    readonly code: 'not_found' | 'forbidden' | 'conflict' | 'invalid' | 'unavailable' = 'invalid',
+  ) {
+    super(message);
+    this.name = 'StoreError';
+  }
+}
+
+export const RESEARCH_MIGRATION_REQUIRED =
+  'Apply database migration 004 (supabase/migrations/004_research_verification.sql) to use agent verification, identity, audit and score override features.';
+
+export const MESSAGING_MIGRATION_REQUIRED =
+  'Apply database migration 006 (supabase/migrations/006_messaging.sql) to use message templates, the outbound queue and received messages.';
+
+export const SENDING_MIGRATION_REQUIRED =
+  'Apply database migration 007 (supabase/migrations/007_sending_policy.sql) to use message policies, quiet hours, daily limits and scheduling.';
+
+export const CONVERSION_MIGRATION_REQUIRED =
+  'Apply database migration 008 (supabase/migrations/008_response_conversion.sql) to use reply classification and proposal change requests.';
+
+export const CONTACTS_MIGRATION_REQUIRED =
+  'Apply database migration 005 (supabase/migrations/005_contact_intelligence.sql) to use contact points, consent records and the suppression list.';
