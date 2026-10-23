@@ -106,6 +106,18 @@ export const ARCHETYPES: Archetype[] = [
     phases: ['Inventory model', 'Design', 'Build & import', 'Launch'],
   },
   {
+    key: 'health-facility',
+    name: 'Health facility website',
+    targetBusiness: 'Clinics, hospitals, herbal clinics and pharmacies',
+    pages: ['Home', 'Services', 'Doctors and staff', 'Opening hours and emergencies', 'Appointments or enquiries', 'Location', 'Contact'],
+    features: ['Services and departments', 'Opening hours, emergency contacts and directions', 'Appointment or availability requests that collect only what is needed', 'WhatsApp enquiries'],
+    designDirection: 'Calm and trustworthy: clear hierarchy, high contrast, large tap targets, quick to load on mobile data.',
+    integrations: ['Appointment scheduling', 'WhatsApp', 'Google Business Profile links', 'Analytics that records no health information'],
+    clientAssets: ['Services and departments', 'Opening hours and emergency contacts', 'Staff profiles and photos (with their consent)', 'Licences or accreditation the facility chooses to show'],
+    complexity: 'Medium',
+    phases: ['Service mapping', 'Design', 'Build and enquiry flow', 'Content review by the facility, then launch'],
+  },
+  {
     key: 'corporate',
     name: 'Corporate website',
     targetBusiness: 'Professional services, training institutions, event planners and studios',

@@ -3,7 +3,7 @@ import 'server-only';
 import { countryName } from '@/lib/domain/geo';
 import { searchTermForCategory } from '@/lib/domain/categories';
 import { serverEnv } from '../env';
-import { ProviderError, type DiscoveryPage, type DiscoveryProvider, type DiscoveryQuery, type DiscoveryResult } from './discovery';
+import { ProviderError, searchArea, type DiscoveryPage, type DiscoveryProvider, type DiscoveryQuery, type DiscoveryResult } from './discovery';
 
 // Google Places API (New). Results are displayed transiently; only the Place ID may be stored.
 // https://developers.google.com/maps/documentation/places/web-service/policies
@@ -92,7 +92,7 @@ async function call(url: string, init: RequestInit, signal: AbortSignal) {
 
 export function placesTextQuery(q: DiscoveryQuery) {
   const what = q.terms?.trim() || searchTermForCategory(q.category);
-  const where = [q.neighborhood, q.city, countryName(q.country)].filter(Boolean).join(', ');
+  const where = [searchArea(q), countryName(q.country)].filter(Boolean).join(', ');
   return `${what} in ${where}`;
 }
 

@@ -6,12 +6,19 @@ import 'server-only';
 export interface DiscoveryQuery {
   country: string;
   region: string | null;
-  city: string;
+  /** Null searches the whole region. */
+  city: string | null;
   neighborhood: string | null;
   category: string;
   terms: string | null;
   limit: number;
   pageToken: string | null;
+}
+
+/** Where a search looks: the town (and neighbourhood), or the whole region when no town is given. */
+export function searchArea(q: Pick<DiscoveryQuery, 'region' | 'city' | 'neighborhood'>): string {
+  const region = q.region && (/\bregion$/i.test(q.region) ? q.region : `${q.region} Region`);
+  return [q.neighborhood, q.city ?? region].filter(Boolean).join(', ');
 }
 
 export interface DiscoveryResult {

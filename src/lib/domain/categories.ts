@@ -14,6 +14,8 @@ export type TrackKey =
   | 'fitness'
   | 'education'
   | 'professional'
+  | 'health'
+  | 'pharmacy'
   | 'general';
 
 export interface CategoryDefinition {
@@ -39,6 +41,10 @@ export const DEFAULT_CATEGORIES: CategoryDefinition[] = [
   { label: 'Gym', searchTerm: 'gym', track: 'fitness' },
   { label: 'Training institution', searchTerm: 'training institute', track: 'education' },
   { label: 'Professional services', searchTerm: 'consulting firm', track: 'professional' },
+  { label: 'Clinic', searchTerm: 'medical clinic', track: 'health' },
+  { label: 'Hospital', searchTerm: 'hospital', track: 'health' },
+  { label: 'Herbal clinic', searchTerm: 'herbal clinic', track: 'health' },
+  { label: 'Pharmacy', searchTerm: 'pharmacy', track: 'pharmacy' },
 ];
 
 const KEYWORDS: [RegExp, TrackKey][] = [
@@ -48,12 +54,14 @@ const KEYWORDS: [RegExp, TrackKey][] = [
   [/beaut|salon|spa|barber|nail|cosmetic/i, 'beauty'],
   [/hotel|guest|lodge|hostel|resort|hospitality/i, 'hospitality'],
   [/restaurant|bakery|cafe|café|food|catering|bar\b|grill/i, 'food'],
-  [/auto|car|motor|vehicle/i, 'auto'],
+  [/\bauto|\bcars?\b|motor|vehicle/i, 'auto'],
   [/event|planner/i, 'events'],
   [/photo|studio|video|creative/i, 'creative'],
   [/gym|fitness|yoga/i, 'fitness'],
   [/training|school|academy|institut|tutor/i, 'education'],
-  [/law|account|consult|professional|clinic|agency/i, 'professional'],
+  [/law|account|consult|professional|agency/i, 'professional'],
+  [/pharmac|chemist|chemical (shop|seller)|drug ?store/i, 'pharmacy'],
+  [/herbal|clinic|hospital\b|medical|dental|maternity|diagnostic|laborator|health (centre|center|facility)/i, 'health'],
 ];
 
 export function trackForCategory(category: string): TrackKey {
@@ -209,6 +217,29 @@ export const TRACKS: Record<TrackKey, TrackGuidance> = {
     secondary: ['CRM integration', 'Client portal'],
     future: ['Workflow automation'],
     archetype: 'corporate',
+  },
+  health: {
+    customerJourney: 'Patients and caregivers look for the services offered, opening hours, location and how to reach the facility, often on a phone and sometimes urgently.',
+    opportunities: [
+      { title: 'Services, hours and directions', description: 'Current services, opening hours, emergency contacts and directions help people reach the right care quickly.' },
+      { title: 'Appointment requests', description: 'A short request form or WhatsApp link can reduce phone queues while collecting only what is needed to arrange a visit.' },
+    ],
+    primary: ['Mobile-first facility website', 'Services, opening hours and directions', 'Appointment or enquiry requests'],
+    secondary: ['Appointment scheduling', 'Doctor and staff profiles (with their consent)', 'Accepted insurance and payment options'],
+    future: ['Appointment reminders for patients who opt in', 'Patient portal feasibility study, after a data protection review'],
+    archetype: 'health-facility',
+  },
+  pharmacy: {
+    customerJourney: 'Customers check whether a pharmacy is open, where it is and whether it has what they need, often at short notice.',
+    opportunities: [
+      { title: 'Product range online', description: 'Pages for the over-the-counter range and services let customers check what the pharmacy offers before they travel.' },
+      { title: 'Opening hours and location', description: 'Current hours, including late or weekend opening, and directions help people reach the pharmacy when they need it.' },
+      { title: 'Availability enquiries', description: 'A WhatsApp or form enquiry lets customers ask about a product before they travel.' },
+    ],
+    primary: ['Mobile-first pharmacy website', 'Opening hours, location and directions', 'WhatsApp availability enquiries'],
+    secondary: ['Product range pages for over-the-counter items', 'Delivery enquiries', 'Accepted insurance and payment options'],
+    future: ['Refill reminders for customers who opt in', 'Online ordering feasibility study, subject to the rules for selling medicines'],
+    archetype: 'health-facility',
   },
   general: {
     customerJourney: 'Customers typically look for what the business offers, where it is, and how to get in touch.',

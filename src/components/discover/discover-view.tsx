@@ -34,7 +34,8 @@ interface SearchBody {
   providerId: string;
   country: string;
   region: string | null;
-  city: string;
+  /** Null searches the whole region. */
+  city: string | null;
   neighborhood: string | null;
   category: string;
   terms: string | null;
@@ -133,14 +134,14 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!city.trim() || !category.trim()) return setError({ message: 'Choose a city and a category.', retryable: false, retry: () => undefined });
+    if ((!city.trim() && !region) || !category.trim()) return setError({ message: 'Choose a region or a city / town, and a category.', retryable: false, retry: () => undefined });
     setFilter('all');
     run(
       {
         providerId,
         country,
         region: region || null,
-        city: city.trim(),
+        city: city.trim() || null,
         neighborhood: neighborhood.trim() || null,
         category: category.trim(),
         terms: terms.trim() || null,
@@ -220,7 +221,20 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
                   </Field>
                   <Field label="Region">
                     {(p) => (
-                      <Select {...p} value={region} onChange={(e) => setRegion(e.target.value)}>
+                      <Select
+                        {...p}
+                        value={region}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setRegion(next);
+                          // A town from another region would contradict the choice; clearing it searches the whole region.
+                          const home = regionForCity(city, country);
+                          if (next && home && home !== next) {
+                            setCity('');
+                            setNeighborhood('');
+                          }
+                        }}
+                      >
                         <option value="">Any</option>
                         {countryInfo?.regions.map((r) => (
                           <option key={r.name}>{r.name}</option>
@@ -228,13 +242,14 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
                       </Select>
                     )}
                   </Field>
-                  <Field label="City / town" required>
+                  <Field label="City / town" hint={region ? 'Leave empty to search the whole region.' : undefined}>
                     {(p) => (
                       <>
                         <Input
                           {...p}
                           list="discover-cities"
                           value={city}
+                          placeholder={region ? 'Whole region' : undefined}
                           onChange={(e) => {
                             setCity(e.target.value);
                             const r = regionForCity(e.target.value, country);
@@ -313,7 +328,7 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
               <EmptyState
                 icon={Compass}
                 title="Search for candidate businesses"
-                description="Choose a city and category. A missing website in a listing is a research lead, not proof the business has no website."
+                description="Choose a region or a town, and a category. A missing website in a listing is a research lead, not proof the business has no website."
               />
             </Card>
           ) : results.length === 0 ? (

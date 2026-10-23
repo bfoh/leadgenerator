@@ -12,18 +12,23 @@ import { enforceQuota, recordUsage } from '@/lib/server/usage';
 // results in memory only. Only Place IDs may be stored, by explicit user action.
 export const dynamic = 'force-dynamic';
 
-const searchSchema = z.object({
-  providerId: z.string().max(40),
-  country: z.string().length(2),
-  region: z.string().max(80).nullable(),
-  city: z.string().trim().min(1).max(80),
-  neighborhood: z.string().max(80).nullable(),
-  category: z.string().trim().min(1).max(80),
-  terms: z.string().max(120).nullable(),
-  limit: z.number().int().min(1).max(20),
-  pageToken: z.string().max(2000).nullable(),
-  websitePreference: z.enum(['any', 'missing', 'present']),
-});
+const optionalText = (max: number) => z.string().trim().max(max).nullable().transform((v) => v || null);
+
+const searchSchema = z
+  .object({
+    providerId: z.string().max(40),
+    country: z.string().length(2),
+    // A region with no town searches the whole region.
+    region: optionalText(80),
+    city: optionalText(80),
+    neighborhood: z.string().max(80).nullable(),
+    category: z.string().trim().min(1).max(80),
+    terms: z.string().max(120).nullable(),
+    limit: z.number().int().min(1).max(20),
+    pageToken: z.string().max(2000).nullable(),
+    websitePreference: z.enum(['any', 'missing', 'present']),
+  })
+  .refine((q) => q.city || q.region, { message: 'Choose a region or a city / town.', path: ['city'] });
 
 function providerOr404(id: string) {
   const provider = discoveryProvider(id);
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest) {
           operation: 'discovery_search',
           units: 1,
           estimatedCostUsd: provider.estimatedCostUsd('search'),
-          metadata: { city: input.city, category: input.category, results: page.results.length },
+          metadata: { region: input.region, city: input.city, category: input.category, results: page.results.length },
         })
       : null;
 

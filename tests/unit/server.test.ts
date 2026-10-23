@@ -64,6 +64,12 @@ describe('discovery providers', () => {
     expect(placesTextQuery({ country: 'GH', region: null, city: 'Kumasi', neighborhood: 'Adum', category: 'Furniture showroom', terms: null, limit: 10, pageToken: null })).toBe(
       'furniture store in Adum, Kumasi, Ghana',
     );
+    // A town keeps the query it always had; the region is added only when no town is given.
+    const q = { country: 'GH', region: 'Ashanti', city: 'Kumasi', neighborhood: null, category: 'Pharmacy', terms: null, limit: 20, pageToken: null };
+    expect(placesTextQuery(q)).toBe('pharmacy in Kumasi, Ghana');
+    expect(placesTextQuery({ ...q, city: null })).toBe('pharmacy in Ashanti Region, Ghana');
+    expect(placesTextQuery({ ...q, city: null, region: 'Greater Accra', category: 'Herbal clinic' })).toBe('herbal clinic in Greater Accra Region, Ghana');
+    expect(placesTextQuery({ ...q, city: null, region: 'North East Region', category: 'Clinic' })).toBe('medical clinic in North East Region, Ghana');
   });
 
   it('declares that only Place IDs may be stored', () => {
@@ -79,5 +85,11 @@ describe('discovery providers', () => {
     expect(page.results).toHaveLength(5);
     expect(page.results.every((r) => r.isDemo && r.name.includes('fictional'))).toBe(true);
     expect(page.nextPageToken).toBe('5');
+
+    const region = await demoProvider.search(
+      { country: 'GH', region: 'Volta', city: null, neighborhood: null, category: 'Hospital', terms: null, limit: 3, pageToken: null },
+      AbortSignal.timeout(1000),
+    );
+    expect(region.results.map((r) => r.address)).toEqual(Array(3).fill('Fictional address, Volta Region'));
   });
 });

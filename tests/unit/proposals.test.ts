@@ -9,7 +9,8 @@ import { LocalStore, MemoryStorage } from '@/lib/data/local-store';
 import { collectEvidence, writeRuleBasedReport } from '@/lib/data/report-services';
 import * as svc from '@/lib/data/services';
 import type { ServiceContext } from '@/lib/data/services';
-import { DEFAULT_CATEGORIES } from '@/lib/domain/categories';
+import { ARCHETYPES } from '@/lib/domain/archetypes';
+import { DEFAULT_CATEGORIES, TRACKS, trackForCategory } from '@/lib/domain/categories';
 import { DEFAULT_ADD_ONS, DEFAULT_PACKAGES, PACKAGE_TIER } from '@/lib/domain/packages';
 import { addDays, approvalIssues, computeTotals, isExpired, proposalContentSchema, proposalFromPackage, proposalToMarkdown } from '@/lib/domain/proposal';
 import { PROPOSAL_TEMPLATES, detectNeeds, planProposal, proposalDraftReadiness } from '@/lib/domain/proposal-templates';
@@ -48,6 +49,23 @@ describe('industry templates and package choice', () => {
       for (const a of t.addOns) expect(addOnKeys.has(a.key), `${t.track}: ${a.key}`).toBe(true);
     }
     expect(DEFAULT_ADD_ONS.every((a) => a.unitPrice === null)).toBe(true);
+  });
+
+  it('files health businesses under health or pharmacy, and every sector has a library archetype', () => {
+    expect(['Clinic', 'Hospital', 'Herbal clinic', 'Pharmacy'].map(trackForCategory)).toEqual(['health', 'health', 'health', 'pharmacy']);
+    // Typed categories: health words, without catching care, hospitality or a law clinic.
+    expect(['Eye care clinic', 'Maternity home', 'Licensed chemical seller', 'Hospitality', 'Law clinic', 'Car dealership', 'Carpentry'].map(trackForCategory)).toEqual([
+      'health',
+      'health',
+      'pharmacy',
+      'hospitality',
+      'professional',
+      'auto',
+      'general',
+    ]);
+    const archetypes = new Set(ARCHETYPES.map((a) => a.key));
+    for (const [track, guidance] of Object.entries(TRACKS)) expect(archetypes.has(guidance.archetype), track).toBe(true);
+    expect(PROPOSAL_TEMPLATES.pharmacy.assumptions).toContain('Prescription-only medicines are not sold or advertised through the website.');
   });
 
   it('includes the brief’s industry recommendations', () => {

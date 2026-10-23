@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { DiscoveryProvider, DiscoveryResult } from './discovery';
+import { searchArea, type DiscoveryProvider, type DiscoveryResult } from './discovery';
 
 // Fictional results for exercising the discovery UI without credentials. Names are obviously
 // synthetic and every result is flagged isDemo so it can never be mistaken for a real business.
@@ -29,7 +29,7 @@ export const demoProvider: DiscoveryProvider = {
   estimatedCostUsd: () => 0,
 
   async search(q) {
-    const seed = hash(`${q.city}|${q.category}|${q.neighborhood ?? ''}|${q.terms ?? ''}`);
+    const seed = hash(`${q.city ?? q.region}|${q.category}|${q.neighborhood ?? ''}|${q.terms ?? ''}`);
     const offset = q.pageToken ? Number(q.pageToken) || 0 : 0;
     const count = Math.min(q.limit, 10);
     const results: DiscoveryResult[] = Array.from({ length: count }, (_, i) => {
@@ -39,7 +39,7 @@ export const demoProvider: DiscoveryProvider = {
         providerId: 'demo',
         externalId: `demo-${seed.toString(36)}-${offset + i}`,
         name: `DEMO · ${stem} ${q.category} (fictional)`,
-        address: `Fictional address, ${q.neighborhood ? `${q.neighborhood}, ` : ''}${q.city}`,
+        address: `Fictional address, ${searchArea(q)}`,
         websiteUri: n % 3 === 0 ? `https://example.com/demo-${(offset + i).toString()}` : null,
         mapsUri: null,
         businessStatus: n % 11 === 0 ? 'CLOSED_TEMPORARILY' : 'OPERATIONAL',

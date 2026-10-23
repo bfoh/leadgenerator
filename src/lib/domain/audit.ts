@@ -53,8 +53,8 @@ export interface FindingDraft {
   recommendation: string;
 }
 
-const BOOKING_TRACKS: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional'];
-const CATALOGUE_TRACKS: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food'];
+const BOOKING_TRACKS: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional', 'health'];
+const CATALOGUE_TRACKS: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food', 'pharmacy'];
 const COMMERCE_TRACKS: TrackKey[] = ['fashion', 'furniture', 'food'];
 
 const LEGACY_CONFIDENCE = { low: 40, medium: 65, high: 85 } as const;

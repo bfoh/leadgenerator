@@ -471,8 +471,8 @@ function websiteSentence(status: string, businessName: string) {
   }
 }
 
-const BOOKING: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional'];
-const CATALOGUE: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food'];
+const BOOKING: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional', 'health'];
+const CATALOGUE: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food', 'pharmacy'];
 
 const fact = (item: EvidenceItem, kind: StatementKind = 'verified_fact'): ReportStatement => ({ kind, text: item.statement, evidenceIds: [item.id] });
 
