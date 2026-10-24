@@ -2,6 +2,8 @@
 
 Status on 2026-10-23: migrations **001–008 are on the production project.** The owner applied 003–008 on 2026-10-23, and `supabase/checks/after-migrations.sql` passed on production (all 18 checks ok). Before that they were tested on PGlite only.
 
+Milestone 2 (migrations 009 and 010) has its own review: [MIGRATION_REVIEW_009_010](MIGRATION_REVIEW_009_010.md). Those two are **not applied to production**.
+
 ## 1. What each migration does to existing data
 
 | Migration | Changes to existing tables | Data written | Locks and rewrite | Rollback |

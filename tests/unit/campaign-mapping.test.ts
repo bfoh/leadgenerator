@@ -21,6 +21,7 @@ const row = {
   schedule_hour: 9,
   schedule_weekday: 1,
   schedule_day: null,
+  auto_complete: false,
   next_run_at: '2026-10-26T09:00:00.000Z',
   last_run_at: null,
   last_run_status: null,
@@ -43,15 +44,17 @@ describe('campaign row mapping', () => {
       dailyTargetLimit: 20,
       monthlyBudgetUsd: 10.5,
       nextRunAt: '2026-10-26T09:00:00.000Z',
+      autoComplete: false,
     });
     expect(campaign.scope).toEqual({ regions: ['Ashanti'], districtCodes: ['GH0201'], towns: ['Kumasi'], categories: ['Pharmacy'] });
     expect(campaign.schedule).toEqual({ frequency: 'weekly', hour: 9, weekday: 1, day: null });
   });
 
   it('defaults missing scope arrays and a missing budget', () => {
-    const campaign = campaignFromRow({ ...row, regions: null, district_codes: null, towns: null, categories: null, monthly_budget_usd: null });
+    const campaign = campaignFromRow({ ...row, regions: null, district_codes: null, towns: null, categories: null, monthly_budget_usd: null, auto_complete: null });
     expect(campaign.scope).toEqual({ regions: [], districtCodes: [], towns: [], categories: [] });
     expect(campaign.monthlyBudgetUsd).toBeNull();
+    expect(campaign.autoComplete).toBe(true);
   });
 
   it('writes only the fields a change supplies', () => {
@@ -67,6 +70,7 @@ describe('campaign row mapping', () => {
       status: 'paused',
       paused_reason: 'Paused by a team member.',
     });
+    expect(campaignColumns({ autoComplete: false })).toEqual({ auto_complete: false });
   });
 
   it('maps a campaign target', () => {

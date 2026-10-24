@@ -24,7 +24,7 @@ import {
   type CampaignSchedule,
   type CampaignScope,
 } from '@/lib/domain/campaigns';
-import { DISTRICTS } from '@/lib/domain/districts';
+import { DISTRICTS, DISTRICT_SOURCE } from '@/lib/domain/districts';
 import {
   DISCOVERY_PROVIDER_CATALOG,
   campaignProviderBlocker,
@@ -69,6 +69,12 @@ describe('Ghana regions and districts', () => {
   it('keeps every district code unique', () => {
     expect(new Set(DISTRICTS.map((d) => d.code)).size).toBe(DISTRICTS.length);
     expect(DISTRICTS).toHaveLength(261);
+  });
+
+  it('records the source, licence and the exact number of records verified against it', () => {
+    expect(DISTRICT_SOURCE).toMatchObject({ licence: 'CC BY-IGO 3.0', verifiedRecords: 260, verifiedOn: '2026-10-24' });
+    expect(DISTRICTS.filter((d) => d.code === 'GH10-GUAN')).toEqual([{ code: 'GH10-GUAN', name: 'Guan', region: 'Oti' }]);
+    expect(DISTRICTS.filter((d) => d.code !== 'GH10-GUAN')).toHaveLength(DISTRICT_SOURCE.verifiedRecords);
   });
 });
 

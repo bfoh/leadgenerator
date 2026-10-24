@@ -6,6 +6,11 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   fullyParallel: false,
+  // Two workers, as on CI's four-core runner. Playwright otherwise uses half the logical cores, which
+  // on an eight-core developer machine starts four CPU-hungry browsers (axe, a full Next server) beside
+  // an editor: every step runs five times slower and the 60 s/180 s budgets expire on slow hosts
+  // rather than on a real failure. Timeouts stay as they are; concurrency is what must fit the host.
+  workers: 2,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${port}`, trace: 'retain-on-failure' },

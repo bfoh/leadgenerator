@@ -60,8 +60,8 @@ a connector are required before that changes (see §10).
 - **`research_campaigns`** — name, purpose, status (`draft`, `active`, `paused`, `completed`,
   `cancelled`), provider key, scope (`regions`, `district_codes`, `towns`, `categories`), batch size,
   daily target limit, optional monthly budget, schedule (frequency, hour, weekday/day, Africa/Accra),
-  `next_run_at`, last run status/note, pause reason. Status moves only along documented paths
-  (trigger); Google Places is rejected (check); a manual schedule cannot carry a next run.
+  `auto_complete`, `next_run_at`, last run status/note, pause reason. Status moves only along documented
+  paths (trigger); Google Places is rejected (check); a manual schedule cannot carry a next run.
 - **`campaign_targets`** — the many-to-many membership: campaign, prospect, per-campaign state
   (`queued`, `researching`, `researched`, `qualified`, `skipped`, `failed`), match reason, source, the
   first job id, notes and timestamps. `unique (campaign_id, business_id)` prevents duplicates in one
@@ -107,6 +107,11 @@ a connector are required before that changes (see §10).
    prospects already in the campaign and those being researched elsewhere; add up to the batch size
    and queue `business_identity` with the campaign keys.
 4. **Record** — write the run row and the campaign's last-run fields.
+5. **Complete** — after reconciliation (and after a due batch), close an `active` campaign whose
+   `auto_complete` is on, whose work has finished (at least one researched prospect, no failure,
+   nothing queued or running) and whose scope has no untargeted or busy prospect left. The status
+   becomes `completed`, `next_run_at` is cleared, and the run log keeps every row. A campaign with no
+   audience, a failure, or a remaining prospect stays active.
 
 The scheduled worker (`/api/cron/automation`) reconciles every active campaign each minute and runs
 the ones that are due, after processing the job queue. The jobs it queues run on the next tick, which
@@ -155,21 +160,40 @@ of the same tick cannot queue a second identity job.
 
 Automation Center → **Campaigns** shows totals, the campaign list with progress, a details panel
 (prospects, run log, agent jobs), the creation form (nationwide / regions / districts / towns /
-industries, schedule, quotas, budget, audience preview) and the provider policy table.
+industries, schedule, quotas, budget, audience preview) and the provider policy table. Each campaign
+has an **Edit** dialog (the existing PATCH route): name, purpose, scope, industries, schedule, quotas,
+budget and the auto-complete preference.
+
+**What may change when.** A completed or cancelled campaign is read-only. While research is running,
+the name, quotas, budget and auto-complete preference may change, but the scope, industries and
+schedule are locked (the API returns `409` and the form disables those controls) so the saved scope
+cannot disagree with the batch already in flight and a schedule edit cannot race the worker's
+next-run claim. Every run, target and history row is preserved by an edit.
+
+**What the campaign is doing.** The card shows the saved status plus a derived phase, so the six
+states are never conflated: *No eligible prospects* (a run found no match), *Waiting for next run*
+(scheduled or manual), *Research in progress* (queued or researching targets), *Research completed*
+(all targets settled), *Paused* and *Research failed* (the last tick failed, or no target completed).
 
 ## 8. Tests
 
 - `tests/unit/campaigns.test.ts` — regions/districts, provider declarations, scope matching,
   eligibility, scheduling across month/year boundaries, status rules, progress, reconciliation,
   input schema.
+- `tests/unit/campaign-lifecycle.test.ts` — derived phase, edit locks and the safe auto-completion rule.
+- `tests/unit/campaign-orchestrator.test.ts` — single-region, multi-region and nationwide batches,
+  district/town/industry filters, batch and daily quotas, campaign budget, paused queue and paused
+  campaign, deduplication within and across campaigns, repeated and concurrent ticks, scheduled-run
+  claiming, failed and vanished jobs, queued-membership resume, auto-completion and empty audiences.
 - `tests/unit/campaign-mapping.test.ts` — database row ↔ domain mapping.
 - `tests/db/campaigns.test.ts` — district seed vs TypeScript, region-only records, district/region
   consistency, many-to-many membership, history and state machine, append-only history, RLS, campaign
-  lifecycle, Google Places refusal, job attribution, spend, and both rollbacks (including the guard
-  that protects town-less records).
+  lifecycle, Google Places refusal, job attribution, spend, migration re-application on populated and
+  pre-009 databases, cross-workspace isolation, SECURITY DEFINER/search-path checks, and both
+  rollbacks (including the guard that protects town-less records).
 
-Full suite at the time of writing: **556 tests passing**, plus typecheck, lint, production build and
-the client-bundle scan.
+Full suite at the time of writing: **594 tests passing** (34 files), plus typecheck, lint, production build,
+the client-bundle scan and the full Playwright suite (74 tests across desktop and mobile).
 
 ## 9. Production migration plan (requires owner approval)
 
@@ -177,7 +201,10 @@ the client-bundle scan.
 2. Take a database backup (docs/BACKUPS.md) and record the restore point.
 3. Run `supabase/checks/preflight.sql` (read only) and keep the output.
 4. Apply `009_research_campaigns.sql` in staging, then `010_region_records.sql`; run
-   `supabase/checks/after-migrations.sql` and confirm every row says `ok`.
+   `supabase/checks/after-migrations.sql` and confirm every row says `ok`. The isolated staging
+   rehearsal and its limits are recorded in
+   [STAGING_ACCEPTANCE_009_010](STAGING_ACCEPTANCE_009_010.md); the security/rollback review is in
+   [MIGRATION_REVIEW_009_010](MIGRATION_REVIEW_009_010.md).
 5. Apply in production during a quiet period. 009/010 are additive; the only locks of note are the
    new indexes and the `businesses.city` constraint change.
 6. Deploy the application. Open Automation Center → Campaigns; create a draft campaign for one region
@@ -217,4 +244,7 @@ Nothing below is integrated, and none of it is claimed as available:
 - Scheduled or bulk Google Places harvesting.
 - Automatic acquisition of new businesses (campaigns only re-read tracked prospects).
 - Automatic outbound messages; outreach safeguards and human approval are unchanged.
-- Auto-completion of a campaign when its scope is exhausted (new prospects may be added later).
+- Editing the scope, industries or schedule of a campaign while a batch is in flight (locked on
+  purpose; name, quotas and budget stay editable).
+- Reopening a completed campaign; its history is immutable, so the same scope is copied into a new
+  campaign instead.

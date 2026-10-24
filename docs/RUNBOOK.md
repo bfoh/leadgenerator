@@ -420,7 +420,8 @@ only. Take a backup first (docs/BACKUPS.md).
 1. Run `supabase/checks/preflight.sql` (read only) and keep the output. New rows report whether 009
    and 010 are installed.
 2. Apply `supabase/migrations/009_research_campaigns.sql`, then
-   `supabase/migrations/010_region_records.sql`, in staging.
+   `supabase/migrations/010_region_records.sql`, in staging. Both are re-runnable and additive; 009
+   also adds the `auto_complete` preference (default on) to an earlier copy of its own table.
 3. Run `supabase/checks/after-migrations.sql` and confirm every row says `ok`. Rows 19–23 cover
    campaigns and districts: no campaign uses Google Places, 261 districts and 16 regions are seeded,
    and membership history cannot be edited or deleted by members.
@@ -428,19 +429,36 @@ only. Take a backup first (docs/BACKUPS.md).
 5. Open Automation Center → **Campaigns**. As an owner, create a draft for one region, press
    **Preview the audience**, then activate it. One tick should appear in the run log within a minute
    (or immediately with **Run now**), and the queued `business_identity` job should appear under
-   Jobs.
+   Jobs. Edit the campaign once to confirm that a saved name or budget change appears in the list.
 
-**Rollback** (after a backup, newest first):
-`supabase/rollback/010_region_records_down.sql`, then
-`supabase/rollback/009_research_campaigns_down.sql`. 010 stops with a count if any prospect has no
-town: give each one a town (or delete it deliberately) and run it again. 009 leaves jobs and research
-in place. The 003 queue functions are not touched by either rollback.
+**Rollback** (after a backup, newest first, each file in one transaction so a refusal leaves nothing
+half-applied):
+
+```bash
+psql "$DATABASE_URL" --single-transaction -f supabase/rollback/010_region_records_down.sql
+psql "$DATABASE_URL" --single-transaction -f supabase/rollback/009_research_campaigns_down.sql
+```
+
+010 stops with a count if any prospect has no town: give each one a town (or delete it deliberately)
+and run it again. 009 leaves jobs and research in place. The 003 queue functions are not touched by
+either rollback.
 
 ### Operating
 
 - **Create:** only owners and admins. Choose nationwide or regions (then optionally districts), towns,
   industries, schedule, batch size, daily limit and an optional campaign budget. **Preview the
   audience** counts the tracked prospects in scope before saving.
+- **Edit:** the **Edit** button on a campaign card opens the same form. Name, purpose, scope,
+  industries, schedule, quotas, budget and auto-complete can change while the campaign is draft,
+  active or paused. Scope and schedule are locked while a batch is researching (the API refuses with
+  409); name, quotas and budget can still change. Completed and cancelled campaigns are read-only.
+  Editing never deletes a run, target or history row.
+- **Finish automatically:** when every matching prospect has been researched, none is left and no
+  work failed, an active campaign with *Complete automatically* on closes itself and says so in the
+  run log. Turn it off to keep adding prospects to the same campaign. A campaign with no match, a
+  failed target, or a busy prospect stays active.
+- **State at a glance:** the card shows the saved status plus one of *No eligible prospects*,
+  *Waiting for next run*, *Research in progress*, *Research completed*, *Paused* or *Research failed*.
 - **Activate / pause / complete / cancel:** the campaign card. Pausing stops *new* prospects; queued
   jobs finish. Completed and cancelled are terminal; a draft or cancelled campaign can be deleted.
 - **Scheduled ticks:** the background worker reconciles every active campaign each minute and runs
@@ -466,4 +484,5 @@ in place. The 003 queue functions are not touched by either rollback.
 | A run says “N left for later because research is already in progress” | Cross-campaign deduplication is working; the next tick picks them up. |
 | A run says the daily limit or the budget is reached | Raise the limit only after checking Analytics → *Estimated API cost*. |
 | A target is **Failed** | Open **Details**; the job's error is recorded. Fix the cause (budget, research tools, duplicate decision), then run the campaign again. |
+| Editing the scope or schedule says research is still running | Finish the current batch first (wait for *Research completed* or pause and let queued jobs finish). Name, quotas and budget can be edited now. |
 | Google Places is disabled in the provider list | Deliberate: it requires a person to start every search and is never a campaign provider. |

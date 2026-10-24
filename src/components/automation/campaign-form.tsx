@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { CAMPAIGN_FREQUENCIES, FREQUENCY_LABELS, GHANA_REGIONS, MAX_BATCH_SIZE, MAX_DAILY_TARGETS, WEEKDAY_LABELS, type CampaignFrequency, type CampaignScope } from '@/lib/domain/campaigns';
+import { CAMPAIGN_FREQUENCIES, FREQUENCY_LABELS, GHANA_REGIONS, MAX_BATCH_SIZE, MAX_DAILY_TARGETS, WEEKDAY_LABELS, type CampaignFrequency, type CampaignScope, type ResearchCampaign } from '@/lib/domain/campaigns';
 import { DEFAULT_CATEGORIES } from '@/lib/domain/categories';
 import { DISCOVERY_PROVIDER_CATALOG, campaignProviderBlocker } from '@/lib/domain/discovery-providers';
 import { districtsIn } from '@/lib/domain/districts';
@@ -17,24 +17,38 @@ import { Notice } from '@/components/ui/misc';
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const CATEGORY_LABELS = DEFAULT_CATEGORIES.map((c) => c.label);
 
-export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CampaignForm({
+  open,
+  onOpenChange,
+  campaign,
+  busy = false,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The saved campaign to edit; omit to create a new one. */
+  campaign?: ResearchCampaign;
+  /** Research is running: the scope and schedule are locked until the batch finishes. */
+  busy?: boolean;
+}) {
+  const editing = Boolean(campaign);
   const refresh = useCampaignRefresh();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [providerKey, setProviderKey] = useState('tracked_records');
-  const [nationwide, setNationwide] = useState(true);
-  const [regions, setRegions] = useState<string[]>([]);
-  const [districtCodes, setDistrictCodes] = useState<string[]>([]);
-  const [towns, setTowns] = useState('');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [frequency, setFrequency] = useState<CampaignFrequency>('manual');
-  const [hour, setHour] = useState(6);
-  const [weekday, setWeekday] = useState(1);
-  const [day, setDay] = useState(1);
-  const [batchSize, setBatchSize] = useState('10');
-  const [dailyLimit, setDailyLimit] = useState('50');
-  const [budget, setBudget] = useState('');
-  const [activate, setActivate] = useState(true);
+  const [name, setName] = useState(campaign?.name ?? '');
+  const [description, setDescription] = useState(campaign?.description ?? '');
+  const [providerKey, setProviderKey] = useState(campaign?.providerKey ?? 'tracked_records');
+  const [nationwide, setNationwide] = useState(!campaign || campaign.scope.regions.length === 0);
+  const [regions, setRegions] = useState<string[]>(campaign?.scope.regions ?? []);
+  const [districtCodes, setDistrictCodes] = useState<string[]>(campaign?.scope.districtCodes ?? []);
+  const [towns, setTowns] = useState(campaign?.scope.towns.join(', ') ?? '');
+  const [categories, setCategories] = useState<string[]>(campaign?.scope.categories ?? []);
+  const [frequency, setFrequency] = useState<CampaignFrequency>(campaign?.schedule.frequency ?? 'manual');
+  const [hour, setHour] = useState(campaign?.schedule.hour ?? 6);
+  const [weekday, setWeekday] = useState(campaign?.schedule.weekday ?? 1);
+  const [day, setDay] = useState(campaign?.schedule.day ?? 1);
+  const [batchSize, setBatchSize] = useState(String(campaign?.batchSize ?? 10));
+  const [dailyLimit, setDailyLimit] = useState(String(campaign?.dailyTargetLimit ?? 50));
+  const [budget, setBudget] = useState(campaign?.monthlyBudgetUsd != null ? String(campaign.monthlyBudgetUsd) : '');
+  const [autoComplete, setAutoComplete] = useState(campaign?.autoComplete ?? true);
+  const [activate, setActivate] = useState(!editing);
   const [preview, setPreview] = useState<CampaignPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -80,11 +94,17 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
         dailyTargetLimit: Number(dailyLimit) || 50,
         monthlyBudgetUsd: budget.trim() ? Number(budget) : null,
         schedule: { frequency, hour, weekday: frequency === 'weekly' ? weekday : null, day: frequency === 'monthly' ? day : null },
+        autoComplete,
       };
-      const { campaign } = await campaignApi.create(body);
-      if (activate) await campaignApi.update(campaign.id, { status: 'active' });
+      if (campaign) {
+        await campaignApi.update(campaign.id, body);
+        toast.success('Campaign saved. Its recorded runs and prospect history are unchanged.');
+      } else {
+        const { campaign: created } = await campaignApi.create(body);
+        if (activate) await campaignApi.update(created.id, { status: 'active' });
+        toast.success(activate ? 'Campaign created and activated.' : 'Campaign saved as a draft.');
+      }
       refresh();
-      toast.success(activate ? 'Campaign created and activated.' : 'Campaign saved as a draft.');
       onOpenChange(false);
     } catch (e) {
       setError(errorMessage(e));
@@ -96,14 +116,18 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="New research campaign"
-      description="Choose who to research, how often, and how much work may start. Campaigns re-read prospects you already track; they never search Google Places and never contact anyone."
+      title={editing ? 'Edit campaign' : 'New research campaign'}
+      description={
+        editing
+          ? 'Change the name, scope, schedule, quotas or budget. Runs already recorded and prospects already researched stay exactly as they are.'
+          : 'Choose who to research, how often, and how much work may start. Campaigns re-read prospects you already track; they never search Google Places and never contact anyone.'
+      }
       size="xl"
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="submit" form="campaign-form" variant="primary" loading={pending}>
-            {activate ? 'Create and activate' : 'Save draft'}
+            {editing ? 'Save changes' : activate ? 'Create and activate' : 'Save draft'}
           </Button>
         </>
       }
@@ -113,8 +137,8 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
           <FormRow label="Name" required>
             <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ashanti pharmacies, Q4" required />
           </FormRow>
-          <FormRow label="Research provider">
-            <Select value={providerKey} onChange={(e) => setProviderKey(e.target.value)} aria-label="Research provider">
+          <FormRow label="Research provider" hint={editing ? 'Fixed when the campaign was created.' : undefined}>
+            <Select value={providerKey} onChange={(e) => setProviderKey(e.target.value)} aria-label="Research provider" disabled={editing}>
               {DISCOVERY_PROVIDER_CATALOG.map((provider) => {
                 const blocker = campaignProviderBlocker(provider.id);
                 return (
@@ -131,8 +155,13 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={1000} />
         </FormRow>
 
-        <fieldset className="space-y-3 rounded-lg border border-border px-3.5 py-3">
+        <fieldset className="space-y-3 rounded-lg border border-border px-3.5 py-3" disabled={busy}>
           <legend className="px-1 text-sm font-medium">Where</legend>
+          {busy && (
+            <Notice tone="info" title="Research is running">
+              The scope and schedule are locked until the current batch finishes. The name, quotas, budget and auto-complete preference can still change.
+            </Notice>
+          )}
           <div className="flex flex-wrap gap-4">
             <Checkbox label="Nationwide (all 16 regions)" checked={nationwide} onChange={(e) => { setNationwide(e.target.checked); reset(); }} />
             <Checkbox label="Choose regions" checked={!nationwide} onChange={(e) => { setNationwide(!e.target.checked); if (!e.target.checked) setDistrictCodes([]); reset(); }} />
@@ -194,7 +223,7 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
           <legend className="px-1 text-sm font-medium">When and how much</legend>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <FormRow label="Schedule">
-              <Select value={frequency} onChange={(e) => setFrequency(e.target.value as CampaignFrequency)}>
+              <Select value={frequency} onChange={(e) => setFrequency(e.target.value as CampaignFrequency)} disabled={busy}>
                 {CAMPAIGN_FREQUENCIES.map((f) => (
                   <option key={f} value={f}>
                     {FREQUENCY_LABELS[f]}
@@ -204,7 +233,7 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
             </FormRow>
             {frequency !== 'manual' && (
               <FormRow label="Hour (GMT)">
-                <Select value={hour} onChange={(e) => setHour(Number(e.target.value))}>
+                <Select value={hour} onChange={(e) => setHour(Number(e.target.value))} disabled={busy}>
                   {HOURS.map((h) => (
                     <option key={h} value={h}>
                       {String(h).padStart(2, '0')}:00
@@ -215,7 +244,7 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
             )}
             {frequency === 'weekly' && (
               <FormRow label="Day of the week">
-                <Select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
+                <Select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} disabled={busy}>
                   {WEEKDAY_LABELS.map((label, index) => (
                     <option key={label} value={index}>
                       {label}
@@ -226,7 +255,7 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
             )}
             {frequency === 'monthly' && (
               <FormRow label="Day of the month">
-                <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(Number(e.target.value))} />
+                <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(Number(e.target.value))} disabled={busy} />
               </FormRow>
             )}
           </div>
@@ -269,7 +298,15 @@ export function CampaignForm({ open, onOpenChange }: { open: boolean; onOpenChan
         </Card>
 
         {error && <Notice tone="danger">{error}</Notice>}
-        <Checkbox label="Activate now" description="Queue the first batch immediately; otherwise the campaign is saved as a draft." checked={activate} onChange={(e) => setActivate(e.target.checked)} />
+        <Checkbox
+          label="Complete automatically when the scope is exhausted"
+          description="When every matching prospect has been researched and none is left, the campaign closes itself. Recorded runs and prospect history stay readable. Leave this off to keep adding prospects to the same campaign later."
+          checked={autoComplete}
+          onChange={(e) => setAutoComplete(e.target.checked)}
+        />
+        {!editing && (
+          <Checkbox label="Activate now" description="Queue the first batch immediately; otherwise the campaign is saved as a draft." checked={activate} onChange={(e) => setActivate(e.target.checked)} />
+        )}
 
       </form>
     </Dialog>

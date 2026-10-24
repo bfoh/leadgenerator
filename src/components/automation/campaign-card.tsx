@@ -1,12 +1,13 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, Pause, Play, Square, Trash2, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pause, Pencil, Play, Square, Trash2, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   CAMPAIGN_STATUS_META,
   TARGET_STATE_META,
+  campaignPhase,
   campaignProgress,
   describeSchedule,
   describeScope,
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { usd } from './badges';
+import { CampaignForm } from './campaign-form';
 
 export function CampaignCard({
   campaign,
@@ -36,8 +38,11 @@ export function CampaignCard({
 }) {
   const refresh = useCampaignRefresh();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
   const progress = campaignProgress(campaign.counts);
   const meta = CAMPAIGN_STATUS_META[campaign.status];
+  const phase = campaignPhase(campaign, campaign.counts);
+  const busy = campaign.counts.researching > 0 || campaign.counts.queued > 0;
 
   const change = useMutation({
     mutationFn: (body: { status?: CampaignStatus; pausedReason?: string | null }) => campaignApi.update(campaign.id, body),
@@ -75,17 +80,24 @@ export function CampaignCard({
             <Badge tone={meta.tone} dot>
               {meta.label}
             </Badge>
+            {phase.phase !== campaign.status && <Badge tone={phase.tone}>{phase.label}</Badge>}
             <Badge tone="neutral">Tracked prospects</Badge>
           </div>
           <p className="text-xs text-subtle">
             {describeScope(campaign.scope)} · {describeSchedule(campaign.schedule)}
           </p>
+          <p className="text-xs text-muted">{phase.description}</p>
           {campaign.description && <p className="max-w-3xl text-xs text-muted">{campaign.description}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canRun && campaign.status === 'active' && (
             <Button size="sm" variant="primary" loading={run.isPending} onClick={() => run.mutate()}>
               <Zap className="size-3.5" aria-hidden /> Run now
+            </Button>
+          )}
+          {manage && campaign.status !== 'completed' && campaign.status !== 'cancelled' && (
+            <Button size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="size-3.5" aria-hidden /> Edit
             </Button>
           )}
           {manage && campaign.status === 'draft' && (
@@ -162,6 +174,8 @@ export function CampaignCard({
       </div>
 
       {open && <CampaignDetail campaign={campaign} />}
+
+      <CampaignForm key={`${campaign.id}:${campaign.updatedAt}`} open={editing} onOpenChange={setEditing} campaign={campaign} busy={busy} />
 
       <Dialog
         open={confirmDelete}

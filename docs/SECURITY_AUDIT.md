@@ -73,9 +73,11 @@ Result: no blocking issue. One change made: the bundle scan now runs in every bu
   worker uses the service-role client per organization. No route returns another workspace's rows.
 - *Authorization:* `GET`/preview/run need `automation.run`; create/edit/delete need
   `automation.manage` (owners/admins). RLS repeats both checks. Membership history is append-only at
-  grant and policy level.
+  grant and policy level. A PATCH refuses any field change on a completed or cancelled campaign, and
+  refuses scope/schedule changes while a batch is researching (name, quotas and budget stay editable).
 - *Input and output:* bodies are size-limited and schema-validated (scope arrays, region names,
-  district codes, schedule combinations, provider); errors are mapped without record contents.
+  district codes, schedule combinations, provider); errors are mapped without record contents. The
+  provider is immutable after creation, so a saved campaign cannot be repointed.
 - *Consent:* the eligibility filter and the engine both refuse opted-out prospects; merged, archived
   and inactive records are excluded. No outbound path is added.
 - *Provider boundary:* a campaign may use only a provider declared for unattended discovery + CRM
@@ -83,10 +85,16 @@ Result: no blocking issue. One change made: the bundle scan now runs in every bu
   direct insert cannot turn user-initiated discovery into scheduled harvesting.
 - *Spend:* `campaign_spend` runs with the caller's rights (RLS applies) and is informational; every
   paid call still passes the global budget checks.
+- *Queue integrity:* campaign jobs carry both the campaign and the membership; the 009 enqueue function
+  refuses a membership that belongs to another campaign **or another prospect**. Only a newly created
+  job is counted in the run log when two ticks race; an existing job re-attaches a stranded membership.
 - *Residual risk:* a campaign can queue work faster than the worker drains it; the daily quota and
-  batch size bound this, and the queue's own concurrency/lease rules still apply.
-- *Tests:* `unit/campaigns`, `unit/campaign-mapping`, `db/campaigns` (RLS, append-only history,
-  provider refusal, job attribution, spend, rollbacks).
+  batch size bound this, and the queue's own concurrency/lease rules still apply. Two simultaneous
+  manual ticks are not claimed like scheduled runs; unique membership and idempotency keys prevent
+  duplicate work, and the next tick re-reads the daily quota.
+- *Tests:* `unit/campaigns`, `unit/campaign-lifecycle`, `unit/campaign-orchestrator`,
+  `unit/campaign-mapping`, `db/campaigns` (RLS, append-only history, provider refusal, job attribution,
+  spend, migration re-application, cross-workspace isolation, rollbacks).
 
 ## 4. Re-running the audit
 

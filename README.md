@@ -96,7 +96,7 @@ LIVE_INTEGRATION=1 npm run test:live   # opt-in, paid, budget-capped live provid
 
 Unit and database tests run with the network blocked; the E2E suite and CI run in demo mode with every key blanked, so normal runs can never bill an API. CI is defined in `.github/workflows/ci.yml`. Test strategy and requirement traceability: [docs/TESTING.md](docs/TESTING.md).
 
-Operations: [deployment](docs/DEPLOYMENT.md) · [migration review](docs/MIGRATION_REVIEW.md) · [monitoring](docs/MONITORING.md) · [incident response](docs/INCIDENT_RESPONSE.md) · [backups](docs/BACKUPS.md) · [security audit](docs/SECURITY_AUDIT.md) · [accessibility](docs/ACCESSIBILITY.md) · [runbook](docs/RUNBOOK.md).
+Operations: [deployment](docs/DEPLOYMENT.md) · [migration review](docs/MIGRATION_REVIEW.md) · [009/010 review](docs/MIGRATION_REVIEW_009_010.md) · [staging acceptance](docs/STAGING_ACCEPTANCE_009_010.md) · [staging validation](docs/STAGING_VALIDATION_009_010.md) · [monitoring](docs/MONITORING.md) · [incident response](docs/INCIDENT_RESPONSE.md) · [backups](docs/BACKUPS.md) · [security audit](docs/SECURITY_AUDIT.md) · [accessibility](docs/ACCESSIBILITY.md) · [runbook](docs/RUNBOOK.md).
 
 ## Ground rules built into the product
 

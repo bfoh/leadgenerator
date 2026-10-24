@@ -34,6 +34,10 @@ export const DISTRICT_SOURCE = {
   validFrom: '2021-03-08',
   reviewedOn: '2025-10-30',
   retrievedOn: '2026-10-24',
+  /** Re-checked against the source file itself, not only its metadata. */
+  verifiedOn: '2026-10-24',
+  verifiedAgainst: 'gha_admin2.geojson from the COD-AB v01 GeoJSON resource (260 ADM2 features)',
+  verifiedRecords: 260,
   attribution: 'District list: Ghana Statistical Service via OCHA/HDX (COD-AB), CC BY-IGO 3.0; Guan District added; names shortened.',
 } as const;
 

@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { fromRow, toRow } from '@/lib/data/supabase-store';
-import type { CampaignRun, CampaignScope, CampaignStatus, CampaignTarget, CampaignTargetState, ResearchCampaign } from '@/lib/domain/campaigns';
+import type { CampaignActivity, CampaignRun, CampaignScope, CampaignStatus, CampaignTarget, CampaignTargetState, ResearchCampaign } from '@/lib/domain/campaigns';
 
 /** A job that belongs to a campaign, as campaign progress needs it. */
 export interface CampaignJob {
@@ -81,6 +81,7 @@ export function campaignFromRow(row: Row): ResearchCampaign {
       weekday: r.scheduleWeekday == null ? null : Number(r.scheduleWeekday),
       day: r.scheduleDay == null ? null : Number(r.scheduleDay),
     },
+    autoComplete: r.autoComplete !== false,
     nextRunAt: (r.nextRunAt as string | null) ?? null,
     lastRunAt: (r.lastRunAt as string | null) ?? null,
     lastRunStatus: (r.lastRunStatus as ResearchCampaign['lastRunStatus']) ?? null,
@@ -106,6 +107,7 @@ export function campaignColumns(campaign: Partial<Omit<ResearchCampaign, 'scope'
   if (campaign.batchSize !== undefined) row.batch_size = campaign.batchSize;
   if (campaign.dailyTargetLimit !== undefined) row.daily_target_limit = campaign.dailyTargetLimit;
   if (campaign.monthlyBudgetUsd !== undefined) row.monthly_budget_usd = campaign.monthlyBudgetUsd;
+  if (campaign.autoComplete !== undefined) row.auto_complete = campaign.autoComplete;
   if (campaign.schedule) {
     row.schedule_frequency = campaign.schedule.frequency;
     row.schedule_hour = campaign.schedule.hour;
@@ -200,6 +202,27 @@ export class SupabaseCampaignStore {
       .maybeSingle();
     if (error) throw campaignError(error, 'Could not load the campaign.');
     return data ? campaignFromRow(data) : null;
+  }
+
+  /** Research currently executing (or queued to resume) for this campaign: memberships and open jobs. */
+  async campaignActivity(id: string): Promise<CampaignActivity> {
+    const [targets, jobs] = await Promise.all([
+      this.sb
+        .from('campaign_targets')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', this.organizationId)
+        .eq('campaign_id', id)
+        .in('state', ['queued', 'researching']),
+      this.sb
+        .from('automation_jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', this.organizationId)
+        .eq('campaign_id', id)
+        .in('status', ['pending', 'running', 'awaiting_approval']),
+    ]);
+    if (targets.error) throw campaignError(targets.error, 'Could not check research in progress.');
+    if (jobs.error) throw campaignError(jobs.error, 'Could not check research in progress.');
+    return { researching: targets.count ?? 0, openJobs: jobs.count ?? 0 };
   }
 
   async createCampaign(columns: Row): Promise<ResearchCampaign> {

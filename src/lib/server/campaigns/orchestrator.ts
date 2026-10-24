@@ -5,6 +5,8 @@ import { SupabaseAutomationStore } from '@/lib/automation/supabase-store';
 import {
   campaignBudgetReached,
   campaignCandidates,
+  campaignShouldAutoComplete,
+  campaignTargetCounts,
   isCampaignDue,
   nextRunAt,
   resolveTargetState,
@@ -12,10 +14,49 @@ import {
   type ResearchCampaign,
 } from '@/lib/domain/campaigns';
 import { campaignProviderBlocker } from '@/lib/domain/discovery-providers';
-import { campaignFromRow, SupabaseCampaignStore, type CampaignJob } from './store';
+import { campaignFromRow, CampaignError, SupabaseCampaignStore, type CampaignJob } from './store';
 
 const OPEN_STATUSES = new Set<CampaignJob['status']>(['pending', 'running', 'awaiting_approval']);
 const clip = (value: string, max: number) => (value.length > max ? `${value.slice(0, max - 1)}…` : value);
+
+/** Eligible prospects this campaign has not targeted, and ones waiting for another campaign's work. */
+async function remainingInScope(
+  store: SupabaseCampaignStore,
+  campaign: ResearchCampaign,
+): Promise<{ untargeted: number; busy: number }> {
+  const pool = await store.listCandidateBusinesses(2000);
+  const eligible = campaignCandidates(pool, campaign.scope);
+  if (!eligible.length) return { untargeted: 0, busy: 0 };
+  const ids = eligible.map((entry) => entry.business.id);
+  const [targeted, busy] = await Promise.all([store.targetedBusinessIds(campaign.id, ids), store.busyBusinessIds(ids, campaign.id)]);
+  return {
+    untargeted: eligible.filter((entry) => !targeted.has(entry.business.id) && !busy.has(entry.business.id)).length,
+    busy: eligible.filter((entry) => !targeted.has(entry.business.id) && busy.has(entry.business.id)).length,
+  };
+}
+
+/**
+ * Close a finite campaign once its scope is exhausted. Runs are never deleted; the campaign simply
+ * moves to `completed` (a terminal status), which keeps every target, job and run readable.
+ */
+async function completeIfExhausted(
+  store: SupabaseCampaignStore,
+  campaign: ResearchCampaign,
+): Promise<{ completed: boolean; note: string | null }> {
+  const targets = await store.listTargets(campaign.id, 2000);
+  const counts = campaignTargetCounts(targets);
+  if (counts.queued > 0 || counts.researching > 0 || counts.completed === 0 || counts.failed > 0) {
+    return { completed: false, note: null };
+  }
+  const remaining = await remainingInScope(store, campaign);
+  if (!campaignShouldAutoComplete(campaign, counts, remaining)) return { completed: false, note: null };
+  const note = clip(
+    `Scope exhausted: ${counts.completed} prospect(s) researched${counts.qualified ? ` (${counts.qualified} qualified)` : ''}. The campaign completed automatically.`,
+    1000,
+  );
+  await store.updateCampaign(campaign.id, { status: 'completed', nextRunAt: null, lastRunStatus: 'succeeded', lastRunNote: note });
+  return { completed: true, note };
+}
 
 export interface CampaignTickResult {
   campaignId: string;
@@ -85,14 +126,16 @@ export async function tickCampaign(
   // ── A reconcile-only tick (manual campaign, or not due) stops here ──
   if (!enqueue) {
     const openJobs = jobs.filter((job) => OPEN_STATUSES.has(job.status)).length;
+    // A batch that settled on this tick may have exhausted a finite scope, even when nothing is due.
+    const completion = completed > 0 ? await completeIfExhausted(store, campaign) : { completed: false, note: null };
     return {
       campaignId: campaign.id,
-      status: 'skipped',
+      status: completion.completed ? 'succeeded' : 'skipped',
       enqueued: 0,
       completed,
       openJobs,
       spendUsd: 0,
-      note: completed ? `Reconciled ${completed} target(s); nothing was due to run.` : 'Nothing was due to run.',
+      note: completion.note ?? (completed ? `Reconciled ${completed} target(s); nothing was due to run.` : 'Nothing was due to run.'),
     };
   }
 
@@ -132,7 +175,7 @@ export async function tickCampaign(
           );
           for (const target of queued.filter((entry) => !queuedBusy.has(entry.businessId)).slice(0, slots)) {
             try {
-              const { job } = await automation.enqueue({
+              const { created, job } = await automation.enqueue({
                 agent: 'business_identity',
                 businessId: target.businessId,
                 payload: {},
@@ -141,14 +184,21 @@ export async function tickCampaign(
                 idempotencyKey: `campaign:${campaign.id}:${target.businessId}:identity`,
                 priority: 200,
               });
-              await store.updateTarget(target.id, {
-                state: 'researching',
-                jobId: job.id,
-                startedAt: target.startedAt ?? now.toISOString(),
-                note: `Resumed by campaign “${campaign.name}”.`,
-              });
-              enqueued += 1;
-              slots -= 1;
+              try {
+                await store.updateTarget(target.id, {
+                  state: 'researching',
+                  jobId: job.id,
+                  startedAt: target.startedAt ?? now.toISOString(),
+                  note: `Resumed by campaign “${campaign.name}”.`,
+                });
+              } catch (error) {
+                // Another worker moved the membership on between the enqueue and this update.
+                if (!(error instanceof CampaignError && error.code === 'conflict')) throw error;
+              }
+              if (created) {
+                enqueued += 1;
+                slots -= 1;
+              }
             } catch (error) {
               await store.updateTarget(target.id, {
                 state: 'failed',
@@ -168,7 +218,7 @@ export async function tickCampaign(
           // the insert; never move a membership backwards.
           if (target.state !== 'queued') continue;
           try {
-            const { job } = await automation.enqueue({
+            const { created, job } = await automation.enqueue({
               agent: 'business_identity',
               businessId: business.id,
               payload: {},
@@ -177,13 +227,18 @@ export async function tickCampaign(
               idempotencyKey: `campaign:${campaign.id}:${business.id}:identity`,
               priority: 200,
             });
-            await store.updateTarget(target.id, {
-              state: 'researching',
-              jobId: job.id,
-              startedAt: now.toISOString(),
-              note: `Started by campaign “${campaign.name}”.`,
-            });
-            enqueued += 1;
+            try {
+              await store.updateTarget(target.id, {
+                state: 'researching',
+                jobId: job.id,
+                startedAt: now.toISOString(),
+                note: `Started by campaign “${campaign.name}”.`,
+              });
+            } catch (error) {
+              // Another worker moved the membership on between the enqueue and this update.
+              if (!(error instanceof CampaignError && error.code === 'conflict')) throw error;
+            }
+            if (created) enqueued += 1;
           } catch (error) {
             await store.updateTarget(target.id, {
               state: 'failed',
@@ -207,13 +262,17 @@ export async function tickCampaign(
     note = clip(error instanceof Error ? error.message : 'The campaign run failed.', 1000);
   }
 
+  const completion = status === 'failed' ? { completed: false, note: null } : await completeIfExhausted(store, campaign);
+  if (completion.note) note = `${note} ${completion.note}`.trim();
+  if (completion.completed) status = 'succeeded';
+
   const openJobs = (await store.listCampaignJobs(campaign.id, 2000)).filter((job) => OPEN_STATUSES.has(job.status)).length;
   await store.finishRun(run.id, { status, targetsEnqueued: enqueued, targetsCompleted: completed, jobsOpen: openJobs, spendUsd, note: clip(note, 1000) });
   await store.updateCampaign(campaign.id, {
     lastRunAt: now.toISOString(),
     lastRunStatus: status,
     lastRunNote: clip(note, 1000),
-    ...(claimedNextRunAt ? { nextRunAt: claimedNextRunAt } : {}),
+    ...(claimedNextRunAt && !completion.completed ? { nextRunAt: claimedNextRunAt } : {}),
   });
 
   return { campaignId: campaign.id, status, enqueued, completed, openJobs, spendUsd, note: clip(note, 1000) };

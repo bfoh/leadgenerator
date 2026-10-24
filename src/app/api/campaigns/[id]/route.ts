@@ -1,5 +1,12 @@
 import type { NextRequest } from 'next/server';
-import { campaignPatchSchema, campaignStatusTransitionAllowed, nextRunAt } from '@/lib/domain/campaigns';
+import {
+  campaignEditAccess,
+  campaignPatchSchema,
+  campaignScheduleEquals,
+  campaignScopeEquals,
+  campaignStatusTransitionAllowed,
+  nextRunAt,
+} from '@/lib/domain/campaigns';
 import { campaignProviderBlocker } from '@/lib/domain/discovery-providers';
 import { campaignHttpError, requireCloud } from '@/lib/server/campaigns/api';
 import { CampaignError, SupabaseCampaignStore, campaignColumns } from '@/lib/server/campaigns/store';
@@ -20,11 +27,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     const store = new SupabaseCampaignStore(ctx.supabase, ctx.orgId);
     const campaign = await store.getCampaign(id);
     if (!campaign) throw new CampaignError('Campaign not found.', 'not_found');
-    const [targets, runs, jobs, spendUsd] = await Promise.all([
+    const [targets, runs, jobs, spendUsd, activity] = await Promise.all([
       store.listTargets(id, 500),
       store.listRuns(id, 20),
       store.listCampaignJobs(id, 200),
       store.campaignSpend(id).catch(() => 0),
+      store.campaignActivity(id),
     ]);
     const ids = [...new Set(targets.map((target) => target.businessId))];
     const businesses = ids.length
@@ -42,6 +50,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       runs,
       jobs,
       spendUsd,
+      activity,
       businesses: (businesses.data ?? []).map((b) => ({
         id: String(b.id),
         name: String(b.name),
@@ -70,6 +79,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const current = await store.getCampaign(id);
     if (!current) throw new CampaignError('Campaign not found.', 'not_found');
 
+    const activity = await store.campaignActivity(id);
+    const access = campaignEditAccess(current.status, activity);
+    const editing = (['name', 'description', 'scope', 'batchSize', 'dailyTargetLimit', 'monthlyBudgetUsd', 'schedule', 'autoComplete'] as const).some(
+      (field) => input[field] !== undefined,
+    );
+    // The edit form sends the whole campaign, so an unchanged scope or schedule is not a change.
+    const scopeChanged = input.scope !== undefined && !campaignScopeEquals(input.scope, current.scope);
+    const scheduleChanged = input.schedule !== undefined && !campaignScheduleEquals(input.schedule, current.schedule);
+    if (editing) {
+      if (access.reason) throw new CampaignError(access.reason, 'conflict');
+      if ((scopeChanged || scheduleChanged) && !access.scope) {
+        throw new CampaignError(access.scopeReason ?? 'Research is still running for this campaign.', 'conflict');
+      }
+    }
+    if (input.providerKey && input.providerKey !== current.providerKey) {
+      throw new CampaignError('The research provider cannot be changed after a campaign is saved.', 'conflict');
+    }
+    if (input.status && input.status !== current.status && !access.status) {
+      throw new CampaignError(access.reason ?? 'This campaign cannot change status.', 'conflict');
+    }
+
     const columns = campaignColumns(input);
     if (input.status) {
       if (!campaignStatusTransitionAllowed(current.status, input.status)) {
@@ -86,10 +116,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       } else {
         columns.next_run_at = null;
       }
-    } else if (input.schedule) {
-      columns.next_run_at = current.status === 'active' ? nextRunAt(input.schedule) : null;
+    } else if (scheduleChanged) {
+      columns.next_run_at = current.status === 'active' ? nextRunAt(input.schedule ?? current.schedule) : null;
     }
 
+    if (!Object.keys(columns).length) return ok({ campaign: current });
     const campaign = await store.updateCampaign(id, columns);
     return ok({ campaign });
   } catch (error) {

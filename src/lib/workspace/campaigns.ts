@@ -35,6 +35,7 @@ export interface CampaignDetail {
   jobs: CampaignJobView[];
   businesses: CampaignBusinessView[];
   spendUsd: number;
+  activity: { researching: number; openJobs: number };
 }
 
 export interface CampaignPreview {
@@ -62,6 +63,7 @@ export interface CampaignWriteBody {
   dailyTargetLimit: number;
   monthlyBudgetUsd: number | null;
   schedule: { frequency: ResearchCampaign['schedule']['frequency']; hour: number; weekday: number | null; day: number | null };
+  autoComplete: boolean;
 }
 
 export const campaignApi = {

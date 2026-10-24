@@ -84,5 +84,18 @@ seeds the same rows into `ghana_regions` and `ghana_districts`. `tests/db/campai
 the database copy with the TypeScript list code for code, name for name and source name for source
 name, so the two cannot drift silently.
 
+**Verification against the source file (24 October 2026).** The GeoJSON resource
+`gha_admin2.geojson` (260 features) from the HDX record was downloaded and compared field by field:
+
+- 260 of 260 ADM2 P-codes are present, with no extras and no omissions.
+- All 260 names match after the documented suffix change, and every shortened name's `sourceName`
+  equals the source name exactly.
+- All 260 region associations match, with the single documented rename “Northern East” → “North East”.
+- ADM1 P-codes are `GH01`–`GH16` in the source; they match the region codes in `districts.ts`.
+- Guan is the only local record: `GH10-GUAN`, region Oti, capital Likpe-Mate. The source (valid from
+  8 March 2021) has 260 ADM2; Guan was inaugurated on 8 October 2021, after those boundaries. The
+  Ghana Districts repository lists “261 MMDAs” and includes Guan under Oti. Local code `GH10-GUAN`
+  follows the Oti prefix but is deliberately not a number, so it can never be mistaken for a P-code.
+
 Attribution to display where this data is shown: **“District list: Ghana Statistical Service via
 OCHA/HDX (COD-AB), CC BY-IGO 3.0; Guan District added; names shortened.”**

@@ -36,6 +36,8 @@ export function migrationFiles() {
 
 export async function createDatabase(
   options: {
+    /** A file-backed database directory, for backup/restore acceptance. Omit for in-memory. */
+    dataDir?: string;
     before002?: (db: PGlite) => Promise<void>;
     before003?: (db: PGlite) => Promise<void>;
     before004?: (db: PGlite) => Promise<void>;
@@ -43,7 +45,7 @@ export async function createDatabase(
     skip?: string[];
   } = {},
 ) {
-  const db = new PGlite();
+  const db = options.dataDir ? new PGlite(options.dataDir) : new PGlite();
   await db.exec(SUPABASE_STUB);
   for (const file of migrationFiles()) {
     if (options.skip?.some((prefix) => file.startsWith(prefix))) continue;

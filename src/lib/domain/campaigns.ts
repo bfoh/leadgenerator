@@ -20,6 +20,20 @@ export const CAMPAIGN_STATUS_META: Record<CampaignStatus, { label: string; descr
   cancelled: { label: 'Cancelled', description: 'Stopped permanently; its history stays readable.', tone: 'danger' },
 };
 
+/** What the campaign is doing right now, as distinct from its saved status. */
+export const CAMPAIGN_PHASES = ['draft', 'waiting', 'researching', 'completed', 'no_prospects', 'paused', 'failed', 'cancelled'] as const;
+export type CampaignPhase = (typeof CAMPAIGN_PHASES)[number];
+export const CAMPAIGN_PHASE_META: Record<CampaignPhase, { label: string; tone: Tone }> = {
+  draft: { label: 'Draft', tone: 'neutral' },
+  waiting: { label: 'Waiting for next run', tone: 'neutral' },
+  researching: { label: 'Research in progress', tone: 'info' },
+  completed: { label: 'Research completed', tone: 'success' },
+  no_prospects: { label: 'No eligible prospects', tone: 'warning' },
+  paused: { label: 'Paused', tone: 'warning' },
+  failed: { label: 'Research failed', tone: 'danger' },
+  cancelled: { label: 'Cancelled', tone: 'danger' },
+};
+
 export const CAMPAIGN_FREQUENCIES = ['manual', 'daily', 'weekly', 'monthly'] as const;
 export type CampaignFrequency = (typeof CAMPAIGN_FREQUENCIES)[number];
 export const FREQUENCY_LABELS: Record<CampaignFrequency, string> = {
@@ -81,6 +95,8 @@ export interface ResearchCampaign {
   dailyTargetLimit: number;
   monthlyBudgetUsd: number | null;
   schedule: CampaignSchedule;
+  /** Close the campaign automatically once every matching prospect has been researched. */
+  autoComplete: boolean;
   nextRunAt: string | null;
   lastRunAt: string | null;
   lastRunStatus: 'succeeded' | 'failed' | 'skipped' | null;
@@ -198,6 +214,7 @@ export const campaignFieldsSchema = z.object({
   dailyTargetLimit: z.number().int().min(1).max(MAX_DAILY_TARGETS).default(50),
   monthlyBudgetUsd: z.number().min(0).max(1_000_000).nullable().default(null),
   schedule: campaignScheduleSchema,
+  autoComplete: z.boolean().default(true),
 });
 
 /** A new campaign. The provider must permit unattended discovery and CRM processing. */
@@ -373,6 +390,168 @@ export function campaignTargetCounts(targets: Pick<CampaignTarget, 'state'>[]): 
 
 export function campaignProgress(counts: CampaignTargetCounts): { done: number; total: number; percent: number } {
   return { done: counts.completed, total: counts.total, percent: counts.total ? Math.round((counts.completed / counts.total) * 100) : 0 };
+}
+
+// ─── What the campaign is doing now ─────────────────────────────────────────────────────────────
+
+export interface CampaignPhaseInfo {
+  phase: CampaignPhase;
+  label: string;
+  description: string;
+  tone: Tone;
+}
+
+/**
+ * A single, human answer to "what is this campaign doing?", so an empty audience, a future run, a
+ * batch in progress, a finished scope, a pause and a failure are never shown as the same thing.
+ * The saved status still governs what may happen; this only describes it.
+ */
+export function campaignPhase(
+  campaign: Pick<ResearchCampaign, 'status' | 'schedule' | 'nextRunAt' | 'lastRunAt' | 'lastRunStatus' | 'lastRunNote'>,
+  counts: CampaignTargetCounts,
+): CampaignPhaseInfo {
+  const meta = CAMPAIGN_PHASE_META;
+  if (campaign.status === 'cancelled') {
+    return { phase: 'cancelled', ...meta.cancelled, description: 'Stopped permanently. Its prospects and history stay readable.' };
+  }
+  if (campaign.status === 'paused') {
+    return { phase: 'paused', ...meta.paused, description: 'No new prospects start. Jobs already queued finish.' };
+  }
+  if (campaign.status === 'draft') {
+    return { phase: 'draft', ...meta.draft, description: 'Saved but not running. Activate it to queue the first batch.' };
+  }
+  if (campaign.status === 'completed') {
+    return { phase: 'completed', ...meta.completed, description: 'The campaign was closed. Its run log and prospect history stay readable.' };
+  }
+  if (counts.researching > 0 || counts.queued > 0) {
+    return {
+      phase: 'researching',
+      ...meta.researching,
+      description:
+        counts.researching > 0
+          ? `${counts.researching} prospect(s) are being researched now.`
+          : `${counts.queued} prospect(s) are queued and will start on the next tick.`,
+    };
+  }
+  if (campaign.lastRunStatus === 'failed') {
+    return { phase: 'failed', ...meta.failed, description: campaign.lastRunNote ?? 'The last background attempt failed. Review the target notes, then run it again.' };
+  }
+  const emptyScope = campaign.lastRunAt !== null && counts.total === 0 && /no untargeted prospect|no eligible|nothing matches/i.test(campaign.lastRunNote ?? '');
+  if (emptyScope) {
+    return { phase: 'no_prospects', ...meta.no_prospects, description: 'No tracked prospect currently matches this scope. Add prospects, or widen the scope.' };
+  }
+  if (counts.failed > 0 && counts.completed === 0) {
+    return { phase: 'failed', ...meta.failed, description: 'No prospect in this campaign has completed research. Review the failed targets and run it again.' };
+  }
+  if (counts.total > 0) {
+    return {
+      phase: 'completed',
+      ...meta.completed,
+      description: `${counts.completed} researched${counts.qualified ? `, ${counts.qualified} qualified` : ''}${counts.skipped ? `, ${counts.skipped} skipped` : ''}.`,
+    };
+  }
+  return {
+    phase: 'waiting',
+    ...meta.waiting,
+    description:
+      campaign.schedule.frequency === 'manual'
+        ? 'Ready. Nothing starts until someone presses Run now.'
+        : campaign.nextRunAt
+          ? 'The first batch starts on the schedule.'
+          : 'Waiting for the next scheduled run.',
+  };
+}
+
+// ─── Editing a saved campaign ───────────────────────────────────────────────────────────────────
+
+/** The work the API has to know about before it can allow a structural change. */
+export interface CampaignActivity {
+  researching: number;
+  openJobs: number;
+}
+
+export interface CampaignEditAccess {
+  name: boolean;
+  scope: boolean;
+  schedule: boolean;
+  quotas: boolean;
+  budget: boolean;
+  autoComplete: boolean;
+  status: boolean;
+  /** Set when nothing at all may change (a completed or cancelled campaign). */
+  reason: string | null;
+  /** Set when scope and schedule are locked because research is running. */
+  scopeReason: string | null;
+}
+
+/** Whether two scopes select the same records, ignoring array order and duplicates. */
+export function campaignScopeEquals(a: CampaignScope, b: CampaignScope): boolean {
+  const same = (left: string[], right: string[]) => {
+    const l = new Set(left.map((value) => value.trim().toLowerCase()));
+    const r = new Set(right.map((value) => value.trim().toLowerCase()));
+    return l.size === r.size && [...l].every((value) => r.has(value));
+  };
+  return same(a.regions, b.regions) && same(a.districtCodes, b.districtCodes) && same(a.towns, b.towns) && same(a.categories, b.categories);
+}
+
+/** Whether two schedules mean the same thing (a field that does not apply is ignored). */
+export function campaignScheduleEquals(a: CampaignSchedule, b: CampaignSchedule): boolean {
+  if (a.frequency !== b.frequency) return false;
+  if (a.frequency === 'manual') return true;
+  if (a.hour !== b.hour) return false;
+  if (a.frequency === 'weekly') return a.weekday === b.weekday;
+  if (a.frequency === 'monthly') return a.day === b.day;
+  return true;
+}
+
+/**
+ * Name, quotas, budget and the auto-complete preference are safe at any time while the campaign is
+ * not finished. Scope and schedule are not: a change during a batch would make the saved scope and
+ * the in-flight membership disagree, and a schedule change races the worker's next-run claim.
+ */
+export function campaignEditAccess(status: CampaignStatus, activity: CampaignActivity): CampaignEditAccess {
+  if (status === 'completed' || status === 'cancelled') {
+    const reason = `A ${status} campaign cannot be changed. Its history is kept as it ran; create a new campaign to research the same scope again.`;
+    return { name: false, scope: false, schedule: false, quotas: false, budget: false, autoComplete: false, status: false, reason, scopeReason: reason };
+  }
+  const busy = activity.researching > 0 || activity.openJobs > 0;
+  const scopeReason = busy
+    ? 'Research is still running for this campaign. You can change the name, quotas and budget now; change the scope, industries or schedule when the current batch finishes.'
+    : null;
+  return {
+    name: true,
+    scope: !busy,
+    schedule: !busy,
+    quotas: true,
+    budget: true,
+    autoComplete: true,
+    status: true,
+    reason: null,
+    scopeReason,
+  };
+}
+
+/**
+ * Whether a finite campaign may close itself. Only when work has actually finished (at least one
+ * researched prospect, no failure), nothing is queued or running, and no untargeted or busy
+ * prospect remains in scope. A campaign with no audience stays open so a new prospect can be picked
+ * up; a failed campaign stays open so it can be retried.
+ */
+export function campaignShouldAutoComplete(
+  campaign: Pick<ResearchCampaign, 'status' | 'autoComplete'>,
+  counts: CampaignTargetCounts,
+  remaining: { untargeted: number; busy: number },
+): boolean {
+  return (
+    campaign.status === 'active' &&
+    campaign.autoComplete &&
+    counts.completed > 0 &&
+    counts.failed === 0 &&
+    counts.queued === 0 &&
+    counts.researching === 0 &&
+    remaining.untargeted === 0 &&
+    remaining.busy === 0
+  );
 }
 
 /** Start of the current day in Africa/Accra (UTC), for the campaign's daily target quota. */

@@ -88,6 +88,10 @@ class Query implements PromiseLike<Result> {
     this.filters.push((r) => values.includes(r[column]));
     return this;
   }
+  neq(column: string, value: unknown) {
+    this.filters.push((r) => r[column] !== value);
+    return this;
+  }
   /** Compares as strings, which orders ISO timestamps correctly. */
   lt(column: string, value: string) {
     this.filters.push((r) => r[column] != null && String(r[column]) < value);

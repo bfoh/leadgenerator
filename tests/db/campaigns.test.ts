@@ -367,3 +367,165 @@ describe('rolling back migrations 009 and 010', () => {
 
 
 
+
+describe('migration acceptance: idempotency and existing data', () => {
+  const migration = (file: string) => readFileSync(join(process.cwd(), 'supabase', 'migrations', file), 'utf8');
+
+  it('re-applies 009 and 010 on a populated database without losing or duplicating anything', async () => {
+    const { db, org } = await workspace();
+    const businessId = await createBusiness(db, org, 'Repeat Pharmacy');
+    const campaignId = await createCampaign(db, org, 'Repeat campaign');
+    const [target] = await as(db, OWNER, () =>
+      rows<{ id: string }>(
+        db,
+        `insert into public.campaign_targets (organization_id, campaign_id, business_id, match_reason)
+         values ($1, $2, $3, 'Ashanti · Kumasi') returning id`,
+        [org, campaignId, businessId],
+      ),
+    );
+    await as(db, OWNER, () => db.query(`update public.campaign_targets set state = 'researching' where id = $1`, [target.id]));
+    const before = {
+      events: (await rows<{ n: number }>(db, 'select count(*)::int as n from public.campaign_target_events'))[0].n,
+      districts: (await rows<{ n: number }>(db, 'select count(*)::int as n from public.ghana_districts'))[0].n,
+    };
+
+    await db.exec(migration('009_research_campaigns.sql'));
+    await db.exec(migration('010_region_records.sql'));
+
+    expect((await rows<{ n: number }>(db, 'select count(*)::int as n from public.research_campaigns'))[0].n).toBe(1);
+    expect((await rows<{ n: number }>(db, 'select count(*)::int as n from public.campaign_targets'))[0].n).toBe(1);
+    expect((await rows<{ n: number }>(db, 'select count(*)::int as n from public.campaign_target_events'))[0].n).toBe(before.events);
+    expect((await rows<{ n: number }>(db, 'select count(*)::int as n from public.ghana_districts'))[0].n).toBe(before.districts);
+    expect((await rows<{ state: string }>(db, 'select state from public.campaign_targets where id = $1', [target.id]))[0].state).toBe('researching');
+    expect((await rows<{ auto_complete: boolean }>(db, 'select auto_complete from public.research_campaigns where id = $1', [campaignId]))[0].auto_complete).toBe(true);
+  });
+
+  it('adds campaigns and districts to a database that already holds prospects and jobs', async () => {
+    const db = await createDatabase({ skip: ['009', '010'] });
+    await createUser(db, OWNER, 'owner@existing.example');
+    const [{ org_id: org }] = await as(db, OWNER, () => rows<{ org_id: string }>(db, 'select * from public.ensure_workspace()'));
+    const [business] = await as(db, OWNER, () =>
+      rows<{ id: string; city: string | null }>(
+        db,
+        `insert into public.businesses (organization_id, name, category, city, contact_permission, stage)
+         values ($1, 'Existing Pharmacy', 'Pharmacy', 'Kumasi', 'unknown', 'research_candidate') returning id, city`,
+        [org],
+      ),
+    );
+    const [job] = await rows<{ id: string }>(db, `insert into public.automation_jobs (organization_id, agent) values ($1, 'website_verification') returning id`, [org]);
+
+    await db.exec(migration('009_research_campaigns.sql'));
+    await db.exec(migration('010_region_records.sql'));
+
+    expect(
+      (await rows<{ city: string | null; district_code: string | null }>(db, 'select city, district_code from public.businesses where id = $1', [business.id]))[0],
+    ).toEqual({ city: 'Kumasi', district_code: null });
+    expect((await rows<{ campaign_id: string | null }>(db, 'select campaign_id from public.automation_jobs where id = $1', [job.id]))[0].campaign_id).toBeNull();
+
+    const campaignId = await createCampaign(db, org, 'After upgrade');
+    const [target] = await as(db, OWNER, () =>
+      rows<{ id: string }>(db, `insert into public.campaign_targets (organization_id, campaign_id, business_id) values ($1, $2, $3) returning id`, [
+        org,
+        campaignId,
+        business.id,
+      ]),
+    );
+    const [created] = await as(db, OWNER, () =>
+      rows<{ body: { created: boolean; job: { campaign_id: string } } }>(
+        db,
+        `select public.enqueue_campaign_job($1, 'business_identity', $2, '{}'::jsonb, 'acceptance:existing', 100, null, null, false, 0, 3, $3, $4) as body`,
+        [org, business.id, campaignId, target.id],
+      ),
+    );
+    expect(created.body.created).toBe(true);
+    expect(created.body.job.campaign_id).toBe(campaignId);
+  });
+
+  it('stores the auto-complete preference and defaults it on', async () => {
+    const { db, org } = await workspace();
+    const [row] = await as(db, OWNER, () =>
+      rows<{ auto_complete: boolean }>(db, `insert into public.research_campaigns (organization_id, name) values ($1, 'Auto') returning auto_complete`, [org]),
+    );
+    expect(row.auto_complete).toBe(true);
+    await as(db, OWNER, () => db.query('update public.research_campaigns set auto_complete = false where organization_id = $1', [org]));
+    expect(
+      (await rows<{ auto_complete: boolean }>(db, 'select auto_complete from public.research_campaigns where organization_id = $1', [org]))[0].auto_complete,
+    ).toBe(false);
+  });
+});
+
+
+describe('campaign security boundaries', () => {
+  it('keeps targets, runs and history inside the workspace that owns them', async () => {
+    const { db, org, other } = await workspace();
+    const businessId = await createBusiness(db, org, 'Owner Pharmacy');
+    const campaignId = await createCampaign(db, org, 'Owner campaign');
+    const [target] = await as(db, OWNER, () =>
+      rows<{ id: string }>(db, `insert into public.campaign_targets (organization_id, campaign_id, business_id) values ($1, $2, $3) returning id`, [org, campaignId, businessId]),
+    );
+    await as(db, OWNER, () =>
+      db.query(`insert into public.campaign_runs (organization_id, campaign_id, status) values ($1, $2, 'succeeded')`, [org, campaignId]),
+    );
+    const [outsiderCampaign] = await as(db, OUTSIDER, () =>
+      rows<{ id: string }>(db, `insert into public.research_campaigns (organization_id, name) values ($1, 'Outsider campaign') returning id`, [other]),
+    );
+
+    for (const table of ['campaign_targets', 'campaign_runs', 'campaign_target_events']) {
+      expect(await as(db, OUTSIDER, () => rows(db, `select 1 from public.${table} where campaign_id = $1`, [campaignId]))).toHaveLength(0);
+    }
+    await expect(
+      as(db, OUTSIDER, () =>
+        db.query(`insert into public.campaign_targets (organization_id, campaign_id, business_id) values ($1, $2, $3)`, [other, campaignId, businessId]),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      as(db, OUTSIDER, () =>
+        db.query(`insert into public.campaign_runs (organization_id, campaign_id, status) values ($1, $2, 'running')`, [other, campaignId]),
+      ),
+    ).rejects.toThrow();
+    expect((await rows<{ id: string }>(db, 'select id from public.campaign_targets where id = $1', [target.id]))[0].id).toBe(target.id);
+    expect((await rows<{ id: string }>(db, 'select id from public.research_campaigns where id = $1', [outsiderCampaign.id]))[0].id).toBe(outsiderCampaign.id);
+  });
+
+  it('runs the campaign functions as the definer with an empty search path', async () => {
+    const db = await createDatabase();
+    const functions = await rows<{ proname: string; prosecdef: boolean; proconfig: string[] | null }>(
+      db,
+      `select proname, prosecdef, proconfig from pg_proc where proname in ('enqueue_campaign_job', 'log_campaign_target_event', 'campaign_spend') order by proname`,
+    );
+    expect(functions).toHaveLength(3);
+    for (const fn of functions) {
+      if (fn.proname === 'campaign_spend') {
+        expect(fn.prosecdef).toBe(false);
+      } else {
+        expect(fn.prosecdef).toBe(true);
+      }
+      expect((fn.proconfig ?? []).join(',')).toMatch(/search_path/);
+    }
+  });
+
+  it('refuses a campaign target that belongs to a different prospect', async () => {
+    const { db, org } = await workspace();
+    const first = await createBusiness(db, org, 'First Pharmacy');
+    const second = await createBusiness(db, org, 'Second Pharmacy');
+    const campaignId = await createCampaign(db, org, 'Mismatch campaign');
+    const [target] = await as(db, OWNER, () =>
+      rows<{ id: string }>(db, `insert into public.campaign_targets (organization_id, campaign_id, business_id) values ($1, $2, $3) returning id`, [
+        org,
+        campaignId,
+        first,
+      ]),
+    );
+    await expect(
+      as(db, OWNER, () =>
+        db.query(`select public.enqueue_campaign_job($1, 'business_identity', $2, '{}'::jsonb, 'mismatch', 100, null, null, false, 0, 3, $3, $4)`, [
+          org,
+          second,
+          campaignId,
+          target.id,
+        ]),
+      ),
+    ).rejects.toThrow(/does not belong to this campaign and prospect/);
+  });
+});
+

@@ -47,6 +47,8 @@ create table if not exists public.research_campaigns (
   schedule_day smallint check (schedule_day between 1 and 28),
   timezone text not null default 'Africa/Accra' check (timezone = 'Africa/Accra'),
   next_run_at timestamptz,
+  -- A finite campaign may close itself once every matching prospect has been researched.
+  auto_complete boolean not null default true,
   last_run_at timestamptz,
   last_run_status text check (last_run_status in ('succeeded', 'failed', 'skipped')),
   last_run_note text check (char_length(last_run_note) <= 1000),
@@ -65,6 +67,8 @@ create table if not exists public.research_campaigns (
   ),
   unique (id, organization_id)
 );
+-- Added after the first release of this migration so a database that applied an earlier draft gains it too.
+alter table public.research_campaigns add column if not exists auto_complete boolean not null default true;
 create index if not exists research_campaigns_org_status_idx on public.research_campaigns(organization_id, status);
 create index if not exists research_campaigns_due_idx on public.research_campaigns(next_run_at) where status = 'active';
 
@@ -285,8 +289,9 @@ begin
     select 1 from public.campaign_targets t
     where t.id = p_campaign_target and t.organization_id = p_org
       and (p_campaign is null or t.campaign_id = p_campaign)
+      and (p_business is null or t.business_id = p_business)
   ) then
-    raise exception 'That campaign target does not belong to this campaign.' using errcode = 'foreign_key_violation';
+    raise exception 'That campaign target does not belong to this campaign and prospect.' using errcode = 'foreign_key_violation';
   end if;
   if p_parent is not null then
     select pj.trace_id into parent_trace from public.automation_jobs pj where pj.id = p_parent and pj.organization_id = p_org;
