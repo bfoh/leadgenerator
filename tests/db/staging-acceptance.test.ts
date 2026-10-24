@@ -25,7 +25,7 @@ describe('staging acceptance for migrations 009 and 010', () => {
 
     try {
       // 1. Baseline staging database (through 008) with one existing prospect.
-      let db = await createDatabase({ dataDir: live, skip: ['009', '010'] });
+      let db = await createDatabase({ dataDir: live, skip: ['009', '010', '011'] });
       await createUser(db, OWNER, 'owner@staging.example');
       const [{ org_id: org }] = await as(db, OWNER, () => rows<{ org_id: string }>(db, 'select * from public.ensure_workspace()'));
       const [existing] = await as(db, OWNER, () =>
@@ -157,6 +157,7 @@ describe('staging acceptance for migrations 009 and 010', () => {
       cpSync(live, disposable, { recursive: true });
       const rollbackDb = new PGlite(disposable);
       await rollbackDb.query(`update public.businesses set city = 'Kumasi' where city is null`);
+      await rollbackDb.exec(rollback('011_autonomous_discovery_down.sql'));
       await rollbackDb.exec(rollback('010_region_records_down.sql'));
       await rollbackDb.exec(rollback('009_research_campaigns_down.sql'));
       expect((await rows<{ t: string | null }>(rollbackDb, `select to_regclass('public.research_campaigns') as t`))[0].t).toBeNull();

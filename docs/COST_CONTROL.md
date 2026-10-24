@@ -96,7 +96,16 @@ Also set Google Cloud API quotas for Places API (New) — for example 200 Text S
 - Analytics → *Estimated API cost* and *Usage by operation* show history. Usage recorded by automated work carries the job ID in its metadata.
 - Agent runs record each provider call with its estimated cost.
 
-## 6. Tests never spend money
+## 6. Autonomous discovery (milestone 3B)
+
+The only connector is the offline synthetic provider: **cost 0**, no external request, no usage row.
+A real provider must not be enabled until it has a declaration cost model, a campaign discovery
+spend cap (`research_campaigns.discovery_spend_cap_usd`, checked against `discovery_runs.spend_usd`),
+and — if it charges per call — a paid-request ledger entry and a hard provider budget. The campaign’s
+monthly budget also includes discovery spend, so a research budget cannot be silently consumed by
+acquisition. No paid discovery call has been made.
+
+## 7. Tests never spend money
 
 CI and the E2E suite blank every paid key (including `RESEND_API_KEY` and `WHATSAPP_ACCESS_TOKEN`); messaging tests mock every provider call and demo mode simulates sends. Unit tests use simulated providers; the E2E server sets `SIMULATE_EXTERNAL_TOOLS=true`, so web search, DNS and website checks come from a labelled simulated world and nothing leaves the machine. Unit and database tests also run with the network blocked (`tests/setup/no-network.ts`): a test that forgets its fake fails instead of calling a provider.
 

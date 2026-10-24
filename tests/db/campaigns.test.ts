@@ -332,6 +332,7 @@ describe('rolling back migrations 009 and 010', () => {
         [org],
       ),
     );
+    await db.exec(readRollback('011_autonomous_discovery_down.sql'));
     await expect(db.exec(readRollback('010_region_records_down.sql'))).rejects.toThrow(/no town/i);
 
     await db.query(`update public.businesses set city = 'Kumasi' where city is null`);
@@ -401,7 +402,7 @@ describe('migration acceptance: idempotency and existing data', () => {
   });
 
   it('adds campaigns and districts to a database that already holds prospects and jobs', async () => {
-    const db = await createDatabase({ skip: ['009', '010'] });
+    const db = await createDatabase({ skip: ['009', '010', '011'] });
     await createUser(db, OWNER, 'owner@existing.example');
     const [{ org_id: org }] = await as(db, OWNER, () => rows<{ org_id: string }>(db, 'select * from public.ensure_workspace()'));
     const [business] = await as(db, OWNER, () =>

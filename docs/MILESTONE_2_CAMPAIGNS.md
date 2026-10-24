@@ -13,6 +13,8 @@ queues the normal chain:
 `business_identity → website_verification → contact_research → contact_validation → digital_audit →
 opportunity_scoring → opportunity_report`
 
+> **Milestone 3B note.** This document describes the research-only campaign as it shipped in milestone 2. The 3B framework adds an opt-in, provider-gated discovery step; Google Places is still never used and no real provider is integrated. See [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md).
+
 A campaign does **not** search for new businesses, does not call Google Places, and does not contact
 anyone. Live Places discovery stays manual and user-initiated. Approved-batch discovery is out of
 scope and remains disabled.

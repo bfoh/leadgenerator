@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tickCampaign } from '@/lib/server/campaigns/orchestrator';
 import { campaignFromRow } from '@/lib/server/campaigns/store';
+import { promoteDiscoveredRecord } from '@/lib/server/discovery/service';
 import { FakeSupabase } from './fake-supabase';
 
 // Campaign orchestration without a network: the same query shapes the Supabase store uses, driven by
@@ -10,6 +11,10 @@ import { FakeSupabase } from './fake-supabase';
 const ORG = '00000000-0000-4000-8000-00000000c001';
 const NOW = new Date('2026-10-24T10:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 type Row = Record<string, unknown>;
 
@@ -100,6 +105,15 @@ function campaign(overrides: Row = {}): Row {
     batch_size: 2,
     daily_target_limit: 50,
     monthly_budget_usd: null,
+    discovery_enabled: false,
+    discovery_daily_limit: 25,
+    discovery_total_limit: 100,
+    discovery_spend_cap_usd: null,
+    discovery_quality_threshold: 60,
+    discovery_require_review: true,
+    discovery_cursor: null,
+    discovery_exhausted: false,
+    discovered_total: 0,
     schedule_frequency: 'manual',
     schedule_hour: 6,
     schedule_weekday: null,
@@ -138,10 +152,14 @@ function makeDb(options: { businesses?: Row[]; campaign?: Row; settings?: Row } 
     automation_jobs: [],
     campaign_runs: [],
     agent_runs: [],
+    provider_discovery_records: [],
+    discovery_runs: [],
+    discovery_events: [],
   };
   db.unique = {
     campaign_targets: [['campaign_id', 'business_id']],
     automation_jobs: [['organization_id', 'idempotency_key']],
+    provider_discovery_records: [['organization_id', 'provider_key', 'provider_record_id']],
   };
   db.defaults = {
     campaign_targets: {
@@ -167,6 +185,7 @@ function makeDb(options: { businesses?: Row[]; campaign?: Row; settings?: Row } 
       note: null,
     },
     automation_jobs: { attempts: 0 },
+    discovery_runs: { status: 'running', started_at: NOW_ISO, created_at: NOW_ISO, records_fetched: 0, spend_usd: 0 },
   };
   return db;
 }
@@ -501,6 +520,59 @@ describe('human review and eligibility', () => {
     });
     expect((await tick(db)).enqueued).toBe(1);
     expect(db.rows('campaign_targets').map((target) => target.business_id)).toEqual(['b1']);
+  });
+});
+
+
+describe('autonomous discovery in a campaign', () => {
+  it('stages a page, suppresses a repeat, and researches a promoted record on the next tick', async () => {
+    vi.stubEnv('DISCOVERY_SYNTHETIC_PROVIDER', 'true');
+    const db = makeDb({
+      campaign: campaign({
+        provider_key: 'offline_synthetic',
+        discovery_enabled: true,
+        discovery_daily_limit: 2,
+        discovery_total_limit: 10,
+        regions: ['Ashanti'],
+        categories: ['Pharmacy'],
+        batch_size: 2,
+      }),
+    });
+
+    const first = await tick(db);
+    expect(first).toMatchObject({ status: 'succeeded', enqueued: 0 });
+    expect(first.note).toMatch(/2 record\(s\) read/);
+    expect(db.rows('provider_discovery_records')).toHaveLength(2);
+    expect(db.rows('provider_discovery_records').every((row) => row.status === 'pending_review')).toBe(true);
+    expect(savedCampaign(db).discovery.discoveredTotal).toBe(2);
+    expect(savedCampaign(db).discovery.cursor).toBeTruthy();
+
+    // The same page would be skipped as duplicates, but the campaign's cursor already moved on.
+    const record = db.rows('provider_discovery_records')[0];
+    const { businessId } = await promoteDiscoveredRecord(db.client, {
+      organizationId: ORG,
+      recordId: String(record.id),
+      actorId: null,
+      note: 'Reviewed by the owner.',
+    });
+
+    const second = await tick(db);
+    expect(second.enqueued).toBe(1);
+    expect(db.rows('campaign_targets')).toHaveLength(1);
+    expect(db.rows('campaign_targets')[0].business_id).toBe(businessId);
+    expect(db.rows('automation_jobs')).toHaveLength(1);
+    // The daily discovery limit was reached after the first page, so no second provider call.
+    expect(db.rows('discovery_runs')).toHaveLength(1);
+  });
+
+  it('refuses to run a campaign whose synthetic connector is disabled', async () => {
+    const db = makeDb({
+      campaign: campaign({ provider_key: 'offline_synthetic', discovery_enabled: true, regions: ['Ashanti'], categories: ['Pharmacy'] }),
+    });
+    const result = await tick(db);
+    expect(result).toMatchObject({ status: 'skipped', enqueued: 0 });
+    expect(result.note).toMatch(/disabled/i);
+    expect(db.rows('provider_discovery_records')).toHaveLength(0);
   });
 });
 

@@ -438,7 +438,11 @@ export function BusinessFormDialog({
           <Field label="Source type" error={errors.sourceKind}>
             {(p) => (
               <Select {...p} value={text(form.sourceKind)} onChange={(e) => set('sourceKind', e.target.value as FormInput['sourceKind'])}>
-                {SOURCE_KINDS.filter((s) => s !== 'legacy_seed' || form.sourceKind === 'legacy_seed').map((s) => (
+                {SOURCE_KINDS.filter(
+                  (s) =>
+                    s !== 'provider_discovery' &&
+                    (s !== 'legacy_seed' || form.sourceKind === 'legacy_seed'),
+                ).map((s) => (
                   <option key={s} value={s}>
                     {SOURCE_KIND_LABELS[s]}
                   </option>

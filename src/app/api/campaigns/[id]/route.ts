@@ -10,7 +10,9 @@ import {
 import { campaignProviderBlocker } from '@/lib/domain/discovery-providers';
 import { campaignHttpError, requireCloud } from '@/lib/server/campaigns/api';
 import { CampaignError, SupabaseCampaignStore, campaignColumns } from '@/lib/server/campaigns/store';
+import { listDiscoveryRecords } from '@/lib/server/discovery/service';
 import { requireContext } from '@/lib/server/context';
+import { serverEnv } from '@/lib/server/env';
 import { fail, ok, readJson } from '@/lib/server/http';
 
 // One campaign: its detail (targets, jobs, runs, spend), changes, and deletion of a draft.
@@ -27,13 +29,16 @@ export async function GET(req: NextRequest, { params }: Params) {
     const store = new SupabaseCampaignStore(ctx.supabase, ctx.orgId);
     const campaign = await store.getCampaign(id);
     if (!campaign) throw new CampaignError('Campaign not found.', 'not_found');
-    const [targets, runs, jobs, spendUsd, activity] = await Promise.all([
+    const [targets, runs, jobs, jobSpendUsd, discoverySpendUsd, activity, discoveryRecords] = await Promise.all([
       store.listTargets(id, 500),
       store.listRuns(id, 20),
       store.listCampaignJobs(id, 200),
       store.campaignSpend(id).catch(() => 0),
+      store.discoverySpend(id).catch(() => 0),
       store.campaignActivity(id),
+      listDiscoveryRecords(ctx.supabase, ctx.orgId, { campaignId: id, limit: 100 }).catch(() => []),
     ]);
+    const spendUsd = jobSpendUsd + discoverySpendUsd;
     const ids = [...new Set(targets.map((target) => target.businessId))];
     const businesses = ids.length
       ? await ctx.supabase
@@ -51,6 +56,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       jobs,
       spendUsd,
       activity,
+      discoveryRecords,
       businesses: (businesses.data ?? []).map((b) => ({
         id: String(b.id),
         name: String(b.name),
@@ -72,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const input = await readJson(req, campaignPatchSchema, 20_000);
     if (input.providerKey) {
-      const blocker = campaignProviderBlocker(input.providerKey);
+      const blocker = campaignProviderBlocker(input.providerKey, { syntheticEnabled: serverEnv.discovery.synthetic() });
       if (blocker) throw new CampaignError(blocker, 'invalid');
     }
     const store = new SupabaseCampaignStore(ctx.supabase, ctx.orgId);
@@ -81,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const activity = await store.campaignActivity(id);
     const access = campaignEditAccess(current.status, activity);
-    const editing = (['name', 'description', 'scope', 'batchSize', 'dailyTargetLimit', 'monthlyBudgetUsd', 'schedule', 'autoComplete'] as const).some(
+    const editing = (['name', 'description', 'scope', 'batchSize', 'dailyTargetLimit', 'monthlyBudgetUsd', 'discovery', 'schedule', 'autoComplete'] as const).some(
       (field) => input[field] !== undefined,
     );
     // The edit form sends the whole campaign, so an unchanged scope or schedule is not a change.
@@ -92,6 +98,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if ((scopeChanged || scheduleChanged) && !access.scope) {
         throw new CampaignError(access.scopeReason ?? 'Research is still running for this campaign.', 'conflict');
       }
+      if (input.discovery !== undefined && !access.discovery) {
+        throw new CampaignError(access.scopeReason ?? 'Discovery settings are locked while this campaign is running.', 'conflict');
+      }
+    }
+    if (input.discovery?.enabled && current.providerKey === 'tracked_records') {
+      throw new CampaignError('Choose a discovery provider before enabling autonomous discovery.', 'invalid');
+    }
+    if (input.discovery?.enabled) {
+      const blocker = campaignProviderBlocker(input.providerKey ?? current.providerKey, { syntheticEnabled: serverEnv.discovery.synthetic() });
+      if (blocker) throw new CampaignError(blocker, 'invalid');
     }
     if (input.providerKey && input.providerKey !== current.providerKey) {
       throw new CampaignError('The research provider cannot be changed after a campaign is saved.', 'conflict');
@@ -101,6 +117,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     const columns = campaignColumns(input);
+    const discoveryChanged =
+      input.discovery !== undefined &&
+      (['enabled', 'dailyLimit', 'totalLimit', 'spendCapUsd', 'qualityThreshold', 'requireReview'] as const).some(
+        (field) => input.discovery?.[field] !== undefined && input.discovery[field] !== current.discovery[field],
+      );
+    // A changed scope or discovery rule makes the old provider cursor meaningless (the provider page
+    // would be rejected by the cursor fingerprint). Start the new scope from its first page.
+    if (scopeChanged || discoveryChanged) {
+      columns.discovery_cursor = null;
+      columns.discovery_exhausted = false;
+    }
     if (input.status) {
       if (!campaignStatusTransitionAllowed(current.status, input.status)) {
         throw new CampaignError(`A ${current.status} campaign cannot become ${input.status}.`, 'conflict');

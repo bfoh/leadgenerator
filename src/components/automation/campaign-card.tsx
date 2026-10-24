@@ -14,8 +14,9 @@ import {
   type CampaignStatus,
   type CampaignSummary,
 } from '@/lib/domain/campaigns';
+import { discoveryProgress } from '@/lib/domain/discovery-framework';
 import { errorMessage, formatDateTime, relativeTime } from '@/lib/utils';
-import { campaignApi, useCampaignDetail, useCampaignRefresh } from '@/lib/workspace/campaigns';
+import { campaignApi, useCampaignDetail, useCampaignRefresh, type DiscoveryRecordView } from '@/lib/workspace/campaigns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,6 +41,7 @@ export function CampaignCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const progress = campaignProgress(campaign.counts);
+  const found = discoveryProgress(campaign.discovery.discoveredTotal, campaign.discovery.totalLimit);
   const meta = CAMPAIGN_STATUS_META[campaign.status];
   const phase = campaignPhase(campaign, campaign.counts);
   const busy = campaign.counts.researching > 0 || campaign.counts.queued > 0;
@@ -81,7 +83,11 @@ export function CampaignCard({
               {meta.label}
             </Badge>
             {phase.phase !== campaign.status && <Badge tone={phase.tone}>{phase.label}</Badge>}
-            <Badge tone="neutral">Tracked prospects</Badge>
+            {campaign.discovery.enabled ? (
+              <Badge tone="info">Discovery · {campaign.providerKey}</Badge>
+            ) : (
+              <Badge tone="neutral">Tracked prospects</Badge>
+            )}
           </div>
           <p className="text-xs text-subtle">
             {describeScope(campaign.scope)} · {describeSchedule(campaign.schedule)}
@@ -169,11 +175,17 @@ export function CampaignCard({
           {campaign.lastRunAt ? `Last run ${relativeTime(campaign.lastRunAt)}` : 'Never run'}
           {campaign.monthlyBudgetUsd != null ? ` · ${usd(campaign.spendUsd)} of ${usd(campaign.monthlyBudgetUsd)} budget` : ` · ${usd(campaign.spendUsd)} recorded`}
         </p>
+        {campaign.discovery.enabled && (
+          <p className="text-xs text-subtle">
+            {found.used} of {found.total} provider record(s) fetched · {campaign.discovery.exhausted ? 'provider exhausted' : 'more pages available'} ·{' '}
+            {campaign.discovery.requireReview ? 'every import needs review' : 'high-confidence imports are automatic'}
+          </p>
+        )}
         {campaign.lastRunNote && <p className="text-xs text-muted">{campaign.lastRunNote}</p>}
         {campaign.pausedReason && campaign.status === 'paused' && <p className="text-xs text-warning">{campaign.pausedReason}</p>}
       </div>
 
-      {open && <CampaignDetail campaign={campaign} />}
+      {open && <CampaignDetail campaign={campaign} manage={manage} />}
 
       <CampaignForm key={`${campaign.id}:${campaign.updatedAt}`} open={editing} onOpenChange={setEditing} campaign={campaign} busy={busy} />
 
@@ -200,7 +212,7 @@ export function CampaignCard({
   );
 }
 
-function CampaignDetail({ campaign }: { campaign: CampaignSummary }) {
+function CampaignDetail({ campaign, manage }: { campaign: CampaignSummary; manage: boolean }) {
   const { data, isLoading, error } = useCampaignDetail(campaign.id);
   if (isLoading) return <p className="border-t border-border px-4 py-3 text-sm text-subtle">Loading the campaign’s prospects and log…</p>;
   if (error) return <p className="border-t border-border px-4 py-3 text-sm text-danger">Could not load the campaign detail. {errorMessage(error)}</p>;
@@ -210,6 +222,7 @@ function CampaignDetail({ campaign }: { campaign: CampaignSummary }) {
   const targets = data.targets.slice(0, 100);
   const runs = data.runs.slice(0, 10);
   const jobs = [...data.jobs].reverse().slice(0, 20);
+  const pendingDiscovery = (data.discoveryRecords ?? []).filter((record) => record.status === 'pending_review');
 
   return (
     <div className="space-y-4 border-t border-border px-4 py-3">
@@ -259,6 +272,19 @@ function CampaignDetail({ campaign }: { campaign: CampaignSummary }) {
           </div>
         )}
       </section>
+
+      {campaign.discovery.enabled && (
+        <section aria-labelledby={`campaign-discovery-${campaign.id}`}>
+          <h4 id={`campaign-discovery-${campaign.id}`} className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
+            Discovered businesses to review ({pendingDiscovery.length})
+          </h4>
+          {pendingDiscovery.length === 0 ? (
+            <p className="text-sm text-subtle">Nothing is waiting for review. New provider records appear here after a run.</p>
+          ) : (
+            <DiscoveryReview records={pendingDiscovery} manage={manage} />
+          )}
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section aria-labelledby={`campaign-runs-${campaign.id}`}>
@@ -311,4 +337,67 @@ function CampaignDetail({ campaign }: { campaign: CampaignSummary }) {
   );
 }
 
+
+
+function DiscoveryReview({ records, manage }: { records: DiscoveryRecordView[]; manage: boolean }) {
+  const refresh = useCampaignRefresh();
+  const review = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'promote' | 'reject' }) => campaignApi.reviewRecord(id, { action }),
+    onSuccess: (_result, variables) => {
+      refresh();
+      toast.success(variables.action === 'promote' ? 'Added as a research candidate. The next campaign run can research it.' : 'Record rejected.');
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[680px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs text-subtle">
+            <th scope="col" className="py-1.5 pr-3 font-medium">Business</th>
+            <th scope="col" className="py-1.5 pr-3 font-medium">Location</th>
+            <th scope="col" className="py-1.5 pr-3 font-medium">Quality</th>
+            <th scope="col" className="py-1.5 pr-3 font-medium">Why review</th>
+            {manage && <th scope="col" className="py-1.5 font-medium">Decision</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {records.map((record) => (
+            <tr key={record.id}>
+              <td className="py-2 pr-3">
+                <span className="font-medium">{record.name}</span>
+                <span className="block text-xs text-subtle">
+                  {record.category ?? 'Uncategorised'} · {record.providerKey}
+                </span>
+              </td>
+              <td className="py-2 pr-3 text-xs text-muted">
+                {[record.town, record.region, record.districtCode].filter(Boolean).join(' · ') || 'No location'}
+              </td>
+              <td className="py-2 pr-3 text-xs tabular">
+                {record.qualityScore}/100
+                <span className="block text-subtle">identity {record.identityConfidence}/100</span>
+              </td>
+              <td className="max-w-[240px] py-2 pr-3 text-xs text-muted">
+                {record.reviewReasons.length ? record.reviewReasons.join('; ') : 'No specific concern recorded.'}
+              </td>
+              {manage && (
+                <td className="py-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="primary" loading={review.isPending && review.variables?.id === record.id} onClick={() => review.mutate({ id: record.id, action: 'promote' })}>
+                      Add prospect
+                    </Button>
+                    <Button size="sm" variant="outline-danger" loading={review.isPending && review.variables?.id === record.id} onClick={() => review.mutate({ id: record.id, action: 'reject' })}>
+                      Reject
+                    </Button>
+                  </div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 

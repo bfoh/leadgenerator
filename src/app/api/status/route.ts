@@ -20,6 +20,8 @@ export async function GET() {
     ai: { configured: isAiConfigured(), model: isAiConfigured() ? serverEnv.anthropicModel() : null },
     webSearch: { configured: braveSearchProvider.isConfigured(), name: braveSearchProvider.name },
     discovery: discoveryProviders().map(describeProvider),
+    // Autonomous discovery: the only connector is synthetic, and it is off unless explicitly enabled.
+    autonomousDiscovery: { syntheticEnabled: serverEnv.discovery.synthetic() },
     // Messages to businesses are not possible in this version (only sandbox test recipients, see
     // /api/messaging/status); the flag is reported, never configurable here.
     automation: { backgroundWorker: isBackgroundWorkerConfigured(), outboundSending: false },

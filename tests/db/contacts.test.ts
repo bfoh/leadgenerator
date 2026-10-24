@@ -375,7 +375,7 @@ describe('re-running, independence and rollback', () => {
   });
 
   it('applies without migrations 003 and 004', async () => {
-    const d = await createDatabase({ skip: ['003', '004', '007', '009'] });
+    const d = await createDatabase({ skip: ['003', '004', '007', '009', '011'] });
     await createUser(d, OWNER, 'owner5@example.com');
     const { org_id } = await workspace(d, OWNER);
     const b = await business(OWNER, {}, d, org_id);

@@ -1,8 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { campaignInputSchema, campaignTargetCounts, type CampaignSummary, type CampaignTargetState } from '@/lib/domain/campaigns';
+import { campaignProviderBlocker } from '@/lib/domain/discovery-providers';
 import { campaignHttpError, requireCloud } from '@/lib/server/campaigns/api';
-import { SupabaseCampaignStore, campaignColumns } from '@/lib/server/campaigns/store';
+import { CampaignError, SupabaseCampaignStore, campaignColumns } from '@/lib/server/campaigns/store';
 import { requireContext } from '@/lib/server/context';
+import { serverEnv } from '@/lib/server/env';
 import { fail, ok, readJson } from '@/lib/server/http';
 
 // Research campaigns: list and create. Campaigns are cloud-only (they queue server-side jobs) and
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
       campaigns.map(async (campaign): Promise<CampaignSummary> => ({
         ...campaign,
         counts: campaignTargetCounts(byCampaign.get(campaign.id) ?? []),
-        spendUsd: await store.campaignSpend(campaign.id).catch(() => 0),
+        spendUsd: (await store.campaignSpend(campaign.id).catch(() => 0)) + (await store.discoverySpend(campaign.id).catch(() => 0)),
       })),
     );
     return ok({ campaigns: summaries });
@@ -40,6 +42,8 @@ export async function POST(req: NextRequest) {
     const ctx = await requireContext(req, 'automation.manage', { count: 20, windowMs: 60_000 });
     requireCloud(ctx);
     const input = await readJson(req, campaignInputSchema, 20_000);
+    const blocker = campaignProviderBlocker(input.providerKey, { syntheticEnabled: serverEnv.discovery.synthetic() });
+    if (blocker) throw new CampaignError(blocker, 'invalid');
     const store = new SupabaseCampaignStore(ctx.supabase, ctx.orgId);
     const campaign = await store.createCampaign(campaignColumns({ ...input, status: 'draft', nextRunAt: null }));
     return ok({ campaign }, { status: 201 });

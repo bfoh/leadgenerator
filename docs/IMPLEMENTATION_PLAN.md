@@ -96,6 +96,17 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 - ⏳ Nationwide coverage of all 388 categories still needs several campaigns (a campaign is capped at 50 scope entries; one group entry covers a whole industry). Focus categories remain capped at 100.
 - Details: `docs/INDUSTRY_TAXONOMY.md`.
 
+## Milestone 3B — autonomous discovery foundation (2026-10-24) ✅
+- ✅ Provider-agnostic contract in `discovery-framework.ts` / `discovery-sources.ts`: capabilities, permitted uses, licence evidence, retention, attribution, cost, limits, scope queries, paginated cursors, quality/identity scoring, category canonicalisation, duplicate detection and campaign controls.
+- ✅ One connector exists: a deterministic **offline synthetic** provider across all 16 regions, with `.example` websites and no contact details. It is disabled unless `DISCOVERY_SYNTHETIC_PROVIDER=true`; no network and no paid call.
+- ✅ Source research completed and recorded with exact evidence: Overture Places (CDLA-Permissive-2.0 + Apache-2.0; no OSM/ODbL; Ghana coverage unmeasured), Google Places (interactive only), OSM/Nominatim (ODbL share-alike; bulk POI download prohibited), Foursquare API (confidential; deletion on termination), Yellow Pages Ghana (explicit anti-scraping and competing-database prohibition), other Ghana directories (terms unavailable), Registrar-General (no public API/bulk), HERE/TomTom (terms unverified), B2B contact providers (contract/DPA required). None is integrated.
+- ✅ Migration 011 (not applied): `provider_discovery_records` quarantine, `discovery_runs`, append-only `discovery_events`, provider provenance on `businesses`, opt-in campaign controls and retention purge function. RLS, tenant isolation, immutable provider fields, one-way review and provider uniqueness are enforced.
+- ✅ Campaign integration: one provider page per due tick, daily/total quotas, quality gate, spend cap, review queue, pause/resume/complete/cancel, duplicate suppression, scope-bound cursor and audit. Promoted records enter the existing identity → website → contacts → audit → scoring → report chain; provider website/phone/email are never copied.
+- ✅ Contact safeguards unchanged: discovery has no `contact_storage` or `marketing` permission, creates no contact points and sends nothing. Google Places is refused as a campaign provider in both application and database.
+- ✅ Tests: 482 unit + 174 database tests (656 total) pass with the network blocked; 80 Playwright tests unchanged. Typecheck, lint, production build and bundle scan pass. No migration was applied and no real provider or paid API was called.
+- ⏳ Activating a real provider needs the owner's written approval, a measured Ghana coverage sample, category mapping, a connector, a paid-call budget and a privacy assessment. Overture is the strongest candidate; it is not integrated.
+- Details: `docs/AUTONOMOUS_DISCOVERY.md`.
+
 ## External dependencies still open
 | Dependency | Needed for | Owner action |
 | --- | --- | --- |
@@ -103,6 +114,7 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 | `ANTHROPIC_API_KEY` | AI-assisted reports | Add to the server environment for the app. |
 | `BRAVE_SEARCH_API_KEY` | In-app web search during verification | Optional; manual search links work without it. |
 | Google Places key restrictions | Cost and abuse control | Restrict the key to Places API (New); add a budget alert in project `leadgenerator-512319`. |
+| Overture Places release (or another licensed provider) | First real autonomous discovery connector | Owner approval, a measured Ghana coverage sample, category mapping, a bulk importer and a privacy review. **Not started; no provider is integrated.** |
 
 ## Explicitly out of scope until requested
 Bulk messaging, automated outreach, scraping of any map or directory service, payment collection.

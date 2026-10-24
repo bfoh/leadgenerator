@@ -28,12 +28,38 @@ export interface CampaignBusinessView {
   opportunityScore: number | null;
 }
 
+/** A staged provider record as the campaign detail returns it. */
+export interface DiscoveryRecordView {
+  id: string;
+  campaignId: string | null;
+  providerKey: string;
+  providerRecordId: string;
+  name: string;
+  category: string | null;
+  region: string | null;
+  districtCode: string | null;
+  town: string | null;
+  address: string | null;
+  website: string | null;
+  operatingStatus: string;
+  qualityScore: number;
+  identityConfidence: number;
+  status: 'pending_review' | 'promoted' | 'rejected';
+  reviewReasons: string[];
+  decisionNote: string | null;
+  businessId: string | null;
+  retrievedAt: string;
+  retentionUntil: string;
+  sourceUrl: string | null;
+}
+
 export interface CampaignDetail {
   campaign: ResearchCampaign;
   targets: CampaignTarget[];
   runs: CampaignRun[];
   jobs: CampaignJobView[];
   businesses: CampaignBusinessView[];
+  discoveryRecords?: DiscoveryRecordView[];
   spendUsd: number;
   activity: { researching: number; openJobs: number };
 }
@@ -62,6 +88,14 @@ export interface CampaignWriteBody {
   batchSize: number;
   dailyTargetLimit: number;
   monthlyBudgetUsd: number | null;
+  discovery: {
+    enabled: boolean;
+    dailyLimit: number;
+    totalLimit: number;
+    spendCapUsd: number | null;
+    qualityThreshold: number;
+    requireReview: boolean;
+  };
   schedule: { frequency: ResearchCampaign['schedule']['frequency']; hour: number; weekday: number | null; day: number | null };
   autoComplete: boolean;
 }
@@ -75,6 +109,8 @@ export const campaignApi = {
   run: (id: string) => api.post<{ result: CampaignTickResult }>(`/api/campaigns/${id}/run`, {}),
   remove: (id: string) => api.del<{ deleted: true }>(`/api/campaigns/${id}`),
   preview: (scope: CampaignScope) => api.post<CampaignPreview>('/api/campaigns/preview', { scope }),
+  reviewRecord: (recordId: string, body: { action: 'promote' | 'reject'; note?: string | null }) =>
+    api.post<{ promoted?: true; businessId?: string; rejected?: true }>(`/api/discovery/records/${recordId}/review`, body),
 };
 
 export function campaignKeys(organizationId: string) {

@@ -5,9 +5,10 @@ import { toast } from 'sonner';
 import { CAMPAIGN_FREQUENCIES, FREQUENCY_LABELS, GHANA_REGIONS, MAX_BATCH_SIZE, MAX_DAILY_TARGETS, WEEKDAY_LABELS, type CampaignFrequency, type CampaignScope, type ResearchCampaign } from '@/lib/domain/campaigns';
 import { categoryGroups } from '@/lib/domain/settings';
 import { IndustryScopePicker } from './industry-scope-picker';
-import { DISCOVERY_PROVIDER_CATALOG, campaignProviderBlocker } from '@/lib/domain/discovery-providers';
+import { DISCOVERY_SOURCE_CATALOG, discoverySourceBlocker } from '@/lib/domain/discovery-sources';
 import { districtsIn } from '@/lib/domain/districts';
 import { errorMessage } from '@/lib/utils';
+import { useServerStatus } from '@/lib/workspace/api';
 import { campaignApi, useCampaignRefresh, type CampaignPreview, type CampaignWriteBody } from '@/lib/workspace/campaigns';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Button } from '@/components/ui/button';
@@ -34,10 +35,18 @@ export function CampaignForm({
   const editing = Boolean(campaign);
   const refresh = useCampaignRefresh();
   const { settings } = useWorkspace();
+  const serverStatus = useServerStatus();
+  const syntheticEnabled = serverStatus.data?.autonomousDiscovery?.syntheticEnabled ?? false;
   const groups = categoryGroups(settings);
   const [name, setName] = useState(campaign?.name ?? '');
   const [description, setDescription] = useState(campaign?.description ?? '');
   const [providerKey, setProviderKey] = useState(campaign?.providerKey ?? 'tracked_records');
+  const [discoveryEnabled, setDiscoveryEnabled] = useState(campaign?.discovery.enabled ?? false);
+  const [discoveryDailyLimit, setDiscoveryDailyLimit] = useState(String(campaign?.discovery.dailyLimit ?? 25));
+  const [discoveryTotalLimit, setDiscoveryTotalLimit] = useState(String(campaign?.discovery.totalLimit ?? 100));
+  const [discoveryQuality, setDiscoveryQuality] = useState(String(campaign?.discovery.qualityThreshold ?? 60));
+  const [discoverySpendCap, setDiscoverySpendCap] = useState(campaign?.discovery.spendCapUsd != null ? String(campaign.discovery.spendCapUsd) : '');
+  const [discoveryRequireReview, setDiscoveryRequireReview] = useState(campaign?.discovery.requireReview ?? true);
   const [nationwide, setNationwide] = useState(!campaign || campaign.scope.regions.length === 0);
   const [regions, setRegions] = useState<string[]>(campaign?.scope.regions ?? []);
   const [districtCodes, setDistrictCodes] = useState<string[]>(campaign?.scope.districtCodes ?? []);
@@ -67,6 +76,17 @@ export function CampaignForm({
     categories,
   };
   const districtOptions = nationwide ? [] : regions.flatMap((region) => districtsIn(region)).sort((a, b) => a.name.localeCompare(b.name));
+  const providerOptions = [
+    { id: 'tracked_records', name: 'Prospects already tracked (no discovery)', blocker: null as string | null },
+    ...DISCOVERY_SOURCE_CATALOG.map((source) => ({
+      id: source.id,
+      name: source.name,
+      blocker: discoverySourceBlocker(source.id, { syntheticEnabled }),
+    })),
+  ];
+  if (!providerOptions.some((option) => option.id === providerKey)) {
+    providerOptions.push({ id: providerKey, name: providerKey, blocker: 'This provider is no longer available.' });
+  }
 
   const toggle = (list: string[], value: string, set: (next: string[]) => void) => set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const reset = () => setPreview(null);
@@ -96,6 +116,14 @@ export function CampaignForm({
         batchSize: Number(batchSize) || 10,
         dailyTargetLimit: Number(dailyLimit) || 50,
         monthlyBudgetUsd: budget.trim() ? Number(budget) : null,
+        discovery: {
+          enabled: providerKey !== 'tracked_records' && discoveryEnabled,
+          dailyLimit: Number(discoveryDailyLimit) || 25,
+          totalLimit: Number(discoveryTotalLimit) || 100,
+          spendCapUsd: discoverySpendCap.trim() ? Number(discoverySpendCap) : null,
+          qualityThreshold: Number(discoveryQuality) || 60,
+          requireReview: discoveryRequireReview,
+        },
         schedule: { frequency, hour, weekday: frequency === 'weekly' ? weekday : null, day: frequency === 'monthly' ? day : null },
         autoComplete,
       };
@@ -123,7 +151,7 @@ export function CampaignForm({
       description={
         editing
           ? 'Change the name, scope, schedule, quotas or budget. Runs already recorded and prospects already researched stay exactly as they are.'
-          : 'Choose who to research, how often, and how much work may start. Campaigns re-read prospects you already track; they never search Google Places and never contact anyone.'
+          : 'Choose who to research, how often, and how much work may start. Campaigns research prospects you already track; a permitted discovery connector can add new businesses. They never search Google Places and never contact anyone.'
       }
       size="xl"
       footer={
@@ -140,17 +168,29 @@ export function CampaignForm({
           <FormRow label="Name" required>
             <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ashanti pharmacies, Q4" required />
           </FormRow>
-          <FormRow label="Research provider" hint={editing ? 'Fixed when the campaign was created.' : undefined}>
-            <Select value={providerKey} onChange={(e) => setProviderKey(e.target.value)} aria-label="Research provider" disabled={editing}>
-              {DISCOVERY_PROVIDER_CATALOG.map((provider) => {
-                const blocker = campaignProviderBlocker(provider.id);
-                return (
-                  <option key={provider.id} value={provider.id} disabled={Boolean(blocker)}>
-                    {provider.name}
-                    {blocker ? ' — not available for campaigns' : provider.status === 'not_integrated' ? ' — not integrated' : ''}
-                  </option>
-                );
-              })}
+          <FormRow
+            label="Prospect source"
+            hint={
+              editing
+                ? 'Fixed when the campaign was created.'
+                : 'Tracked prospects only, or a permitted discovery connector. Only the offline synthetic connector is available in this version.'
+            }
+          >
+            <Select
+              value={providerKey}
+              onChange={(e) => {
+                setProviderKey(e.target.value);
+                if (e.target.value !== 'tracked_records') setDiscoveryEnabled(true);
+              }}
+              aria-label="Prospect source"
+              disabled={editing}
+            >
+              {providerOptions.map((provider) => (
+                <option key={provider.id} value={provider.id} disabled={Boolean(provider.blocker)}>
+                  {provider.name}
+                  {provider.blocker ? ' — unavailable' : ''}
+                </option>
+              ))}
             </Select>
           </FormRow>
         </div>
@@ -268,6 +308,44 @@ export function CampaignForm({
               <Input type="number" min={0} step="0.01" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="No campaign limit" />
             </FormRow>
           </div>
+        </fieldset>
+
+        <fieldset className="space-y-3 rounded-lg border border-border px-3.5 py-3" disabled={busy}>
+          <legend className="px-1 text-sm font-medium">Autonomous discovery</legend>
+          {providerKey === 'tracked_records' ? (
+            <p className="text-xs text-subtle">
+              This campaign only researches prospects you already track. Choose a discovery connector above to add new businesses automatically.
+            </p>
+          ) : (
+            <>
+              <Checkbox
+                label="Discover new businesses on each scheduled run"
+                description="Fetches one page per due run, within the provider's rate limit and the quotas below. No contact details are copied, and no message is sent."
+                checked={discoveryEnabled}
+                onChange={(e) => setDiscoveryEnabled(e.target.checked)}
+              />
+              <div className="grid gap-4 sm:grid-cols-4">
+                <FormRow label="Records per day">
+                  <Input type="number" min={1} max={500} value={discoveryDailyLimit} onChange={(e) => setDiscoveryDailyLimit(e.target.value)} />
+                </FormRow>
+                <FormRow label="Records in total">
+                  <Input type="number" min={1} max={10000} value={discoveryTotalLimit} onChange={(e) => setDiscoveryTotalLimit(e.target.value)} />
+                </FormRow>
+                <FormRow label="Minimum quality (0–100)" hint="Below this, a record is rejected.">
+                  <Input type="number" min={0} max={100} value={discoveryQuality} onChange={(e) => setDiscoveryQuality(e.target.value)} />
+                </FormRow>
+                <FormRow label="Discovery spend cap (USD, optional)" hint="Separate from the campaign budget.">
+                  <Input type="number" min={0} step="0.01" value={discoverySpendCap} onChange={(e) => setDiscoverySpendCap(e.target.value)} placeholder="No cap" />
+                </FormRow>
+              </div>
+              <Checkbox
+                label="Require a person to review every discovered business"
+                description="Recommended. Turning this off imports only records that clear a quality score of at least 80 with no identity concerns. The offline synthetic connector is the only one available; it is clearly labelled and disabled unless the server enables it."
+                checked={discoveryRequireReview}
+                onChange={(e) => setDiscoveryRequireReview(e.target.checked)}
+              />
+            </>
+          )}
         </fieldset>
 
         <Card className="border-dashed">

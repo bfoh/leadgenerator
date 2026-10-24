@@ -1,6 +1,6 @@
 # Data Sources and Usage Rules
 
-Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` (`src/lib/server/providers`) and must declare its capabilities, attribution requirements and retention rules. The UI displays these declarations next to results.
+Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` (`src/lib/server/providers`) and must declare its capabilities, attribution requirements and retention rules. The UI displays these declarations next to results. Autonomous discovery sources use the richer declaration in `src/lib/domain/discovery-sources.ts`; see [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md) for the licence audit and the rule that no real provider is integrated.
 
 ## Summary
 
@@ -14,6 +14,10 @@ Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` 
 | Candidate domain DNS probe | Whether guessed domains resolve | Yes, as evidence ("resolves — ownership unknown") | DNS only, max 8 names per request. |
 | Seed research (`src/data/research.json`) | 20 research candidates from v1–v3 desk research (third-party directories, search) | Yes, imported as `legacy_seed` and labeled unverified | Source links may be stale; re-verify before any outreach. |
 | Demo discovery provider | UI testing without credentials | Never imported automatically | Fictional names, explicitly labeled "DEMO". |
+
+## Autonomous discovery sources (milestone 3B)
+
+None is integrated. The only connector is the offline synthetic provider (`DISCOVERY_SYNTHETIC_PROVIDER=true`), which creates clearly labelled fake records and never calls the network. The source declarations record the licence evidence for Overture Places, OSM, Foursquare, Yellow Pages Ghana, the Registrar-General, HERE/TomTom and licensed B2B providers. Overture is the strongest licensing candidate (CDLA-Permissive-2.0/Apache-2.0, no ODbL share-alike) but its Ghana coverage is unmeasured and no importer exists. A real provider is activated only after the owner's written approval and the checklist in [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md) §7.
 
 ## Google Maps Platform rules applied
 
@@ -45,7 +49,8 @@ Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` 
 
 | Data | Default retention |
 | --- | --- |
-| Discovery results | Not stored (memory only) |
+| Discovery results | Google Places: not stored (memory only). Autonomous provider records: staged until `retention_until` (30 days synthetic; 365 days when the source states no limit), then purged |
+| Discovery run/audit rows | `discovery_runs` and append-only `discovery_events`; staging rows carry the licence snapshot and deletion deadline |
 | Usage records | 18 months (cleanup job planned) |
 | Research candidates that never qualify | Review after 12 months; archive or delete |
 | Audit events | Life of record; payloads purged on deletion |

@@ -13,6 +13,13 @@ One prospect can belong to several campaigns, and every membership change is kep
 history. A campaign never searches Google Places and never contacts anyone. See
 [docs/MILESTONE_2_CAMPAIGNS.md](docs/MILESTONE_2_CAMPAIGNS.md).
 
+**Autonomous discovery (milestone 3B, framework only):** campaigns may opt into a permitted discovery
+connector with daily/total quotas, a quality gate, an optional spend cap and human review. Only a
+deterministic **offline synthetic** provider exists; it is disabled unless
+`DISCOVERY_SYNTHETIC_PROVIDER=true` and makes no network call. Provider records are quarantined until a
+person promotes them, and contact details are never copied. **No real provider is integrated or
+activated.** See [docs/AUTONOMOUS_DISCOVERY.md](docs/AUTONOMOUS_DISCOVERY.md).
+
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + RLS + Auth) · TanStack Query · Zod · Recharts · Anthropic Claude (optional) · Google Places API (New) (optional)
 
 ## Quick start (demo mode)
@@ -39,6 +46,7 @@ Copy `.env.example` to `.env.local` (gitignored) and fill in only what you use. 
 | `BRAVE_SEARCH_API_KEY` | server | Optional web search during verification. Automated use also needs a Brave Search budget (Automation Center → Controls). |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | server | Optional AI-assisted reports (default `claude-opus-5-5`). The rule-based generator works without it. |
 | `DAILY_*_QUOTA`, `*_COST_*_USD` | server | Per-organization daily limits and cost estimates (`DAILY_AI_NOTE_QUOTA` caps AI personal notes for message drafts). |
+| `DISCOVERY_SYNTHETIC_PROVIDER` | server | `true` enables the offline synthetic discovery connector for development/acceptance. No real provider is integrated; leave `false` in production. |
 | `DEMO_SERVER_TOOLS` | server | `true` only on a private demo deployment. |
 | `SIMULATE_EXTERNAL_TOOLS` | server | Test only (set by the Playwright suite): simulated search, DNS and website checks. Ignored when Supabase is configured. |
 | `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` | server | Optional scheduled automation worker (cloud mode, migration 003). Without them, jobs run while the Automation Center is open. The service-role key is also needed for messaging (dispatch, webhooks, unsubscribe). |
@@ -57,7 +65,7 @@ Copy `.env.example` to `.env.local` (gitignored) and fill in only what you use. 
 7. Optional, for contact intelligence (contact points with provenance, consent records, the suppression list): apply `005_contact_intelligence.sql` the same way (runbook §9).
 8. Optional, for messaging infrastructure (sandbox only): apply `006_messaging.sql` after 005 the same way (runbook §12), then `007_sending_policy.sql` for message policies, quiet hours, limits and the pause switch (runbook §13). Without 007, template messages cannot be approved.
 9. Optional, for reply readings, follow-up plans, meeting briefs and proposal change requests: apply `008_response_conversion.sql` after 006 (runbook §14). Without 008, replies are still read by the rules on arrival (opt-outs suppressed, an alert task), but readings are not stored, the Next steps tab and change requests are unavailable, and proposals accept as before.
-10. Optional, for research campaigns: apply `009_research_campaigns.sql` after 003, then `010_region_records.sql` (runbook §16). Migration 009 adds campaigns, membership history, the run log and campaign attribution on jobs; 010 adds the 261-district reference data and optional district/town-level records. Without them, the Campaigns tab explains what is missing and everything else works as before.
+10. Optional, for research campaigns: apply `009_research_campaigns.sql` after 003, `010_region_records.sql`, then `011_autonomous_discovery.sql` (runbook §16). Migration 009 adds campaigns, membership history, the run log and campaign attribution on jobs; 010 adds the 261-district reference data and optional district/town-level records; 011 adds the discovery quarantine, run log, append-only audit and opt-in campaign controls. Without them, the Campaigns tab explains what is missing and everything else works as before. **011 is not applied to production.**
 
 Each user belongs to an organization with one of six roles — owner, admin, researcher, sales, developer, viewer. Row-level security enforces tenant isolation and role permissions in the database; the UI only mirrors it.
 
@@ -96,12 +104,13 @@ LIVE_INTEGRATION=1 npm run test:live   # opt-in, paid, budget-capped live provid
 
 Unit and database tests run with the network blocked; the E2E suite and CI run in demo mode with every key blanked, so normal runs can never bill an API. CI is defined in `.github/workflows/ci.yml`. Test strategy and requirement traceability: [docs/TESTING.md](docs/TESTING.md).
 
-Operations: [deployment](docs/DEPLOYMENT.md) · [migration review](docs/MIGRATION_REVIEW.md) · [009/010 review](docs/MIGRATION_REVIEW_009_010.md) · [staging acceptance](docs/STAGING_ACCEPTANCE_009_010.md) · [staging validation](docs/STAGING_VALIDATION_009_010.md) · [monitoring](docs/MONITORING.md) · [incident response](docs/INCIDENT_RESPONSE.md) · [backups](docs/BACKUPS.md) · [security audit](docs/SECURITY_AUDIT.md) · [accessibility](docs/ACCESSIBILITY.md) · [runbook](docs/RUNBOOK.md).
+Operations: [autonomous discovery](docs/AUTONOMOUS_DISCOVERY.md) · [deployment](docs/DEPLOYMENT.md) · [migration review](docs/MIGRATION_REVIEW.md) · [009/010 review](docs/MIGRATION_REVIEW_009_010.md) · [staging acceptance](docs/STAGING_ACCEPTANCE_009_010.md) · [staging validation](docs/STAGING_VALIDATION_009_010.md) · [monitoring](docs/MONITORING.md) · [incident response](docs/INCIDENT_RESPONSE.md) · [backups](docs/BACKUPS.md) · [security audit](docs/SECURITY_AUDIT.md) · [accessibility](docs/ACCESSIBILITY.md) · [runbook](docs/RUNBOOK.md).
 
 ## Ground rules built into the product
 
-- No scraping of Google Maps or any directory; discovery uses official APIs only, on demand.
-- Third-party listing data is not copied into the CRM; only permitted identifiers are stored.
+- No scraping of Google Maps or any directory; Google Places remains an official, user-initiated API.
+- Third-party listing data is not copied into the CRM unless a reviewed source licence permits CRM storage. Google Places stores only the Place ID; autonomous records stay quarantined until promoted, and contact details are never copied.
+- No real autonomous provider is integrated. The offline synthetic connector is clearly labelled, disabled unless explicitly enabled, and is not market evidence.
 - No bulk messaging or automated outreach. A published phone number is not consent to direct marketing (Ghana Data Protection Act, 2012 — Act 843).
 - Website absence is reported only as "not found after documented checks", never as fact.
 - AI output is validated; uncited claims are removed, and retrieved web content is treated as data, never instructions.

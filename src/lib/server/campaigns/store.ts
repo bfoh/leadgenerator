@@ -32,6 +32,7 @@ export interface CampaignCandidate {
   businessStatus: string;
   createdAt: string;
   opportunityScore: number | null;
+  providerKey: string | null;
 }
 
 export interface CampaignRunInsert {
@@ -75,6 +76,17 @@ export function campaignFromRow(row: Row): ResearchCampaign {
     batchSize: Number(r.batchSize) || 10,
     dailyTargetLimit: Number(r.dailyTargetLimit) || 50,
     monthlyBudgetUsd: r.monthlyBudgetUsd == null ? null : Number(r.monthlyBudgetUsd),
+    discovery: {
+      enabled: r.discoveryEnabled === true,
+      dailyLimit: Number(r.discoveryDailyLimit) || 25,
+      totalLimit: Number(r.discoveryTotalLimit) || 100,
+      spendCapUsd: r.discoverySpendCapUsd == null ? null : Number(r.discoverySpendCapUsd),
+      qualityThreshold: r.discoveryQualityThreshold == null ? 60 : Number(r.discoveryQualityThreshold),
+      requireReview: r.discoveryRequireReview !== false,
+      cursor: (r.discoveryCursor as string | null) ?? null,
+      exhausted: r.discoveryExhausted === true,
+      discoveredTotal: Number(r.discoveredTotal) || 0,
+    },
     schedule: {
       frequency: r.scheduleFrequency as ResearchCampaign['schedule']['frequency'],
       hour: Number(r.scheduleHour) || 6,
@@ -94,7 +106,9 @@ export function campaignFromRow(row: Row): ResearchCampaign {
 }
 
 /** The writable columns for a campaign, from domain fields. */
-export function campaignColumns(campaign: Partial<Omit<ResearchCampaign, 'scope'>> & { scope?: Partial<CampaignScope> }): Row {
+export function campaignColumns(
+  campaign: Partial<Omit<ResearchCampaign, 'scope' | 'discovery'>> & { scope?: Partial<CampaignScope>; discovery?: Partial<ResearchCampaign['discovery']> },
+): Row {
   const row: Row = {};
   if (campaign.name !== undefined) row.name = campaign.name;
   if (campaign.description !== undefined) row.description = campaign.description;
@@ -107,6 +121,17 @@ export function campaignColumns(campaign: Partial<Omit<ResearchCampaign, 'scope'
   if (campaign.batchSize !== undefined) row.batch_size = campaign.batchSize;
   if (campaign.dailyTargetLimit !== undefined) row.daily_target_limit = campaign.dailyTargetLimit;
   if (campaign.monthlyBudgetUsd !== undefined) row.monthly_budget_usd = campaign.monthlyBudgetUsd;
+  if (campaign.discovery !== undefined) {
+    if (campaign.discovery.enabled !== undefined) row.discovery_enabled = campaign.discovery.enabled;
+    if (campaign.discovery.dailyLimit !== undefined) row.discovery_daily_limit = campaign.discovery.dailyLimit;
+    if (campaign.discovery.totalLimit !== undefined) row.discovery_total_limit = campaign.discovery.totalLimit;
+    if (campaign.discovery.spendCapUsd !== undefined) row.discovery_spend_cap_usd = campaign.discovery.spendCapUsd;
+    if (campaign.discovery.qualityThreshold !== undefined) row.discovery_quality_threshold = campaign.discovery.qualityThreshold;
+    if (campaign.discovery.requireReview !== undefined) row.discovery_require_review = campaign.discovery.requireReview;
+    if (campaign.discovery.cursor !== undefined) row.discovery_cursor = campaign.discovery.cursor;
+    if (campaign.discovery.exhausted !== undefined) row.discovery_exhausted = campaign.discovery.exhausted;
+    if (campaign.discovery.discoveredTotal !== undefined) row.discovered_total = campaign.discovery.discoveredTotal;
+  }
   if (campaign.autoComplete !== undefined) row.auto_complete = campaign.autoComplete;
   if (campaign.schedule) {
     row.schedule_frequency = campaign.schedule.frequency;
@@ -365,6 +390,43 @@ export class SupabaseCampaignStore {
     return Number(data) || 0;
   }
 
+  /** Provider spend recorded by this campaign's discovery runs. */
+  async discoverySpend(campaignId: string): Promise<number> {
+    const { data, error } = await this.sb
+      .from('discovery_runs')
+      .select('spend_usd')
+      .eq('organization_id', this.organizationId)
+      .eq('campaign_id', campaignId)
+      .limit(5000);
+    if (error) throw campaignError(error, 'Could not read the campaign’s discovery spend.');
+    return (data ?? []).reduce((sum, row) => sum + (Number(row.spend_usd) || 0), 0);
+  }
+
+  /** Records fetched by this campaign's discovery runs since a timestamp. */
+  async countDiscoveredSince(campaignId: string, sinceIso: string): Promise<number> {
+    const { data, error } = await this.sb
+      .from('discovery_runs')
+      .select('records_fetched')
+      .eq('organization_id', this.organizationId)
+      .eq('campaign_id', campaignId)
+      .gte('started_at', sinceIso)
+      .limit(5000);
+    if (error) throw campaignError(error, 'Could not count today’s discovered records.');
+    return (data ?? []).reduce((sum, row) => sum + (Number(row.records_fetched) || 0), 0);
+  }
+
+  /** Records waiting for a person before they can become prospects. */
+  async pendingDiscoveryCount(campaignId: string): Promise<number> {
+    const { count, error } = await this.sb
+      .from('provider_discovery_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', this.organizationId)
+      .eq('campaign_id', campaignId)
+      .eq('status', 'pending_review');
+    if (error) throw campaignError(error, 'Could not count records waiting for review.');
+    return count ?? 0;
+  }
+
   async countTargetsStartedSince(campaignId: string, sinceIso: string): Promise<number> {
     const { count, error } = await this.sb
       .from('campaign_targets')
@@ -414,7 +476,7 @@ export class SupabaseCampaignStore {
   async listCandidateBusinesses(limit = 1000): Promise<CampaignCandidate[]> {
     const { data, error } = await this.sb
       .from('businesses')
-      .select('id, name, region, district_code, city, neighborhood, category, contact_permission, merged_into_id, stage, business_status, created_at, opportunity_score')
+      .select('id, name, region, district_code, city, neighborhood, category, contact_permission, merged_into_id, stage, business_status, created_at, opportunity_score, provider_key')
       .eq('organization_id', this.organizationId)
       .order('created_at', { ascending: true })
       .limit(Math.min(limit, 2000));
@@ -425,7 +487,7 @@ export class SupabaseCampaignStore {
   async getCandidate(id: string): Promise<CampaignCandidate | null> {
     const { data, error } = await this.sb
       .from('businesses')
-      .select('id, name, region, district_code, city, neighborhood, category, contact_permission, merged_into_id, stage, business_status, created_at, opportunity_score')
+      .select('id, name, region, district_code, city, neighborhood, category, contact_permission, merged_into_id, stage, business_status, created_at, opportunity_score, provider_key')
       .eq('organization_id', this.organizationId)
       .eq('id', id)
       .maybeSingle();
@@ -433,7 +495,13 @@ export class SupabaseCampaignStore {
     return data ? toCandidate(data) : null;
   }
 
-  async addTarget(values: { campaignId: string; businessId: string; matchReason: string | null; state?: CampaignTargetState }): Promise<CampaignTarget> {
+  async addTarget(values: {
+    campaignId: string;
+    businessId: string;
+    matchReason: string | null;
+    state?: CampaignTargetState;
+    source?: 'tracked' | 'provider' | 'manual';
+  }): Promise<CampaignTarget> {
     const { data, error } = await this.sb
       .from('campaign_targets')
       .insert({
@@ -442,6 +510,7 @@ export class SupabaseCampaignStore {
         business_id: values.businessId,
         match_reason: values.matchReason,
         state: values.state ?? 'queued',
+        source: values.source ?? 'tracked',
       })
       .select('*')
       .single();
@@ -489,5 +558,6 @@ function toCandidate(row: Record<string, unknown>): CampaignCandidate {
     businessStatus: String(row.business_status),
     createdAt: String(row.created_at),
     opportunityScore: row.opportunity_score == null ? null : Number(row.opportunity_score),
+    providerKey: (row.provider_key as string | null) ?? null,
   };
 }

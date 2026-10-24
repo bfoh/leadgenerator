@@ -45,6 +45,14 @@ Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ 
 - **Not done:** migrations 009/010 are **not applied to production**, nothing is deployed, no paid provider call was added and no outbound path exists.
 - **Docs:** [MILESTONE_2_CAMPAIGNS](MILESTONE_2_CAMPAIGNS.md) (design, provider matrix, migration and rollback plan, remaining integrations).
 
+**Update 2026-10-24 (milestone 3B — autonomous discovery foundation; built and tested, not deployed):**
+- **Delivered:** provider-agnostic discovery contract and source declarations, a deterministic offline synthetic connector, migration 011 (`provider_discovery_records`, `discovery_runs`, append-only `discovery_events`, provider provenance on `businesses`, opt-in campaign controls, retention purge), campaign integration, review queue and audit.
+- **Permission gate:** a run needs a source declaration that permits unattended search + CRM storage, an existing enabled connector, campaign quotas and the database check. Google Places remains interactive and is refused in both application and database. No real provider is integrated.
+- **Contact safety:** discovery never copies provider website, phone or email; no contact point is created and nothing is sent. Contact intelligence stays a separate capability.
+- **Verification:** 482 unit + 174 database tests (656) with the network blocked, plus the unchanged 80 Playwright tests; typecheck, lint, production build and bundle scan pass. Migration 011 is **not applied**; no paid call was made.
+- **Source research:** Overture Places is the strongest licensing candidate (CDLA-Permissive-2.0/Apache-2.0, no ODbL share-alike) but is not integrated and its Ghana coverage is unmeasured. OSM (ODbL), Google Places, Foursquare, Yellow Pages Ghana, RGD and commercial APIs are documented with evidence and blockers.
+- **Docs:** [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md); provider matrix updated.
+
 The v7 history is in [IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md). Each phase ends with a report: functionality, files, migrations, environment variables, tests, results, API cost, missing credentials, security notes, remaining work.
 
 | Phase | Scope | Status |

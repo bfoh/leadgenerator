@@ -23,6 +23,8 @@ export interface ServerStatus {
   ai: { configured: boolean; model: string | null };
   webSearch: { configured: boolean; name: string };
   discovery: ProviderInfo[];
+  /** Autonomous discovery connector state (absent on older servers). */
+  autonomousDiscovery?: { syntheticEnabled: boolean };
   quotas: { discovery: number; aiReports: number; websiteChecks: number; webSearch: number };
   automation?: { backgroundWorker: boolean; outboundSending: boolean };
   /** Website verification tools (absent on servers older than phase 3). */

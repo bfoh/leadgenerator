@@ -2,7 +2,7 @@
 
 What each data source and service may be used for in this product, and how the code enforces it. Reviewed 2026-10-22 from the providers' public pages listed under each entry. **This is an engineering reading, not legal advice.** Terms change; re-check before enabling a provider for a new purpose and have counsel confirm anything marked *verify*.
 
-Every `DiscoveryProvider` declares its policy in code (`getRetentionRules`, `getAttributionRequirements`, and from Phase 3 `getPermittedPurposes`). The UI shows the declaration, and only fields listed as storable can be written to the CRM. Restrictions may not be worked around by copying results through AI, screenshots, browser automation or another provider.
+Every discovery source declares its policy in code. Interactive Google Places uses `getRetentionRules`/`getAttributionRequirements`; autonomous sources use the richer `DiscoverySourceDeclaration` in `src/lib/domain/discovery-sources.ts` (permitted uses, retention, attribution, licence evidence, access, cost, limits). The UI shows the declaration, and only fields the source permits can be written to the CRM. Restrictions may not be worked around by copying results through AI, screenshots, browser automation or another provider. The full audit and activation checklist are in [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md).
 
 ## Matrix
 
@@ -44,3 +44,22 @@ Automated search additionally needs an explicit Brave Search budget (COST_CONTRO
 3. Add a simulated implementation for CI. No test may call the live API unless `LIVE_PROVIDER_TESTS=1` is set and a per-run budget is configured.
 4. Add its cost estimate and budget key (COST_CONTROL).
 5. Have the owner approve the purpose before enabling the key in production.
+
+## Autonomous discovery sources (milestone 3B)
+
+Reviewed 2026-10-24. **No real source is integrated.** Only the offline synthetic connector exists, and it is disabled unless `DISCOVERY_SYNTHETIC_PROVIDER=true`.
+
+| Source | Status | Permitted uses | Retention / attribution | Why |
+| --- | --- | --- | --- | --- |
+| Offline synthetic provider | Synthetic connector; development only | Unattended search, CRM storage (synthetic records) | 30-day staging; “Synthetic development data” | Deterministic test data from the Ghana district list; no real business, website, phone or email. |
+| Overture Maps — Places | Not integrated | Unattended search, CRM storage (licence); **not** contact storage or marketing | No contractual limit; CDLA-Permissive-2.0 + Apache-2.0 NOTICE; credit Overture and sources | Places theme has no OSM data and no ODbL share-alike. Ghana coverage and category quality are **unmeasured**; a bulk importer does not exist. |
+| Google Places API (New) | Blocked for autonomous use; interactive only | Interactive search; Place ID storage only | Content not cacheable except Place IDs; Google Maps attribution | Existing manual integration; scheduling and CRM storage are not permitted. |
+| OpenStreetMap / Nominatim / Overpass | Not integrated | None claimed | ODbL attribution and share-alike; Nominatim forbids bulk POI download | A proprietary CRM built from a substantial extract may be a derivative database. |
+| Foursquare Places API | Not integrated | None claimed | Confidential product data; destruction on termination; EULA attribution | A paid EULA/DPA could permit CRM use, but none exists and no clause allowing an indefinite copy was found. |
+| Yellow Pages Ghana | Blocked | None | No data may be copied | Terms expressly prohibit automated collection and building a competing commercial database; a commercial licence is available on request. |
+| BusinessGhana / GhanaYello and similar | Not integrated | None claimed | Terms unavailable (HTTP 403) | Public visibility is not permission. |
+| Registrar-General’s Department (Ghana) | Not integrated | None claimed | Data-sharing agreement required | No public API or bulk extract; a public register is not a public API. |
+| HERE / TomTom / Mapbox | Not integrated | None claimed | Unverified (HERE 503; TomTom terms script-rendered) | No quote, EULA or storage review. |
+| Licensed B2B contact providers | Not integrated | None claimed | Contract and DPA required | Contact intelligence is separate; no Ghana coverage or marketing basis is established. |
+
+The application gate is `discoverySourceBlocker()` and the campaign API re-checks `campaignProviderBlocker()`; the database independently refuses Google Places and `tracked_records` as a campaign provider when discovery is enabled. A staged record cannot be promoted if its source is blocked, not integrated or disabled.

@@ -14,7 +14,10 @@ import {
   type ResearchCampaign,
 } from '@/lib/domain/campaigns';
 import { campaignProviderBlocker } from '@/lib/domain/discovery-providers';
-import { campaignFromRow, CampaignError, SupabaseCampaignStore, type CampaignJob } from './store';
+import { discoveryRemaining, discoveryScopeFromCampaign } from '@/lib/domain/discovery-framework';
+import { serverEnv } from '@/lib/server/env';
+import { purgeExpiredDiscoveryRecords, runDiscoveryPage } from '@/lib/server/discovery/service';
+import { campaignColumns, campaignFromRow, CampaignError, SupabaseCampaignStore, type CampaignJob } from './store';
 
 const OPEN_STATUSES = new Set<CampaignJob['status']>(['pending', 'running', 'awaiting_approval']);
 const clip = (value: string, max: number) => (value.length > max ? `${value.slice(0, max - 1)}…` : value);
@@ -47,6 +50,13 @@ async function completeIfExhausted(
   const counts = campaignTargetCounts(targets);
   if (counts.queued > 0 || counts.researching > 0 || counts.completed === 0 || counts.failed > 0) {
     return { completed: false, note: null };
+  }
+  // An autonomous campaign is not exhausted while the provider has more pages or a person still has
+  // records to review. Closing it then would silently drop the rest of the scope.
+  if (campaign.discovery.enabled) {
+    const pending = await store.pendingDiscoveryCount(campaign.id);
+    const allowanceLeft = discoveryRemaining(campaign.discovery.discoveredTotal, campaign.discovery.totalLimit);
+    if (pending > 0 || (!campaign.discovery.exhausted && allowanceLeft > 0)) return { completed: false, note: null };
   }
   const remaining = await remainingInScope(store, campaign);
   if (!campaignShouldAutoComplete(campaign, counts, remaining)) return { completed: false, note: null };
@@ -144,11 +154,13 @@ export async function tickCampaign(
   let spendUsd = 0;
   let status: CampaignTickResult['status'] = 'succeeded';
   let note = '';
+  let discoveryNote: string | null = null;
+  let discoveryFailure = false;
 
   try {
     const settings = await automation.getSettings();
-    const blocker = campaignProviderBlocker(campaign.providerKey);
-    spendUsd = await store.campaignSpend(campaign.id);
+    const blocker = campaignProviderBlocker(campaign.providerKey, { syntheticEnabled: serverEnv.discovery.synthetic() });
+    spendUsd = (await store.campaignSpend(campaign.id)) + (await store.discoverySpend(campaign.id));
     if (settings.paused) {
       status = 'skipped';
       note = 'The automation queue is paused, so no prospects were added.';
@@ -159,10 +171,63 @@ export async function tickCampaign(
       status = 'skipped';
       note = `The campaign’s monthly budget of $${(campaign.monthlyBudgetUsd ?? 0).toFixed(2)} is reached ($${spendUsd.toFixed(2)} recorded).`;
     } else {
+      if (campaign.discovery.enabled) {
+        await purgeExpiredDiscoveryRecords(sb, organizationId);
+        if (campaign.discovery.exhausted) {
+          discoveryNote = 'The provider has no more records for this scope.';
+        } else {
+          const fetchedToday = await store.countDiscoveredSince(campaign.id, startOfCampaignDay(now));
+          const dailyLeft = Math.max(0, campaign.discovery.dailyLimit - fetchedToday);
+          const totalLeft = discoveryRemaining(campaign.discovery.discoveredTotal, campaign.discovery.totalLimit);
+          const pageSize = Math.min(20, dailyLeft, totalLeft);
+          if (pageSize <= 0) {
+            discoveryNote =
+              dailyLeft <= 0
+                ? `The discovery daily limit of ${campaign.discovery.dailyLimit} record(s) is reached.`
+                : `The discovery total limit of ${campaign.discovery.totalLimit} record(s) is reached.`;
+          } else {
+            try {
+              const result = await runDiscoveryPage(sb, {
+                organizationId,
+                campaignId: campaign.id,
+                request: {
+                  sourceId: campaign.providerKey,
+                  ...discoveryScopeFromCampaign(campaign.scope),
+                  pageSize,
+                  cursor: campaign.discovery.cursor ?? '',
+                  minQuality: campaign.discovery.qualityThreshold,
+                },
+                requireReview: campaign.discovery.requireReview,
+                qualityThreshold: campaign.discovery.qualityThreshold,
+                spendCapUsd: campaign.discovery.spendCapUsd,
+                now,
+              });
+              spendUsd += result.spendUsd;
+              const nextCursor = result.nextCursor;
+              await store.updateCampaign(
+                campaign.id,
+                campaignColumns({
+                  discovery: {
+                    ...campaign.discovery,
+                    cursor: nextCursor,
+                    exhausted: nextCursor === null,
+                    discoveredTotal: campaign.discovery.discoveredTotal + result.fetched,
+                  },
+                }),
+              );
+              discoveryNote = `Discovery: ${result.note}`;
+              if (result.status === 'failed') discoveryFailure = true;
+            } catch (error) {
+              discoveryFailure = true;
+              discoveryNote = `Discovery failed: ${error instanceof Error ? error.message : 'unknown error'}`;
+            }
+          }
+        }
+      }
       const startedToday = await store.countTargetsStartedSince(campaign.id, startOfCampaignDay(now));
       let slots = Math.min(campaign.batchSize, Math.max(0, campaign.dailyTargetLimit - startedToday));
       if (slots <= 0) {
-        status = 'skipped';
+        status = discoveryNote ? 'succeeded' : 'skipped';
         note = `The daily limit of ${campaign.dailyTargetLimit} started target(s) is reached.`;
       } else {
         // Memberships left queued (a job vanished, or an enqueue failed before creating one) resume
@@ -213,7 +278,12 @@ export async function tickCampaign(
         const [targeted, busy] = await Promise.all([store.targetedBusinessIds(campaign.id, ids), store.busyBusinessIds(ids, campaign.id)]);
         const chosen = eligible.filter((entry) => !targeted.has(entry.business.id) && !busy.has(entry.business.id)).slice(0, Math.max(0, slots));
         for (const { business, reason } of chosen) {
-          const target = await store.addTarget({ campaignId: campaign.id, businessId: business.id, matchReason: reason });
+          const target = await store.addTarget({
+            campaignId: campaign.id,
+            businessId: business.id,
+            matchReason: reason,
+            source: business.providerKey ? 'provider' : 'tracked',
+          });
           // Another worker may have added (and already started) this prospect between the check and
           // the insert; never move a membership backwards.
           if (target.state !== 'queued') continue;
@@ -247,14 +317,21 @@ export async function tickCampaign(
           }
         }
         if (!chosen.length && !enqueued) {
-          status = 'skipped';
-          note = 'No untargeted prospect matches the scope right now.';
+          status = discoveryNote ? 'succeeded' : 'skipped';
+          note = discoveryNote
+            ? 'Discovery ran; no untargeted prospect is ready to research yet.'
+            : 'No untargeted prospect matches the scope right now.';
         } else if (!enqueued) {
-          status = 'failed';
+          status = discoveryNote ? 'skipped' : 'failed';
           note = 'No research job could be queued; see the target notes.';
         } else {
           note = `${enqueued} prospect(s) queued; ${busy.size} left for later because research is already in progress.`;
         }
+      }
+      if (discoveryNote) note = note ? `${discoveryNote} ${note}` : discoveryNote;
+      if (discoveryFailure) {
+        status = 'failed';
+        note = discoveryNote ?? note;
       }
     }
   } catch (error) {

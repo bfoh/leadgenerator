@@ -7,6 +7,8 @@
 // Google Places permits neither: it is an interactive, user-initiated search source (see the Places
 // retention rules in src/lib/server/providers/google-places.ts and docs/DATA_PROVIDER_POLICY_MATRIX.md).
 
+import { discoverySource, discoverySourceBlocker } from './discovery-sources';
+
 export type ProviderUse = 'interactive_discovery' | 'unattended_discovery' | 'crm_processing' | 'outreach' | 'bulk_export';
 
 export type ProviderKind = 'internal_records' | 'places' | 'licensed_directory' | 'commercial_b2b' | 'self_submitted' | 'public_dataset' | 'national_registry';
@@ -214,14 +216,22 @@ export function campaignProviders(): DiscoveryProviderDeclaration[] {
   return DISCOVERY_PROVIDER_CATALOG.filter((p) => p.permittedUses.includes('unattended_discovery') && p.permittedUses.includes('crm_processing'));
 }
 
-/** Why a provider cannot be used for a campaign, or null when it can. */
-export function campaignProviderBlocker(id: string): string | null {
+/**
+ * Why a provider cannot be used for a campaign, or null when it can. The legacy interactive
+ * catalogue is checked first (Google Places keeps its person-initiated message); otherwise the
+ * autonomous source declarations decide. The synthetic provider stays disabled unless the server
+ * explicitly enables it.
+ */
+export function campaignProviderBlocker(id: string, options: { syntheticEnabled?: boolean } = {}): string | null {
   const provider = providerDeclaration(id);
-  if (!provider) return 'Unknown discovery provider.';
-  if (provider.requiresUserInitiation) return `${provider.name} needs a person to start each search, so it cannot run in a campaign.`;
-  const missing = (['unattended_discovery', 'crm_processing'] as const).filter((use) => !provider.permittedUses.includes(use));
-  if (missing.length) return `${provider.name} does not permit ${missing.map((u) => u.replace(/_/g, ' ')).join(' or ')}, so it cannot run in a campaign.`;
-  if (provider.status !== 'live') return `${provider.name} is not integrated in this version.`;
-  return null;
+  if (provider) {
+    if (provider.requiresUserInitiation) return `${provider.name} needs a person to start each search, so it cannot run in a campaign.`;
+    const missing = (['unattended_discovery', 'crm_processing'] as const).filter((use) => !provider.permittedUses.includes(use));
+    if (missing.length) return `${provider.name} does not permit ${missing.map((u) => u.replace(/_/g, ' ')).join(' or ')}, so it cannot run in a campaign.`;
+    if (provider.status !== 'live') return `${provider.name} is not integrated in this version.`;
+    return null;
+  }
+  if (discoverySource(id)) return discoverySourceBlocker(id, options);
+  return 'Unknown discovery provider.';
 }
 

@@ -443,6 +443,24 @@ psql "$DATABASE_URL" --single-transaction -f supabase/rollback/009_research_camp
 and run it again. 009 leaves jobs and research in place. The 003 queue functions are not touched by
 either rollback.
 
+### Autonomous discovery (migration 011) — not applied
+
+**Do not apply 011 until the owner approves the development release.** It is additive, but it adds
+campaign columns and staging tables. It refuses to run without 009.
+
+1. Back up and run `supabase/checks/preflight.sql`; confirm 009 and 010 are present.
+2. In staging, apply `supabase/migrations/011_autonomous_discovery.sql`.
+3. Run `supabase/checks/after-migrations.sql` and the campaign smoke test. Create a draft campaign and
+   confirm `discovery_enabled` is false by default.
+4. Leave `DISCOVERY_SYNTHETIC_PROVIDER=false` in production. No real provider exists, so enabling the
+   synthetic connector there would only create labelled fake records; it is a development switch.
+5. If the release is withdrawn, roll back newest first:
+   `011_autonomous_discovery_down.sql`, then 010 and 009 if required. 011 drops its staging/run/audit
+   tables and columns; canonical businesses and campaigns remain. Take a backup first: the rollback is
+   destructive for discovery history.
+
+Full design and the activation checklist for a real provider: [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md).
+
 ### Operating
 
 - **Create:** only owners and admins. Choose nationwide or regions (then optionally districts), towns,

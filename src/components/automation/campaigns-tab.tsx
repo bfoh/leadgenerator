@@ -2,7 +2,8 @@
 
 import { CalendarClock, FlaskConical, Plus, RefreshCw, Target, Users } from 'lucide-react';
 import { useState } from 'react';
-import { DISCOVERY_PROVIDER_CATALOG, campaignProviderBlocker } from '@/lib/domain/discovery-providers';
+import { DISCOVERY_SOURCE_CATALOG, discoverySourceBlocker } from '@/lib/domain/discovery-sources';
+import { useServerStatus } from '@/lib/workspace/api';
 import { ApiError } from '@/lib/workspace/api';
 import { useCampaigns } from '@/lib/workspace/campaigns';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
@@ -15,7 +16,7 @@ import { CampaignForm } from './campaign-form';
 import { usd } from './badges';
 
 const DESCRIPTION =
-  'Campaigns run the research agents over prospects you already track: identity, website verification, contacts, audit, scoring and an evidence-based opportunity report. They never search Google Places and never contact a business.';
+  'Campaigns run the research agents over prospects you already track — identity, website verification, contacts, audit, scoring and an evidence-based opportunity report. A permitted discovery connector can add new businesses, subject to quotas and review. Google Places is never used and no business is contacted.';
 
 export function CampaignsTab() {
   const { workspace, can } = useWorkspace();
@@ -140,40 +141,60 @@ export function CampaignsTab() {
 }
 
 function ProviderPolicyCard() {
+  const status = useServerStatus();
+  const syntheticEnabled = status.data?.autonomousDiscovery?.syntheticEnabled ?? false;
   return (
     <Card>
       <CardHeader
         title="Where campaign data may come from"
-        description="Each provider declares what it permits. A campaign may use only a provider that allows unattended discovery and CRM processing; none of the placeholders below is integrated."
+        description="Each source declares what its licence permits. A campaign can use only a source that allows unattended search and CRM storage, and only after a connector exists. The offline synthetic provider is the only connector in this version."
       />
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-subtle">
-              <th scope="col" className="px-4 py-2 font-medium">Provider</th>
-              <th scope="col" className="px-4 py-2 font-medium">Status</th>
+              <th scope="col" className="px-4 py-2 font-medium">Source</th>
+              <th scope="col" className="px-4 py-2 font-medium">Usable now</th>
               <th scope="col" className="px-4 py-2 font-medium">Permitted uses</th>
-              <th scope="col" className="px-4 py-2 font-medium">Attribution / retention</th>
+              <th scope="col" className="px-4 py-2 font-medium">Licence / retention</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {DISCOVERY_PROVIDER_CATALOG.map((provider) => {
-              const blocker = campaignProviderBlocker(provider.id);
+            <tr>
+              <th scope="row" className="px-4 py-2.5 text-left align-top font-medium">
+                Prospects already tracked
+              </th>
+              <td className="px-4 py-2.5 align-top">
+                <Badge tone="success">Campaign-ready</Badge>
+                <p className="mt-1 text-xs text-subtle">Internal records</p>
+              </td>
+              <td className="px-4 py-2.5 align-top text-xs text-muted">unattended search, CRM storage, outreach eligibility</td>
+              <td className="px-4 py-2.5 align-top text-xs text-muted">
+                The workspace’s own records.
+                <span className="block text-subtle">No provider call is made.</span>
+              </td>
+            </tr>
+            {DISCOVERY_SOURCE_CATALOG.map((source) => {
+              const blocker = discoverySourceBlocker(source.id, { syntheticEnabled });
               return (
-                <tr key={provider.id}>
+                <tr key={source.id}>
                   <th scope="row" className="px-4 py-2.5 text-left align-top font-medium">
-                    {provider.name}
+                    {source.name}
+                    <span className="block text-xs font-normal text-subtle">{source.coverage.notes}</span>
                   </th>
                   <td className="px-4 py-2.5 align-top">
-                    <Badge tone={blocker ? 'neutral' : 'success'}>{blocker ? 'Not for campaigns' : 'Campaign-ready'}</Badge>
-                    <p className="mt-1 text-xs text-subtle">{provider.status === 'live' ? 'Integrated' : 'Not integrated'}</p>
+                    <Badge tone={blocker ? 'neutral' : 'success'}>{blocker ? 'Not available' : 'Campaign-ready'}</Badge>
+                    <p className="mt-1 text-xs text-subtle">
+                      {source.status === 'synthetic' ? 'Synthetic connector' : source.status === 'blocked' ? 'Terms forbid this use' : source.status === 'not_integrated' ? 'No connector' : 'Integrated'}
+                    </p>
                   </td>
                   <td className="px-4 py-2.5 align-top text-xs text-muted">
-                    {provider.permittedUses.length ? provider.permittedUses.map((u) => u.replace(/_/g, ' ')).join(', ') : 'None claimed'}
+                    {source.permissions.uses.length ? source.permissions.uses.map((use) => use.replace(/_/g, ' ')).join(', ') : 'None claimed'}
                   </td>
                   <td className="px-4 py-2.5 align-top text-xs text-muted">
-                    {provider.attribution.required ? provider.attribution.text : provider.attribution.notes}
-                    <span className="block text-subtle">{provider.retention.notes}</span>
+                    {source.licence.name ?? 'No licence reviewed'}
+                    {source.licence.reviewedOn && <span className="block text-subtle">Reviewed {source.licence.reviewedOn}</span>}
+                    <span className="block text-subtle">{source.permissions.retentionDays == null ? 'No contractual retention limit' : `Staging retention ${source.permissions.retentionDays} day(s)`}</span>
                   </td>
                 </tr>
               );
@@ -183,8 +204,9 @@ function ProviderPolicyCard() {
       </div>
       <CardBody>
         <p className="text-xs text-subtle">
-          Google Places stays user-initiated: a person starts every search, only the Place ID may be stored, and it can never be a campaign provider. A licensed
-          directory or B2B provider becomes available only after its licence is reviewed and a connector is built.
+          Google Places stays user-initiated: a person starts every search, only the Place ID may be stored, and it can never be a campaign provider. Overture Maps has the
+          strongest open licence found, but it is not integrated and its Ghana coverage has not been measured. A commercial directory or B2B contract is not permission
+          until the licence and data-processing terms are reviewed.
         </p>
       </CardBody>
     </Card>

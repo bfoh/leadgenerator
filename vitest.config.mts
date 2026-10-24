@@ -13,8 +13,9 @@ export default defineConfig({
     // Blocks real network requests, so a missing fake can never reach a paid API.
     setupFiles: ['tests/setup/no-network.ts'],
     environment: 'node',
-    testTimeout: 30000,
-    // Each database suite builds a PGlite database from every migration; in parallel that takes a while.
-    hookTimeout: 60000,
+    // Each database suite builds a PGlite database from every migration; with eleven migrations
+    // (including 011's audit triggers) that is slower under parallel load than the original suite.
+    testTimeout: 90000,
+    hookTimeout: 120000,
   },
 });

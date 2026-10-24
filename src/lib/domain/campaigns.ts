@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { industryGroupByLabel, industryGroupForCategory } from './categories';
 import { DISTRICTS, findDistrict } from './districts';
 import { campaignProviderBlocker } from './discovery-providers';
+import { DEFAULT_DISCOVERY_CONTROLS, discoveryControlsSchema, type DiscoveryControls } from './discovery-framework';
 import type { Tone } from './constants';
 import type { Business } from './types';
 
@@ -95,6 +96,15 @@ export interface ResearchCampaign {
   batchSize: number;
   dailyTargetLimit: number;
   monthlyBudgetUsd: number | null;
+  /** Autonomous discovery (milestone 3B). Disabled by default; synthetic only in this version. */
+  discovery: DiscoveryControls & {
+    /** Where the next provider page starts; null restarts the scope. */
+    cursor: string | null;
+    /** The provider returned its last page; no more records are expected for this scope. */
+    exhausted: boolean;
+    /** Provider records fetched for this campaign so far (all outcomes). */
+    discoveredTotal: number;
+  };
   schedule: CampaignSchedule;
   /** Close the campaign automatically once every matching prospect has been researched. */
   autoComplete: boolean;
@@ -224,19 +234,36 @@ export const campaignFieldsSchema = z.object({
   batchSize: z.number().int().min(1).max(MAX_BATCH_SIZE).default(10),
   dailyTargetLimit: z.number().int().min(1).max(MAX_DAILY_TARGETS).default(50),
   monthlyBudgetUsd: z.number().min(0).max(1_000_000).nullable().default(null),
+  discovery: discoveryControlsSchema.default(DEFAULT_DISCOVERY_CONTROLS),
   schedule: campaignScheduleSchema,
   autoComplete: z.boolean().default(true),
 });
 
-/** A new campaign. The provider must permit unattended discovery and CRM processing. */
+/**
+ * A new campaign. The provider must structurally permit unattended discovery and CRM processing.
+ * Whether a synthetic connector is enabled is a server decision made again when the campaign runs,
+ * so parsing stays usable in tests while production remains off by default.
+ */
 export const campaignInputSchema = campaignFieldsSchema.superRefine((value, ctx) => {
-  const blocker = campaignProviderBlocker(value.providerKey);
+  const blocker = campaignProviderBlocker(value.providerKey, { syntheticEnabled: true });
   if (blocker) ctx.addIssue({ code: 'custom', path: ['providerKey'], message: blocker });
+  if (value.discovery.enabled && value.providerKey === 'tracked_records') {
+    ctx.addIssue({ code: 'custom', path: ['discovery', 'enabled'], message: 'Choose a discovery provider before enabling autonomous discovery.' });
+  }
+  if (value.discovery.requireReview === false && value.discovery.qualityThreshold < 80) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['discovery', 'qualityThreshold'],
+      message: 'Automatic import without review needs a quality threshold of at least 80.',
+    });
+  }
 });
 export type CampaignInput = z.infer<typeof campaignInputSchema>;
 
 /** A change to a saved campaign, plus the status move. Provider and scope are re-checked on save. */
 export const campaignPatchSchema = campaignFieldsSchema.partial().extend({
+  // A patch may change one discovery setting without resetting the others to their defaults.
+  discovery: discoveryControlsSchema.partial().optional(),
   status: z.enum(CAMPAIGN_STATUSES).optional(),
   pausedReason: z.string().trim().max(500).nullable().optional(),
 });
@@ -262,6 +289,8 @@ export interface CampaignBusiness {
   businessStatus: string;
   createdAt: string;
   opportunityScore?: number | null;
+  /** Set when the record was imported from a discovery provider. */
+  providerKey?: string | null;
 }
 
 /** The region a prospect is in, from its own field or its district. */
@@ -495,6 +524,7 @@ export interface CampaignEditAccess {
   schedule: boolean;
   quotas: boolean;
   budget: boolean;
+  discovery: boolean;
   autoComplete: boolean;
   status: boolean;
   /** Set when nothing at all may change (a completed or cancelled campaign). */
@@ -531,7 +561,7 @@ export function campaignScheduleEquals(a: CampaignSchedule, b: CampaignSchedule)
 export function campaignEditAccess(status: CampaignStatus, activity: CampaignActivity): CampaignEditAccess {
   if (status === 'completed' || status === 'cancelled') {
     const reason = `A ${status} campaign cannot be changed. Its history is kept as it ran; create a new campaign to research the same scope again.`;
-    return { name: false, scope: false, schedule: false, quotas: false, budget: false, autoComplete: false, status: false, reason, scopeReason: reason };
+    return { name: false, scope: false, schedule: false, quotas: false, budget: false, discovery: false, autoComplete: false, status: false, reason, scopeReason: reason };
   }
   const busy = activity.researching > 0 || activity.openJobs > 0;
   const scopeReason = busy
@@ -543,6 +573,7 @@ export function campaignEditAccess(status: CampaignStatus, activity: CampaignAct
     schedule: !busy,
     quotas: true,
     budget: true,
+    discovery: !busy,
     autoComplete: true,
     status: true,
     reason: null,

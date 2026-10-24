@@ -24,6 +24,14 @@ export const serverEnv = {
    * configured, so it can never feed a real workspace.
    */
   simulateExternalTools: () => process.env.SIMULATE_EXTERNAL_TOOLS === 'true' && !isSupabaseConfigured(),
+  /**
+   * The only autonomous discovery connector in this version. It generates synthetic records and
+   * never calls a real provider. Off unless explicitly enabled; enabling it is a development or
+   * acceptance decision, never a production data-acquisition switch.
+   */
+  discovery: {
+    synthetic: () => process.env.DISCOVERY_SYNTHETIC_PROVIDER === 'true',
+  },
   quota: {
     discovery: () => num('DAILY_DISCOVERY_QUOTA', 50),
     aiReports: () => num('DAILY_AI_REPORT_QUOTA', 20),

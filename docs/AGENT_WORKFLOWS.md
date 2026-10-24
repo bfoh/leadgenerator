@@ -10,7 +10,7 @@ The brief's diagram groups "AI Opportunity & Proposal Agents"; they are implemen
 
 | Key | Agent | Minimum mode | Paid providers | May change | Never | Phase |
 | --- | --- | --- | --- | --- | --- | --- |
-| `discovery` | Discovery | Research only — user-initiated, never chained or scheduled | Google Places | Nothing stored except permitted IDs when a person tracks a result | Bulk harvesting, storing restricted fields | Existing UI; job form Phase 3 |
+| `discovery` | Discovery (interactive) | Research only — user-initiated; never chained or scheduled. Campaign discovery is a separate provider-gated path (milestone 3B), not this Google Places route | Google Places | Nothing stored except permitted IDs when a person tracks a result | Bulk harvesting, storing restricted fields | Existing UI; job form Phase 3 |
 | `business_identity` | Business Identity | Research only | — | Identity confidence; flags possible duplicates | Merges anything (every merge is a person's decision, owner/admin only) | **3 🟡** |
 | `website_verification` | Website Verification | Research only | Brave Search (optional) | Verification records (pending review when uncertain), workflow state | Claims absence from search failure alone; replaces a person's recent verification; stores search results | **3 🟡** |
 | `contact_research` | Contact Research | Research only | — | Contact points with provenance (verified official website only; profile details as CRM records) | Guesses addresses, uses Google Places / search / social contact fields, enumerates WhatsApp, reads private data, records consent | **4 🟡** |
