@@ -169,12 +169,22 @@ const textList = (maxItems: number, maxLength = 80) =>
     .default([])
     .transform((list) => [...new Set(list)]);
 
+/**
+ * The scope cap counts entries, so "Fashion boutique" and "fashion boutique" must not occupy two of
+ * the 50 slots. The first spelling is kept because that is what the person picked.
+ */
+const caseInsensitiveUnique = (list: string[]) => {
+  const seen = new Map<string, string>();
+  for (const entry of list) if (!seen.has(entry.toLowerCase())) seen.set(entry.toLowerCase(), entry);
+  return [...seen.values()];
+};
+
 export const campaignScopeSchema = z
   .object({
     regions: textList(16, 80),
     districtCodes: textList(261, 20),
     towns: textList(50, 80),
-    categories: textList(50, 80),
+    categories: textList(50, 80).transform(caseInsensitiveUnique),
   })
   .superRefine((scope, ctx) => {
     for (const region of scope.regions) {

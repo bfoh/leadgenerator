@@ -73,7 +73,7 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 - ⏳ Invitation emails (invitations are recorded; the inviter shares the sign-in link).
 
 ## Milestone 3A — Ghana-wide industry taxonomy (2026-10-24) ✅
-- ✅ 30 industry groups and 388 categories in `industry-taxonomy.ts`, containing local trading terms (chop bar, waakye, kenkey, provision shop, kente, susu, trotro, galamsey). The 20 original labels are unchanged, so saved prospects, reports and proposals keep their existing guidance.
+- ✅ 30 industry groups and 388 categories in `industry-taxonomy.ts`, containing local trading terms (chop bar, waakye, kenkey, provision shop, kente, susu, trotro). The 20 original labels are unchanged, so saved prospects, reports and proposals keep their existing guidance.
 - ✅ 14 new sector tracks (29 total) with report guidance, proposal templates and 13 new solution-library archetypes (22 total).
 - ✅ Searchable, grouped, mobile-friendly category picker in Discover, with whole-group research; grouped pickers in Prospects, campaign targeting and Settings focus categories.
 - ✅ Campaigns can target a whole industry group in one of their 50 scope entries; a category entry stays exact.
@@ -81,6 +81,19 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 - ✅ No migration: `businesses.category` is free text (1–80 characters), so the catalogue is a constant-layer change. Migrations 009/010 were not modified or applied to production.
 - ✅ `npm run typecheck`, `npm run lint`, 443 unit tests, 165 database tests, 58 desktop + 17 mobile Playwright tests and the production build all pass.
 - ⏳ Analytics should roll category breakdowns up to industry groups now that there are 388 labels.
+- Details: `docs/INDUSTRY_TAXONOMY.md`.
+
+## Milestone 3A.1 — taxonomy quality and analytics pass (2026-10-24) ✅
+- ✅ Analytics reports all 30 industry groups with records, open, qualified (score 50+, the campaign threshold), won (furthest stage, including records lost after a win), proposals accepted/decided, proposal win rate, conversion and average score. All 30 rows are present even when empty, and labels outside the catalogue are kept in a separate bucket so totals reconcile.
+- ✅ Drill-down preserved: each group expands to the exact stored category labels (including the 20 legacy labels and workspace-added ones), with record/open/qualified/won counts; each label links to `/prospects?category=…&stage=all`, which now initialises the filter from the URL.
+- ✅ Category selection verified in Discover (grouped catalogue + whole-group scope), Prospects (grouped filter of stored labels), Campaigns (grouped target picker), Settings (grouped focus/custom categories) and the Solution Library (category → track → archetype with a mismatch warning).
+- ✅ Campaign wildcard validated: a group label matches every prospect in the group (including records filed under the group label), a category entry stays exact, matching ignores case and surrounding spaces, case-variant entries count once, and the 50-entry cap accepts exactly 50 and rejects 51.
+- ✅ Google Places audit: 243 categories name a reference type, but only the 127 reviewed pairs in `places-filters.ts` are sent as `includedType`. Venue types (`market`, `bus_station`), narrow tags (`meal_takeaway`, `clinic`, `snack_bar`, `school`) and generic relations (`supplier`, `consultant`) are searched by phrase instead, with the reason recorded; group searches and custom terms never send a type.
+- ✅ Lawful-activity guardrails: regulated activities carry the usual regulator and a plain note (shown in Discover, added to proposal assumptions); unlawful activities are absent from labels, search phrases and aliases (the `galamsey` alias was removed; licensed small-scale mining remains).
+- ✅ Proposal scope rests on evidence: only a recorded online-selling need selects the ecommerce package (a commerce category no longer upgrades it); `plan.evidence` reports the website check, recorded needs and report confidence; a `guidanceOnly` plan says so in the reasons, the client rationale and the assumptions. Report recommendations no longer carry evidence citations, and sector copy is labelled as guidance to confirm.
+- ✅ Regression tests added for industry rollups, legacy labels, campaign targeting/wildcard/limit, Places type filters and phrase fallbacks, compliance notes and evidence-based proposal scope.
+- ✅ `npm run check` (typecheck, lint, 462 unit + 165 database tests, production build and client-bundle secret scan) and 80 Playwright tests pass. No migrations were added, changed or applied; no paid API was called.
+- ⏳ Nationwide coverage of all 388 categories still needs several campaigns (a campaign is capped at 50 scope entries; one group entry covers a whole industry). Focus categories remain capped at 100.
 - Details: `docs/INDUSTRY_TAXONOMY.md`.
 
 ## External dependencies still open

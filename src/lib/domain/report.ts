@@ -516,7 +516,12 @@ export function generateDeterministicReport(pack: EvidencePack): ReportDraft {
 
   const opportunities: ReportDraft['opportunities'] = [
     ...hypotheses.slice(0, 4).map((i) => ({ title: i.statement.replace(/^Digital audit — [^:]+: /, '').split('. Observed:')[0].slice(0, 120), description: 'Raised by the digital audit from the cited evidence; a hypothesis to confirm with the business.', kind: 'evidence_supported' as const, evidenceIds: [i.id] })),
-    ...track.opportunities.map((o) => ({ ...o, kind: 'recommendation' as const, evidenceIds: [] })),
+    ...track.opportunities.map((o) => ({
+      ...o,
+      description: `${o.description} Sector guidance based on the category; confirm it with the business.`,
+      kind: 'recommendation' as const,
+      evidenceIds: [],
+    })),
   ];
 
   const benefits: ReportStatement[] = [];
@@ -529,7 +534,7 @@ export function generateDeterministicReport(pack: EvidencePack): ReportDraft {
   const allowed = allowedNextActions(pack);
   return {
     businessOverview: {
-      summary: `${business.name} is recorded as a ${business.category.toLowerCase()} in ${location || business.city}. ${track.customerJourney}`,
+      summary: `${business.name} is recorded as a ${business.category.toLowerCase()} in ${location || business.city}. Sector context to confirm in discovery: ${track.customerJourney}`,
       statements: [...of('profile', 'identity').map((i) => fact(i))],
     },
     researchSummary: {
@@ -552,7 +557,7 @@ export function generateDeterministicReport(pack: EvidencePack): ReportDraft {
     recommendedSolution: {
       summary: `For a ${business.category.toLowerCase()}, the core recommendation is ${track.primary[0]?.toLowerCase() ?? 'an owned, mobile-first website'}, with operational tools added once needs are confirmed in discovery.`,
       items: [
-        ...track.primary.map((s) => ({ service: s, priority: 'primary' as const, rationale: 'Core recommendation for this industry, subject to discovery.', evidenceIds: gap && verification ? [verification.id] : [] })),
+        ...track.primary.map((s) => ({ service: s, priority: 'primary' as const, rationale: 'Core recommendation for this sector; confirm the business’s priorities in discovery.', evidenceIds: [] })),
         ...track.secondary.map((s) => ({ service: s, priority: 'secondary' as const, rationale: 'Consider once operational needs are confirmed.', evidenceIds: [] })),
         ...track.future.map((s) => ({ service: s, priority: 'future' as const, rationale: 'Longer-term option; requires a separate assessment.', evidenceIds: [] })),
       ],

@@ -1,8 +1,10 @@
 'use client';
 
 import { Download } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { COST_GROUPS, OUTCOME_GROUPS, buckets, costGroup, funnel, granularityFor, outcomeGroup, series, topCounts } from '@/lib/domain/analytics';
+import { COST_GROUPS, OUTCOME_GROUPS, buckets, costGroup, funnel, granularityFor, industryRollup, outcomeGroup, series, topCounts } from '@/lib/domain/analytics';
+import { QUALIFIED_SCORE } from '@/lib/domain/campaigns';
 import { PROPOSAL_STATUSES, PROPOSAL_STATUS_META, STAGE_LABELS } from '@/lib/domain/constants';
 import { isOpenStage } from '@/lib/domain/pipeline';
 import { REPLY_INTENT_META, REPLY_INTENTS } from '@/lib/domain/replies';
@@ -62,6 +64,14 @@ export function AnalyticsView() {
     const checks = series(verifications, list, (v) => v.checkedAt, (v) => outcomeGroup(v.status), OUTCOME_GROUPS.map((g) => g.key));
     const cost = series(usage, list, (u) => u.createdAt, (u) => costGroup(u.provider), COST_GROUPS.map((g) => g.key), (u) => u.estimatedCostUsd);
 
+    // Industry rollups: the thirty groups in catalogue order, each keeping the exact stored category
+    // labels underneath so a group can always be drilled into.
+    const industries = industryRollup(businesses, activities, proposals);
+    const covered = [...industries.groups, ...(industries.unclassified ? [industries.unclassified] : [])].filter((group) => group.open > 0).sort((a, b) => b.open - a.open || a.label.localeCompare(b.label));
+    const industryChart = [...covered.slice(0, 8).map((group) => ({ label: group.label, value: group.open }))];
+    const otherOpen = covered.slice(8).reduce((sum, group) => sum + group.open, 0);
+    if (otherOpen) industryChart.push({ label: 'Other groups', value: otherOpen });
+
     const proposalStatus = PROPOSAL_STATUSES.map((s) => ({ label: PROPOSAL_STATUS_META[s].label, value: proposals.filter((p) => p.status === s).length }));
     const decided = proposals.filter((p) => p.decidedAt && p.decidedAt >= since && (p.status === 'accepted' || p.status === 'declined'));
     const accepted = decided.filter((p) => p.status === 'accepted').length;
@@ -93,7 +103,8 @@ export function AnalyticsView() {
       proposalStatus,
       decided: decided.length,
       accepted,
-      categories: topCounts(open.map((b) => b.category || 'Uncategorised'), 8),
+      industries,
+      industryChart,
       cities: topCounts(open.map((b) => b.city || 'Unknown'), 6),
       lost: topCounts(
         businesses.filter((b) => b.stage === 'lost').map((b) => (b.lostReason ?? 'No reason recorded').trim()),
@@ -111,6 +122,8 @@ export function AnalyticsView() {
 
   if (isLoading || !view) return <PageSkeleton />;
 
+  const industryRows = [...view.industries.groups, ...(view.industries.unclassified ? [view.industries.unclassified] : [])];
+
   const rangeLabel = RANGES.find((r) => r.days === days)!.label;
   const grain = { day: 'day', week: 'week', month: 'month' }[granularityFor(days)];
 
@@ -120,7 +133,27 @@ export function AnalyticsView() {
     checks: { columns: ['Period', ...OUTCOME_GROUPS.map((g) => g.label)], rows: view.checks.map((r) => [r.label, ...OUTCOME_GROUPS.map((g) => r[g.key])]) },
     proposals: { columns: ['Status', 'Proposals'], rows: view.proposalStatus.map((s) => [s.label, s.value]) },
     cost: { columns: ['Period', ...COST_GROUPS.map((g) => `${g.label} (USD)`)], rows: view.cost.map((r) => [r.label, ...COST_GROUPS.map((g) => usd(Number(r[g.key])))]) },
-    categories: { columns: ['Category', 'Open prospects'], rows: view.categories.map((c) => [c.label, c.value]) },
+    categories: { columns: ['Industry group', 'Open prospects'], rows: view.industryChart.map((c) => [c.label, c.value]) },
+    industry: {
+      columns: ['Industry group', 'Prospects', 'Open', 'Qualified', 'Won', 'Proposals accepted', 'Proposals decided', 'Conversion', 'Avg score'],
+      rows: [...view.industries.groups, ...(view.industries.unclassified ? [view.industries.unclassified] : [])].map((g) => [
+        g.label,
+        g.prospects,
+        g.open,
+        g.qualified,
+        g.won,
+        g.proposalsAccepted,
+        g.proposalsDecided,
+        pct(g.won, g.prospects),
+        g.avgScore ?? '—',
+      ]),
+    },
+    industryCategories: {
+      columns: ['Industry group', 'Stored category', 'Prospects', 'Open', 'Qualified', 'Won'],
+      rows: [...view.industries.groups, ...(view.industries.unclassified ? [view.industries.unclassified] : [])]
+        .filter((g) => g.categories.length > 0)
+        .flatMap((g) => g.categories.map((c) => [g.label, c.label, c.prospects, c.open, c.qualified, c.won])),
+    },
     cities: { columns: ['City', 'Open prospects'], rows: view.cities.map((c) => [c.label, c.value]) },
     lost: { columns: ['Lost reason', 'Prospects'], rows: view.lost.map((c) => [c.label, c.value]) },
     replies: { columns: ['What the reply means', 'Replies'], rows: view.replyIntents.map((r) => [r.label, r.value]) },
@@ -164,7 +197,7 @@ export function AnalyticsView() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-subtle">The range applies to checks, decisions and costs. Pipeline, scores and categories show the current state.</p>
+        <p className="text-xs text-subtle">The range applies to checks, decisions and costs. Pipeline, scores and industry counts show the current state; won totals keep earlier records.</p>
       </div>
 
       {!businesses?.length ? (
@@ -223,13 +256,98 @@ export function AnalyticsView() {
             <ChartCard title="Lost reasons" description="As recorded when a prospect was marked lost" table={tables.lost} empty={view.lost.length ? null : 'No lost prospects'}>
               <BarList data={view.lost} valueLabel="Prospects" />
             </ChartCard>
-            <ChartCard title="Open prospects by category" description="Top eight; the rest are grouped" table={tables.categories} empty={view.categories.length ? null : 'No open prospects'}>
-              <BarList data={view.categories} valueLabel="Open prospects" />
+            <ChartCard title="Open prospects by industry group" description="Top eight groups; the rest are combined. Each group keeps its exact stored categories in the table below." table={tables.categories} empty={view.industryChart.length ? null : 'No open prospects'}>
+              <BarList data={view.industryChart} valueLabel="Open prospects" />
             </ChartCard>
             <ChartCard title="Open prospects by city" table={tables.cities} empty={view.cities.length ? null : 'No open prospects'}>
               <BarList data={view.cities} valueLabel="Open prospects" />
             </ChartCard>
           </div>
+
+          <Card className="overflow-hidden">
+            <CardHeader
+              title="Industry performance"
+              description={`Every record grouped by the 30-industry catalogue, with the exact stored category labels underneath. Open and qualified are current; won and decided proposals are lifetime, so earlier records keep their credit. Qualified means an open prospect scoring ${QUALIFIED_SCORE} or more — the same bar campaigns use.`}
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border bg-surface-muted/40 px-4 py-2 text-xs text-muted">
+              <span>
+                <strong className="text-foreground">{view.industries.totals.groupsCovered}</strong> of {view.industries.groups.length} groups have records
+              </span>
+              <span>
+                <strong className="text-foreground">{view.industries.totals.open}</strong> open
+              </span>
+              <span>
+                <strong className="text-foreground">{view.industries.totals.qualified}</strong> qualified
+              </span>
+              <span>
+                <strong className="text-foreground">{view.industries.totals.won}</strong> won
+              </span>
+              <span>{view.industries.totals.proposalsDecided ? `${pct(view.industries.totals.proposalsAccepted, view.industries.totals.proposalsDecided)} of decided proposals accepted` : 'No proposal decisions recorded'}</span>
+            </div>
+            <ul className="divide-y divide-border">
+              {industryRows.map((group) => (
+                <li key={group.key}>
+                  <details data-testid="industry-group" data-group={group.key} className="group">
+                    <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-sm hover:bg-surface-hover">
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium">{group.label}</span>
+                        <span className="ml-2 text-xs text-subtle">{group.prospects ? `${group.prospects} record${group.prospects === 1 ? '' : 's'}` : 'No records yet'}</span>
+                      </span>
+                      <span className="text-xs tabular text-muted">{group.open} open</span>
+                      <span className="text-xs tabular text-muted">{group.qualified} qualified</span>
+                      <span className="text-xs tabular text-muted">
+                        {group.won} won · {pct(group.won, group.prospects)}
+                      </span>
+                      <span className="text-xs tabular text-muted">{group.proposalsDecided ? `${pct(group.proposalsAccepted, group.proposalsDecided)} proposals` : 'No proposal decisions'}</span>
+                    </summary>
+                    <div className="px-4 pb-3">
+                      <p className="mb-2 text-xs text-subtle">
+                        {group.description} Average score of open, scored prospects: {group.avgScore ?? '—'}.
+                      </p>
+                      {group.categories.length ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[560px] text-sm">
+                            <thead className="border-b border-border text-left text-xs text-subtle">
+                              <tr>
+                                <th scope="col" className="py-1.5 pr-3 font-medium">Stored category</th>
+                                <th scope="col" className="px-3 py-1.5 text-right font-medium">Records</th>
+                                <th scope="col" className="px-3 py-1.5 text-right font-medium">Open</th>
+                                <th scope="col" className="px-3 py-1.5 text-right font-medium">Qualified</th>
+                                <th scope="col" className="px-3 py-1.5 text-right font-medium">Won</th>
+                                <th scope="col" className="py-1.5 pl-3 text-right font-medium">Proposals accepted</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {group.categories.map((category) => (
+                                <tr key={category.label}>
+                                  <td className="py-1.5 pr-3">
+                                    <Link
+                                      href={`/prospects?category=${encodeURIComponent(category.label)}&stage=all`}
+                                      className="underline decoration-border underline-offset-2 hover:decoration-current"
+                                      title={`Open the ${category.prospects} record${category.prospects === 1 ? '' : 's'} filed as “${category.label}”`}
+                                    >
+                                      {category.label}
+                                    </Link>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right tabular">{category.prospects}</td>
+                                  <td className="px-3 py-1.5 text-right tabular">{category.open}</td>
+                                  <td className="px-3 py-1.5 text-right tabular">{category.qualified}</td>
+                                  <td className="px-3 py-1.5 text-right tabular">{category.won}</td>
+                                  <td className="py-1.5 pl-3 text-right tabular">{category.proposalsAccepted}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-subtle">No records in this group yet. Choose it in Discover or a campaign to start researching it.</p>
+                      )}
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          </Card>
 
           <Card className="overflow-hidden">
             <CardHeader title="Usage by operation" description={`Logged calls in the last ${rangeLabel}: discovery, website checks, web search, AI reports and exports.`} />

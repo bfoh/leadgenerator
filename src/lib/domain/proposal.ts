@@ -269,7 +269,7 @@ export function proposalFromPackage(input: {
       'Prices are in Ghana cedis (GH₵) unless stated otherwise.',
       'Third-party fees (payment processing, app stores, subscriptions) are billed by those providers.',
       'Payment integrations depend on merchant approval by the provider.',
-      ...(plan?.template.assumptions ?? []),
+      ...(plan ? plan.assumptions : []),
       ...(report ? ['This proposal is based on our research so far; we confirm the details with you in discovery.'] : []),
       ...limitations.map((l) => `To confirm in discovery: ${l.replace(/\.$/, '')}.`),
       ...(plan?.unmatchedNeeds.length ? [`Further needs to scope in discovery: ${plan.unmatchedNeeds.join('; ')}.`] : []),

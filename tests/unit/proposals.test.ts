@@ -428,3 +428,52 @@ describe('the Proposal Generation agent', () => {
     expect(readiness.blockers).toEqual(expect.arrayContaining(['The business opted out.', 'The business is on the suppression list.']));
   });
 });
+
+describe('evidence-based proposal scope', () => {
+  it('never treats the sector as an online-selling need', () => {
+    // A boutique that takes phone orders and deposits is not an online store: only a recorded
+    // online-selling need may choose the ecommerce package.
+    const phoneOrders = plan({ category: 'Fashion boutique', serviceNeeds: ['Ordering by phone', 'Payments on delivery'] });
+    expect(phoneOrders.pkg.key).not.toBe('ecommerce');
+    expect(PACKAGE_TIER[phoneOrders.pkg.key]).toBeLessThanOrEqual(2);
+    expect(phoneOrders.addOns.filter((a) => a.included).length).toBeGreaterThan(0);
+    expect(phoneOrders.evidence.recordedNeeds).toEqual(['Ordering by phone', 'Payments on delivery']);
+    expect(plan({ category: 'Fashion boutique', serviceNeeds: ['Sell online with Mobile Money checkout'] }).pkg.key).toBe('ecommerce');
+  });
+
+  it('says when a scope rests on sector guidance rather than evidence', () => {
+    const noEvidence = plan({ category: 'Pharmacy', websiteStatus: 'unverified', serviceNeeds: [] });
+    expect(noEvidence.evidence).toMatchObject({ websiteVerified: false, guidanceOnly: true, recordedNeeds: [] });
+    expect(noEvidence.reasons.join(' ')).toMatch(/sector guidance to confirm in discovery/);
+    expect(noEvidence.clientRationale.join(' ')).toMatch(/No website check or service need is recorded yet/);
+    expect(noEvidence.assumptions.join(' ')).toMatch(/starting point based on the sector/);
+
+    const checked = plan({ category: 'Pharmacy', websiteStatus: 'none_found', serviceNeeds: [] });
+    expect(checked.evidence).toMatchObject({ websiteVerified: true, guidanceOnly: false });
+    expect(checked.clientRationale.join(' ')).toMatch(/Documented checks did not find an official website/);
+  });
+
+  it('adds the licensing assumption for a regulated activity and records the report it used', () => {
+    const regulated = plan({ category: 'Pharmacy' });
+    expect(regulated.assumptions.join(' ')).toMatch(/Pharmacy Council/);
+    expect(regulated.assumptions.join(' ')).toMatch(/digital services only/);
+    expect(plan({ category: 'Furniture showroom' }).assumptions.join(' ')).not.toMatch(/licence from the/);
+
+    const report = { id: 'r1', version: 3, content: { confidence: { overall: 'low' } } } as never;
+    const withReport = planProposal({ business: biz(), settings: settings(), report })!;
+    expect(withReport.evidence).toMatchObject({ reportId: 'r1', reportVersion: 3, reportConfidence: 'low' });
+  });
+
+  it('keeps sector guidance out of the proposal’s opportunities and client rationale', () => {
+    const noReport = proposalFromPackage({ pkg: plan().pkg, businessName: 'Kente Couture', settings: settings(), plan: plan() });
+    // Opportunities are findings from a report; without one the list stays empty rather than being
+    // filled with category copy.
+    expect(noReport.opportunities).toEqual([]);
+
+    const guidance = plan({ category: 'Fashion boutique', websiteStatus: 'unverified' });
+    const content = proposalFromPackage({ pkg: guidance.pkg, businessName: 'Kente Couture', settings: settings(), plan: guidance });
+    expect(content.recommendedSolution).not.toMatch(/usually need first/);
+    expect(content.recommendedSolution).toMatch(/No website check or service need is recorded yet/);
+    expect(content.assumptions.join(' ')).toMatch(/starting point based on the sector/);
+  });
+});

@@ -23,9 +23,9 @@ export function ProposalsTab({ business }: { business: Business }) {
   const { data: proposals = [] } = useProposals();
   const { data: reports = [] } = useReports(business.id);
   const latest = [...reports].sort((a, b) => b.version - a.version)[0] ?? null;
-  const recommended = planProposal({ business, settings });
+  const recommended = planProposal({ business, settings, report: latest });
   const [pkgKey, setPkgKey] = useState(recommended?.pkg.key ?? settings.packages[0]?.key ?? '');
-  const plan = planProposal({ business, settings, packageKey: pkgKey });
+  const plan = planProposal({ business, settings, packageKey: pkgKey, report: latest });
   const [reportId, setReportId] = useState<string>(latest?.id ?? '');
   const create = useAction(
     (ctx, report: OpportunityReport | null) => {

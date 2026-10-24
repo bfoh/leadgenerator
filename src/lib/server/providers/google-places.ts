@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { countryName } from '@/lib/domain/geo';
-import { placesTypeForCategory, searchTermForCategory } from '@/lib/domain/categories';
+import { searchTermForCategory } from '@/lib/domain/categories';
+import { includedTypeForCategory } from '@/lib/domain/places-filters';
 import { serverEnv } from '../env';
 import { ProviderError, searchArea, type DiscoveryPage, type DiscoveryProvider, type DiscoveryQuery, type DiscoveryResult } from './discovery';
 
@@ -97,14 +98,15 @@ export function placesTextQuery(q: DiscoveryQuery) {
 }
 
 /**
- * The validated Table A type to narrow a search, or null when there is nothing honest to send.
+ * The reviewed Table A type to narrow a search, or null when there is nothing honest to send.
  * Custom terms always win: if the researcher typed a phrase, a strict type filter could hide the
- * very businesses they are looking for. The text query is sent either way, so an unmapped
- * category still searches normally.
+ * very businesses they are looking for. Only pairs audited in `places-filters.ts` are sent — a
+ * narrower Google type would otherwise silently exclude businesses the category plainly covers.
+ * The text query is sent either way, so an unfiltered category still searches normally.
  */
 export function placesIncludedType(q: Pick<DiscoveryQuery, 'category' | 'terms'>): string | null {
   if (q.terms?.trim()) return null;
-  return placesTypeForCategory(q.category);
+  return includedTypeForCategory(q.category);
 }
 
 export const googlePlacesProvider: DiscoveryProvider = {

@@ -75,7 +75,7 @@ export const proposalGenerationAgent: AgentDefinition<ProposalInput> = {
       };
     }
 
-    const plan = planProposal({ business: b, settings: ctx.settings });
+    const plan = planProposal({ business: b, settings: ctx.settings, report });
     if (!plan) throw new AgentError('No service packages are configured.', 'permanent');
     const proposal = await svc.createProposal(ctx, b, plan.pkg, report, { source: 'agent', generator: PROPOSAL_AGENT_VERSION });
     const totals = computeTotals(proposal.content);

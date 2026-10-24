@@ -113,6 +113,24 @@ describe('Google Places API (New) provider', () => {
     await expect(googlePlacesProvider.getDetails('../../etc', AbortSignal.timeout(1000))).rejects.toThrow(/Invalid place reference/);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('searches by phrase when a type filter would hide the businesses the category covers', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ places: [] }), { status: 200 })));
+    const textOnly = ['Chop bar', 'Waakye joint', 'Market trader', 'Street food vendor', 'Clinic', 'Fashion boutique'];
+    for (const category of textOnly) {
+      fetchMock.mockClear();
+      await googlePlacesProvider.search({ ...query, category }, AbortSignal.timeout(1000));
+      const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+      expect(body, category).not.toHaveProperty('includedType');
+      expect(body.textQuery, category).toContain('in Kumasi, Ghana');
+    }
+    // A whole-group search uses the group's phrase and never a category type.
+    fetchMock.mockClear();
+    await googlePlacesProvider.search({ ...query, category: 'Food, Drink & Catering' }, AbortSignal.timeout(1000));
+    const groupBody = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(groupBody).not.toHaveProperty('includedType');
+    expect(groupBody.textQuery).toBe('food and drink business in Kumasi, Ghana');
+  });
 });
 
 describe('listed website classification', () => {

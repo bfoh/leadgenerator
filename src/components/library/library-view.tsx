@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { ARCHETYPES, archetypeByKey, designBrief, type Archetype } from '@/lib/domain/archetypes';
-import { TRACKS, trackForCategory } from '@/lib/domain/categories';
+import { TRACKS, industryGroupForCategory, trackForCategory } from '@/lib/domain/categories';
 import { isOpenStage } from '@/lib/domain/pipeline';
 import { cn, download, safeHref, slug } from '@/lib/utils';
 import { useBusinesses } from '@/lib/workspace/hooks';
@@ -193,6 +193,12 @@ function BriefCard({
             </Select>
           )}
         </Field>
+        {business && (
+          <p className="text-xs text-subtle">
+            Stored category: {business.category} · Industry group: {industryGroupForCategory(business.category)?.label ?? 'Custom category'} · Suggested archetype:{' '}
+            {archetypeByKey(archetypeFor(business.category))?.name ?? '—'}
+          </p>
+        )}
         {mismatch && (
           <p className="text-xs text-warning">
             {business.category} usually maps to “{archetypeByKey(archetypeFor(business.category))?.name}”. Check this archetype fits before using the brief.

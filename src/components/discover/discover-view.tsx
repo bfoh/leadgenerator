@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { classifyListedLink, type ListedLinkKind } from '@/lib/domain/links';
 import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
+import { complianceForCategory } from '@/lib/domain/industry-compliance';
 import { categoryGroups } from '@/lib/domain/settings';
 import type { UsageInsert } from '@/lib/domain/types';
 import { cn, errorMessage, formatDateTime, safeHref } from '@/lib/utils';
@@ -106,6 +107,9 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
   const spentToday = (usage.data ?? []).filter((u) => u.provider === providerId).reduce((s, u) => s + u.estimatedCostUsd, 0);
   const quotaLeft = Math.max(0, quota - usedToday);
   const groups = categoryGroups(settings);
+  // Activities that need a licence before trading get a plain note, so a search is never mistaken
+  // for encouragement to operate unlawfully.
+  const complianceNote = complianceForCategory(category);
   const countryInfo = findCountry(country);
 
   async function run(body: SearchBody, mode: 'search' | 'more') {
@@ -282,6 +286,11 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
                 )}
                 <div className="sm:col-span-2">
                   <CategorySelector groups={groups} value={category} onChange={setCategory} />
+                  {complianceNote && (
+                    <p className="mt-2 text-xs text-subtle" data-testid="compliance-note">
+                      <span className="font-medium text-muted">Licensing:</span> {complianceNote.regulator}. {complianceNote.note}
+                    </p>
+                  )}
                 </div>
                 <Field label="Custom search terms" hint="Optional. Replaces the category’s default search phrase.">
                   {(p) => <Input {...p} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="e.g. office furniture" />}

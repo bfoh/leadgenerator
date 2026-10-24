@@ -14,6 +14,8 @@ import {
   trackForCategory,
 } from '@/lib/domain/categories';
 import { DEFAULT_ADD_ONS, DEFAULT_PACKAGES } from '@/lib/domain/packages';
+import { COMPLIANCE_ASSUMPTION, COMPLIANCE_NOTES, complianceForCategory, mentionsUnlawfulActivity } from '@/lib/domain/industry-compliance';
+import { INCLUDED_TYPE_FILTERS, NARROW_MAPPING_REASON, TEXT_ONLY_REASONS, includedTypeForCategory, placesFilterReason } from '@/lib/domain/places-filters';
 import { PLACES_TYPES, isPlacesType } from '@/lib/domain/places-types';
 import { PROPOSAL_TEMPLATES } from '@/lib/domain/proposal-templates';
 import { DEFAULT_SETTINGS, categoryGroups } from '@/lib/domain/settings';
@@ -139,10 +141,17 @@ describe('Ghana-wide industry taxonomy', () => {
     // Vernacular aliases are attached to the catalogue so a picker search finds them.
     const aliases = new Map(INDUSTRY_CATEGORIES.map((category) => [category.label, category.aliases.join(' ').toLowerCase()]));
     expect(aliases.get('Waakye joint')).toContain('waakye');
-    expect(aliases.get('Small-scale mining operator')).toContain('galamsey');
+    // "Galamsey" is unlicensed mining, so it is not an alias: the category stays for lawful operators.
+    expect(aliases.get('Small-scale mining operator') ?? '').not.toContain('galamsey');
     expect(aliases.get('Susu collection & savings')).toContain('susu');
     expect(aliases.get('Trotro & bus operator')).toContain('trotro');
     expect(aliases.get('Kente weaver')).toContain('kente');
+
+    // A local dish or shop is searched by the word people use, not by a formal phrase only.
+    expect(searchTermForCategory('Waakye joint')).toBe('waakye');
+    expect(searchTermForCategory('Kenkey house')).toBe('kenkey');
+    expect(searchTermForCategory('Chop bar')).toBe('chop bar');
+    expect(searchTermForCategory('Fufu joint')).toBe('fufu');
 
     // A whole group can be researched without choosing one of its categories.
     expect(trackForCategory('Agriculture & Crop Farming')).toBe('agriculture');
@@ -194,8 +203,115 @@ describe('campaign industry targeting', () => {
     const groups: string[] = INDUSTRY_GROUPS.map((group) => group.label);
     const build = (categories: string[]) => campaignScopeSchema.safeParse({ regions: [], districtCodes: [], towns: [], categories });
     expect(build(groups).success).toBe(true);
+    expect(build(Array.from({ length: 50 }, (_, i) => `Category ${i + 1}`)).success).toBe(true);
     expect(build(groups.slice(0, 29).concat('Maize farm')).success).toBe(true);
     expect(build(Array.from({ length: 51 }, (_, i) => `Category ${i + 1}`)).success).toBe(false);
+  });
+
+  it('matches a group regardless of case and spacing, including records filed under the group itself', () => {
+    const scope = { regions: [], districtCodes: [], towns: [], categories: ['  food, drink & catering '] };
+    expect(campaignScopeMatch(prospect('Waakye joint'), scope).matched).toBe(true);
+    // Discover can file a business under the group label when the researcher chose the whole group.
+    expect(campaignScopeMatch(prospect('Food, Drink & Catering'), scope).matched).toBe(true);
+    expect(campaignScopeMatch(prospect('Fashion boutique'), scope).matched).toBe(false);
+    expect(campaignScopeMatch(prospect('Restaurant'), { ...scope, categories: [' FOOD, DRINK & CATERING'] }).matched).toBe(true);
+  });
+
+  it('counts case variants once, and keeps group labels distinct and within the schema limit', () => {
+    const parsed = campaignScopeSchema.parse({ regions: [], districtCodes: [], towns: [], categories: ['Fashion boutique', 'fashion boutique', 'Fashion Boutique'] });
+    expect(parsed.categories).toEqual(['Fashion boutique']);
+    expect(INDUSTRY_GROUPS.every((group) => group.label.length <= 80)).toBe(true);
+    const labels = new Set(INDUSTRY_CATEGORIES.map((category) => category.label));
+    for (const group of INDUSTRY_GROUPS) expect(labels.has(group.label), group.label).toBe(false);
+  });
+});
+
+
+describe('lawful activity guardrails', () => {
+  it('never carries an unlawful activity as a label, search phrase or alias', () => {
+    for (const category of INDUSTRY_CATEGORIES) {
+      const text = [category.label, category.searchTerm, ...category.aliases].join(' | ');
+      expect(mentionsUnlawfulActivity(text), category.label).toBe(false);
+    }
+    // The guard itself must work, with word boundaries: "wee" does not match "weekend".
+    expect(mentionsUnlawfulActivity('Galamsey site')).toBe(true);
+    expect(mentionsUnlawfulActivity('illegal mining in the north')).toBe(true);
+    expect(mentionsUnlawfulActivity('Weekend market trader')).toBe(false);
+    expect(mentionsUnlawfulActivity('Agriculture & Crop Farming')).toBe(false);
+  });
+
+  it('names the regulator for activities that need a licence before trading', () => {
+    expect(complianceForCategory('Pharmacy')?.regulator).toMatch(/Pharmacy Council/);
+    expect(complianceForCategory('Small-scale mining operator')?.note).toMatch(/unlicensed small-scale mining is outside this catalogue/i);
+    expect(complianceForCategory('Security services company')?.regulator).toMatch(/Interior/);
+    expect(complianceForCategory('Primary school')?.regulator).toMatch(/Education Service/);
+    expect(complianceForCategory('Forex bureau')?.regulator).toMatch(/Bank of Ghana/);
+    expect(complianceForCategory('Susu collection & savings')?.regulator).toMatch(/Bank of Ghana/);
+    expect(complianceForCategory('Chop bar')?.regulator).toMatch(/FDA/);
+    expect(complianceForCategory('Real estate agency')?.regulator).toMatch(/Real Estate Agency Council/);
+    expect(complianceForCategory('Borehole drilling & pump installation')?.regulator).toMatch(/Water Resources/);
+    // An ordinary trade with no special licence is not labelled regulated; a custom label is unknown.
+    expect(complianceForCategory('Furniture showroom')).toBeNull();
+    expect(complianceForCategory('Mammy wagon transport')).toBeNull();
+    expect(COMPLIANCE_ASSUMPTION).toMatch(/responsibility/);
+    expect(COMPLIANCE_ASSUMPTION).toMatch(/does not include regulatory advice/);
+  });
+
+  it('gives every regulated category a usable note', () => {
+    let regulated = 0;
+    const labels = new Set(INDUSTRY_CATEGORIES.map((category) => category.label));
+    for (const key of Object.keys(COMPLIANCE_NOTES)) expect(labels.has(key), key).toBe(true);
+    for (const category of INDUSTRY_CATEGORIES) {
+      const note = complianceForCategory(category.label);
+      if (!note) continue;
+      regulated++;
+      expect(note.regulator.length, category.label).toBeGreaterThan(0);
+      expect(note.note.length, category.label).toBeGreaterThan(20);
+    }
+    expect(regulated).toBeGreaterThan(40);
+  });
+});
+
+describe('Google Places type-filter audit', () => {
+  it('only sends reviewed pairs, and each names a type its category declares', () => {
+    const byLabel = new Map(INDUSTRY_CATEGORIES.map((category) => [category.label, category]));
+    for (const [label, type] of Object.entries(INCLUDED_TYPE_FILTERS)) {
+      const category = byLabel.get(label);
+      expect(category, label).toBeDefined();
+      expect(category!.placesTypes, label).toContain(type);
+      expect(includedTypeForCategory(label)).toBe(type);
+      expect(includedTypeForCategory(` ${label.toUpperCase()} `)).toBe(type);
+    }
+    expect(includedTypeForCategory('Furniture showroom')).toBe('furniture_store');
+    expect(includedTypeForCategory('furniture-showroom')).toBe('furniture_store');
+    expect(includedTypeForCategory('Pharmacy')).toBe('pharmacy');
+  });
+
+  it('falls back to the phrase for every type that would hide local businesses', () => {
+    const labels = new Map(INDUSTRY_CATEGORIES.map((category) => [category.label, category]));
+    for (const key of Object.keys(TEXT_ONLY_REASONS)) {
+      const category = labels.get(key);
+      expect(category, key).toBeDefined();
+      expect(category!.placesTypes.length, key).toBeGreaterThan(0);
+      expect(includedTypeForCategory(key), key).toBeNull();
+    }
+    for (const label of ['Restaurant', 'Chop bar', 'Waakye joint', 'Market trader', 'Street food vendor', 'Clinic', 'Fashion boutique', 'Training institution']) {
+      expect(includedTypeForCategory(label), label).toBeNull();
+      expect(placesFilterReason(label), label).toBeTruthy();
+    }
+    expect(placesFilterReason('Market trader')).toMatch(/market building/);
+    expect(placesFilterReason('Street food vendor')).toMatch(/meal takeaway/);
+    expect(placesFilterReason('Clinic')).toMatch(/doctor/);
+    // Every reference mapping is either sent as a reviewed filter or has a stated reason not to be.
+    for (const category of INDUSTRY_CATEGORIES) {
+      if (!category.placesTypes.length) continue;
+      if (includedTypeForCategory(category.label)) continue;
+      expect(placesFilterReason(category.label), category.label).toBeTruthy();
+    }
+    // A category with no reference type needs no explanation, and a custom label is unknown.
+    expect(placesFilterReason('Mammy wagon transport')).toBeNull();
+    expect(includedTypeForCategory('Mammy wagon transport')).toBeNull();
+    expect(NARROW_MAPPING_REASON).toMatch(/text phrase/);
   });
 });
 

@@ -5,6 +5,7 @@
 
 import { trackForCategory, type TrackKey } from './categories';
 import { CLOSED_STAGES, type ProposalStatus, type WebsiteStatus } from './constants';
+import { COMPLIANCE_ASSUMPTION, complianceForCategory } from './industry-compliance';
 import { PACKAGE_TIER, type AddOn, type ServicePackage } from './packages';
 import { NEXT_ACTION_META, type NextAction } from './report';
 import type { OrgSettings } from './settings';
@@ -590,6 +591,24 @@ export interface PlannedAddOn {
   reason: string;
 }
 
+/**
+ * What the scope actually rests on. Category templates describe a sector; they are never evidence
+ * about a business. A plan measured only by sector guidance says so, so the proposal can present it
+ * as something to confirm rather than as a finding.
+ */
+export interface ProposalEvidence {
+  websiteStatus: WebsiteStatus;
+  /** True when a documented website check established the position. */
+  websiteVerified: boolean;
+  /** Needs recorded by the team that the plan quotes. */
+  recordedNeeds: string[];
+  reportId: string | null;
+  reportVersion: number | null;
+  reportConfidence: string | null;
+  /** True when neither a website check nor a recorded need supports the scope yet. */
+  guidanceOnly: boolean;
+}
+
 export interface ProposalPlan {
   track: TrackKey;
   template: ProposalTemplate;
@@ -600,6 +619,10 @@ export interface ProposalPlan {
   reasons: string[];
   /** The reasons worth telling the client (website position and recorded needs). */
   clientRationale: string[];
+  /** What the plan rests on; empty of evidence means sector guidance only. */
+  evidence: ProposalEvidence;
+  /** Assumptions to print with the proposal, including any licence note for the activity. */
+  assumptions: string[];
   addOns: PlannedAddOn[];
   /** Add-on names the package already delivers. */
   covered: string[];
@@ -623,7 +646,6 @@ const quote = (s: string) => `“${s.length > 80 ? `${s.slice(0, 77)}…` : s}�
 
 function pickPackage(
   business: Pick<Business, 'websiteStatus' | 'budgetSignal'>,
-  track: TrackKey,
   template: ProposalTemplate,
   needs: DetectedNeed[],
   packages: ServicePackage[],
@@ -632,11 +654,12 @@ function pickPackage(
   const exists = (k: string) => packages.some((p) => p.key === k);
   const reasons: string[] = [];
   const siteWorks = business.websiteStatus === 'verified_official';
-  const commerce = ['fashion', 'furniture', 'food', 'bridal', 'auto'].includes(track);
 
   let key = template.basePackage;
   let why: string | null = null;
-  const ecommerce = has('ecommerce') ?? (commerce && has('ordering') && has('payments') ? has('ordering') : undefined);
+  // Only an explicitly recorded online-selling need may choose the ecommerce package. Sector alone
+  // is never enough: a boutique that takes phone orders and deposits is not an online store.
+  const ecommerce = has('ecommerce');
   const app = has('app');
   const automation = has('automation');
   const managed = has('content') ?? has('catalogue') ?? has('inventory') ?? has('booking') ?? has('quotes') ?? has('accounts');
@@ -689,25 +712,44 @@ export function planProposal(input: {
   business: Pick<Business, 'category' | 'websiteStatus' | 'budgetSignal' | 'serviceNeeds'>;
   settings: Pick<OrgSettings, 'packages' | 'addOns'>;
   packageKey?: string | null;
+  /** The report the draft leans on, when one exists. */
+  report?: Pick<OpportunityReport, 'id' | 'version' | 'content'> | null;
 }): ProposalPlan | null {
   const { business, settings } = input;
   if (!settings.packages.length) return null;
   const track = trackForCategory(business.category);
   const template = PROPOSAL_TEMPLATES[track];
   const { needs, unmatched } = detectNeeds(business.serviceNeeds);
-  const recommended = pickPackage(business, track, template, needs, settings.packages);
+  const recommended = pickPackage(business, template, needs, settings.packages);
   const chosen = settings.packages.find((p) => p.key === input.packageKey) ?? settings.packages.find((p) => p.key === recommended.key)!;
 
   const websiteReason = WEBSITE_REASON[business.websiteStatus];
   const reasons = [...(websiteReason ? [websiteReason] : []), ...recommended.reasons];
   const stated = [...new Set(needs.map((n) => n.source))];
+  const websiteVerified = ['none_found', 'unavailable', 'unhealthy', 'verified_official'].includes(business.websiteStatus);
+  const guidanceOnly = !websiteVerified && stated.length === 0;
+  const evidence: ProposalEvidence = {
+    websiteStatus: business.websiteStatus,
+    websiteVerified,
+    recordedNeeds: stated,
+    reportId: input.report?.id ?? null,
+    reportVersion: input.report?.version ?? null,
+    reportConfidence: input.report?.content.confidence.overall ?? null,
+    guidanceOnly,
+  };
+  if (guidanceOnly) reasons.push('No website check or recorded need supports the scope yet; it is sector guidance to confirm in discovery.');
+  const compliance = complianceForCategory(business.category);
+  const assumptions = [...template.assumptions];
+  if (guidanceOnly) assumptions.push('This scope is a starting point based on the sector. No website check or service need has been recorded yet, so priorities are confirmed in discovery.');
+  if (compliance) assumptions.push(`This activity normally needs a licence from the ${compliance.regulator}. ${COMPLIANCE_ASSUMPTION}`);
+
   const clientRationale = [
     ...(websiteReason ? [websiteReason] : []),
     chosen.key === recommended.key && recommended.why
       ? recommended.why.replace(/^Recorded need/, 'Your stated need')
       : stated.length
         ? `It is built around the needs you described (${stated.map(quote).join(', ')}); anything not quoted now is listed for a later phase.`
-        : `The scope follows what ${template.label.toLowerCase()} businesses usually need first; optional items can be added after we confirm your priorities.`,
+        : 'No website check or service need is recorded yet, so this is a starting point based on the sector; we confirm your priorities in discovery before any work begins.',
   ];
   if (chosen.key !== recommended.key) {
     const rec = settings.packages.find((p) => p.key === recommended.key);
@@ -768,6 +810,8 @@ export function planProposal(input: {
     recommendedKey: recommended.key,
     reasons,
     clientRationale,
+    evidence,
+    assumptions,
     addOns,
     covered,
     roadmap,

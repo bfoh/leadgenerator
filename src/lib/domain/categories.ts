@@ -136,9 +136,9 @@ export function searchTermForCategory(category: string): string {
 }
 
 /**
- * The single verified Google Places type for a category, when the taxonomy records one. A category
- * with several plausible types returns the first; the text query is always sent as well, because a
- * strict type filter alone loses local businesses that Google has typed differently.
+ * The first *reference* Google Places type for a category, when the taxonomy records one. This is
+ * documentation, not a request filter: Discover only sends a type that `places-filters.ts` has
+ * reviewed as safe, because a narrower type silently hides businesses the category covers.
  */
 export function placesTypeForCategory(category: string): PlacesType | null {
   return findIndustryCategory(category)?.placesTypes[0] ?? null;

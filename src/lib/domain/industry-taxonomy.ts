@@ -336,11 +336,11 @@ export const INDUSTRY_CATEGORIES: IndustryCategory[] = [
 
   // Food, drink and catering
   c('food', 'Restaurant', 'food', ['restaurant']),
-  c('food', 'Chop bar', 'food', ['restaurant'], 'chop bar local eatery', ['chopbar', 'local eatery']),
-  c('food', 'Waakye joint', 'food', ['snack_bar'], 'waakye joint', ['waakye']),
-  c('food', 'Kenkey house', 'food', ['snack_bar'], 'kenkey house', ['kenkey', 'ga kenkey']),
-  c('food', 'Banku & tilapia joint', 'food', ['restaurant'], 'banku and tilapia joint'),
-  c('food', 'Fufu joint', 'food', ['restaurant'], 'fufu joint'),
+  c('food', 'Chop bar', 'food', ['restaurant'], 'chop bar', ['chopbar', 'local eatery']),
+  c('food', 'Waakye joint', 'food', ['snack_bar'], 'waakye', ['waakye']),
+  c('food', 'Kenkey house', 'food', ['snack_bar'], 'kenkey', ['kenkey', 'ga kenkey']),
+  c('food', 'Banku & tilapia joint', 'food', ['restaurant'], 'banku and tilapia'),
+  c('food', 'Fufu joint', 'food', ['restaurant'], 'fufu'),
   c('food', 'Bakery', 'food', ['bakery']),
   c('food', 'Pastry & cake shop', 'food', ['cake_shop', 'pastry_shop'], 'pastry and cake shop'),
   c('food', 'Catering service', 'food', ['catering_service'], 'catering service'),
@@ -576,7 +576,7 @@ export const INDUSTRY_CATEGORIES: IndustryCategory[] = [
   c('real_estate', 'Property investment company', 'real_estate', [], 'property investment'),
 
   // Mining, energy and utilities
-  c('mining_energy', 'Small-scale mining operator', 'mining_energy', [], 'small scale mining company', ['galamsey']),
+  c('mining_energy', 'Small-scale mining operator', 'mining_energy', [], 'small scale mining company'),
   c('mining_energy', 'Mining support services', 'mining_energy', [], 'mining support services'),
   c('mining_energy', 'Gold buying & refining', 'mining_energy', [], 'gold buying company'),
   c('mining_energy', 'Quarry & stone crushing', 'mining_energy', [], 'quarry company'),

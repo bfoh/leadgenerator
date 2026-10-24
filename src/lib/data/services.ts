@@ -263,7 +263,7 @@ export async function createProposal(
   report: OpportunityReport | null,
   opts: { source?: ProposalBasis['source']; generator?: string } = {},
 ) {
-  const plan = planProposal({ business, settings: ctx.settings, packageKey: pkg.key });
+  const plan = planProposal({ business, settings: ctx.settings, packageKey: pkg.key, report });
   const content = proposalFromPackage({
     pkg,
     businessName: business.name,

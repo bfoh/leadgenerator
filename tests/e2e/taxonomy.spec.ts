@@ -40,3 +40,27 @@ test('the prospect form offers the grouped catalogue and accepts a custom catego
   await expect(page).toHaveURL(/\/prospects\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Waakye joint').first()).toBeVisible();
 });
+
+test('the prospects filter groups stored categories and honours an analytics deep link', async ({ page }) => {
+  await page.goto('/prospects?category=Furniture%20showroom&stage=all');
+  await expect(page.getByLabel('Filter by category')).toHaveValue('Furniture showroom');
+  // The stored label is offered inside its industry group rather than in one flat list.
+  await expect(page.locator('optgroup[label="Furniture, Home & Interiors"]')).toHaveCount(1);
+  await expect(page.getByRole('table').getByText('Furniture showroom').first()).toBeVisible();
+});
+
+test('discover shows a licensing note for regulated trades and can search a whole group', async ({ page }) => {
+  await page.goto('/discover');
+  const category = page.getByRole('combobox', { name: 'Category' });
+
+  await category.selectOption('Pharmacy');
+  await expect(page.getByTestId('compliance-note')).toContainText('Pharmacy Council');
+
+  await category.selectOption('Furniture showroom');
+  await expect(page.getByTestId('compliance-note')).toHaveCount(0);
+
+  // A whole group is a valid search target; the note follows the activity, not the group.
+  await category.selectOption({ label: 'All Hotels, Lodging & Tourism industries' });
+  await expect(category).toHaveValue('Hotels, Lodging & Tourism');
+  await expect(page.getByTestId('compliance-note')).toHaveCount(0);
+});

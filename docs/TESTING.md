@@ -70,6 +70,8 @@ Every test the brief asks for, and where it is. File paths are under `tests/`; n
 | Monitoring | `unit/monitoring`: alert levels and order; log redaction and HTTPS-only forwarding |
 | Accessibility | `e2e/accessibility`: every profile tab, the proposal editor and print views (light and dark), the skip link, dialog focus trap and return, tab arrow keys, reduced motion |
 
+| Industry taxonomy and analytics (3A.1) | `unit/taxonomy`: 30 groups and 388 categories, every legacy label → its original track, group labels distinct from categories, campaign group wildcard (including records filed under a group), exact category entries, case/space matching, case-insensitive dedupe, 50 accepted / 51 refused, regulator notes, no unlawful label/search/alias, and the Places filter allowlist with a reason for every other mapped type. `unit/analytics-industry`: all 30 groups present (including empty ones), legacy and custom labels, open/qualified thresholds, wins from history, proposal decisions, zero state. `unit/places`: text-only fallback for venue/narrow types, custom terms, group and unmapped searches. `unit/proposals`: sector alone never chooses ecommerce, `guidanceOnly`, licensing assumption, report provenance. `e2e/analytics`: thirty-group table and drill-down to the stored label. `e2e/taxonomy`: grouped Prospects filter honouring `/prospects?category=…&stage=all`, Discover licensing note and whole-group search. |
+
 ## 3. Writing tests
 
 - New provider code gets a fake: mock fetch per test (`vi.stubGlobal('fetch', …)`) or inject the SDK fake. The network guard tells you when one is missing.

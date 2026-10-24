@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import * as svc from '@/lib/data/services';
+import { DEFAULT_CATEGORIES, groupCategoryLabels } from '@/lib/domain/categories';
 import { STAGES, STAGE_LABELS, WEBSITE_STATUSES, WEBSITE_STATUS_META, type Stage, type WebsiteStatus } from '@/lib/domain/constants';
 import { BAND_META, bandFor, type ScoreBand } from '@/lib/domain/scoring';
 import type { Business } from '@/lib/domain/types';
@@ -39,9 +40,14 @@ export function ProspectsView() {
   const { data: businesses, isLoading } = useBusinesses();
   const [query, setQuery] = useState('');
   const [city, setCity] = useState('');
-  const [category, setCategory] = useState('');
+  // Analytics drill-down links carry the exact stored category and `stage=all`; both are initial
+  // values only, so a person can clear them without the URL fighting the filter.
+  const [category, setCategory] = useState(params.get('category') ?? '');
   const [website, setWebsite] = useState<WebsiteStatus | ''>((params.get('website') as WebsiteStatus) ?? '');
-  const [stage, setStage] = useState<Stage | 'open' | ''>('open');
+  const stageParam = params.get('stage');
+  const [stage, setStage] = useState<Stage | 'open' | ''>(
+    stageParam === 'all' ? '' : stageParam && (STAGES as readonly string[]).includes(stageParam) ? (stageParam as Stage) : 'open',
+  );
   const [band, setBand] = useState<ScoreBand | ''>('');
   const [sort, setSort] = useState<SortKey>('score');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -59,7 +65,18 @@ export function ProspectsView() {
 
   const all = useMemo(() => businesses ?? [], [businesses]);
   const cities = useMemo(() => [...new Set(all.map((b) => b.city))].sort(), [all]);
-  const categories = useMemo(() => [...new Set(all.map((b) => b.category))].sort(), [all]);
+  // Only the category labels that records actually use are offered, but they are grouped by the
+  // catalogue's 30 industries. Custom and historic labels appear under "Custom categories", so the
+  // filter never silently hides a record.
+  const categoryGroups = useMemo(() => {
+    if (!all.length) return [];
+    const stored = new Set(all.map((b) => b.category));
+    const known = new Set(DEFAULT_CATEGORIES.map((c) => c.label));
+    return groupCategoryLabels([...stored].filter((label) => !known.has(label)))
+      .map((group) => ({ ...group, categories: group.categories.filter((label) => stored.has(label)) }))
+      .filter((group) => group.categories.length > 0);
+  }, [all]);
+  const categoryOffered = categoryGroups.some((group) => group.categories.includes(category));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -143,8 +160,15 @@ export function ProspectsView() {
         </Select>
         <Select aria-label="Filter by category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto max-w-48">
           <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c}>{c}</option>
+          {category && !categoryOffered && <option value={category}>{category}</option>}
+          {categoryGroups.map((group) => (
+            <optgroup key={group.key} label={group.label}>
+              {group.categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </Select>
         <Select aria-label="Filter by score band" value={band} onChange={(e) => setBand(e.target.value as ScoreBand | '')} className="w-auto">

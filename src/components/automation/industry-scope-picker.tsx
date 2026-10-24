@@ -1,8 +1,8 @@
 'use client';
 
 // Campaign industry targeting, grouped by industry. A group entry selects the whole industry in one
-// slot, which matters because a campaign scope is capped at 50 entries: 50 groups cover every sector
-// in the taxonomy, while 50 individual categories would cover only a corner of it.
+// slot, which matters because a campaign scope is capped at 50 entries: the 30 groups cover every
+// sector in the taxonomy, while 50 individual categories would cover only a corner of it.
 
 import { useMemo, useState } from 'react';
 import type { CategoryGroup } from '@/lib/domain/categories';
