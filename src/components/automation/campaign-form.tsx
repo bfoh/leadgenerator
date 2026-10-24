@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { CAMPAIGN_FREQUENCIES, FREQUENCY_LABELS, GHANA_REGIONS, MAX_BATCH_SIZE, MAX_DAILY_TARGETS, WEEKDAY_LABELS, type CampaignFrequency, type CampaignScope, type ResearchCampaign } from '@/lib/domain/campaigns';
-import { DEFAULT_CATEGORIES } from '@/lib/domain/categories';
+import { categoryGroups } from '@/lib/domain/settings';
+import { IndustryScopePicker } from './industry-scope-picker';
 import { DISCOVERY_PROVIDER_CATALOG, campaignProviderBlocker } from '@/lib/domain/discovery-providers';
 import { districtsIn } from '@/lib/domain/districts';
 import { errorMessage } from '@/lib/utils';
 import { campaignApi, useCampaignRefresh, type CampaignPreview, type CampaignWriteBody } from '@/lib/workspace/campaigns';
+import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
@@ -15,7 +17,6 @@ import { Checkbox, Input, Select, Textarea } from '@/components/ui/field';
 import { Notice } from '@/components/ui/misc';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const CATEGORY_LABELS = DEFAULT_CATEGORIES.map((c) => c.label);
 
 export function CampaignForm({
   open,
@@ -32,6 +33,8 @@ export function CampaignForm({
 }) {
   const editing = Boolean(campaign);
   const refresh = useCampaignRefresh();
+  const { settings } = useWorkspace();
+  const groups = categoryGroups(settings);
   const [name, setName] = useState(campaign?.name ?? '');
   const [description, setDescription] = useState(campaign?.description ?? '');
   const [providerKey, setProviderKey] = useState(campaign?.providerKey ?? 'tracked_records');
@@ -209,13 +212,8 @@ export function CampaignForm({
             <FormRow label="Towns or neighbourhoods (optional)" hint="Comma-separated; exact names, matched case-insensitively. Blank means every town.">
               <Input value={towns} onChange={(e) => { setTowns(e.target.value); reset(); }} placeholder="Kumasi, Obuasi" maxLength={400} />
             </FormRow>
-            <div>
-              <p className="mb-1.5 text-xs font-medium">Industries ({categories.length ? `${categories.length} selected` : 'all industries'})</p>
-              <div className="grid max-h-32 grid-cols-2 gap-x-3 gap-y-1 overflow-y-auto pr-2">
-                {CATEGORY_LABELS.map((label) => (
-                  <Checkbox key={label} label={label} checked={categories.includes(label)} onChange={() => { toggle(categories, label, setCategories); reset(); }} />
-                ))}
-              </div>
+            <div className="sm:col-span-2">
+              <IndustryScopePicker groups={groups} selected={categories} onChange={(next) => { setCategories(next); reset(); }} disabled={busy} />
             </div>
           </div>
         </fieldset>

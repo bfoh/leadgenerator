@@ -1,51 +1,84 @@
 // Industry categories and the sector "tracks" that drive deterministic report and proposal
 // content. Track content is general industry guidance — never a claim about a specific business.
+//
+// The catalogue itself lives in `industry-taxonomy.ts` (30 industry groups, 300+ categories, built
+// for Ghana's 16 regions). This module keeps the historic public names — `DEFAULT_CATEGORIES`,
+// `trackForCategory`, `searchTermForCategory`, `TRACKS` — so every consumer and every saved
+// prospect keeps resolving to the same guidance it did before the expansion.
 
-export type TrackKey =
-  | 'fashion'
-  | 'bridal'
-  | 'furniture'
-  | 'beauty'
-  | 'hospitality'
-  | 'food'
-  | 'auto'
-  | 'events'
-  | 'creative'
-  | 'fitness'
-  | 'education'
-  | 'professional'
-  | 'health'
-  | 'pharmacy'
-  | 'general';
+import {
+  INDUSTRY_CATEGORIES,
+  INDUSTRY_GROUPS,
+  categoriesInGroup,
+  findIndustryCategory,
+  industryGroupByKey,
+  industryGroupByLabel,
+  industryGroupForCategory,
+  type GroupKey,
+  type TrackKey,
+} from './industry-taxonomy';
+import type { PlacesType } from './places-types';
+
+export type { GroupKey, IndustryCategory, IndustryGroup, TrackKey } from './industry-taxonomy';
+export { INDUSTRY_CATEGORIES, INDUSTRY_GROUPS, categoriesInGroup, findIndustryCategory, industryGroupByKey, industryGroupByLabel, industryGroupForCategory };
 
 export interface CategoryDefinition {
+  /** Stable slug of the label, for references that should not contain spaces. */
+  id: string;
   label: string;
   searchTerm: string;
   track: TrackKey;
+  /** Industry group key: drives grouped pickers and group-level campaign targeting. */
+  group: GroupKey;
+  /** Verified Google Places (New) Table A types; empty means the text query is the only search. */
+  placesTypes: readonly PlacesType[];
+  /** Extra local phrases a category search should match, e.g. "waakye" or "trotro". */
+  aliases: readonly string[];
 }
 
-export const DEFAULT_CATEGORIES: CategoryDefinition[] = [
-  { label: 'Fashion boutique', searchTerm: 'fashion boutique', track: 'fashion' },
-  { label: "Men's suit retailer", searchTerm: "men's suit shop", track: 'fashion' },
-  { label: 'Bridal shop', searchTerm: 'bridal shop', track: 'bridal' },
-  { label: 'Furniture showroom', searchTerm: 'furniture store', track: 'furniture' },
-  { label: 'Beauty salon', searchTerm: 'beauty salon', track: 'beauty' },
-  { label: 'Spa', searchTerm: 'spa', track: 'beauty' },
-  { label: 'Hotel', searchTerm: 'hotel', track: 'hospitality' },
-  { label: 'Guesthouse', searchTerm: 'guest house', track: 'hospitality' },
-  { label: 'Restaurant', searchTerm: 'restaurant', track: 'food' },
-  { label: 'Bakery', searchTerm: 'bakery', track: 'food' },
-  { label: 'Auto dealership', searchTerm: 'car dealership', track: 'auto' },
-  { label: 'Event planning', searchTerm: 'event planner', track: 'events' },
-  { label: 'Photography studio', searchTerm: 'photography studio', track: 'creative' },
-  { label: 'Gym', searchTerm: 'gym', track: 'fitness' },
-  { label: 'Training institution', searchTerm: 'training institute', track: 'education' },
-  { label: 'Professional services', searchTerm: 'consulting firm', track: 'professional' },
-  { label: 'Clinic', searchTerm: 'medical clinic', track: 'health' },
-  { label: 'Hospital', searchTerm: 'hospital', track: 'health' },
-  { label: 'Herbal clinic', searchTerm: 'herbal clinic', track: 'health' },
-  { label: 'Pharmacy', searchTerm: 'pharmacy', track: 'pharmacy' },
-];
+export const DEFAULT_CATEGORIES: CategoryDefinition[] = INDUSTRY_CATEGORIES.map(({ id, label, searchTerm, track, group, placesTypes, aliases }) => ({
+  id,
+  label,
+  searchTerm,
+  track,
+  group,
+  placesTypes,
+  aliases,
+}));
+
+/**
+ * The twenty categories the product shipped with. Their labels are part of the data contract:
+ * `businesses.category` stores the label, so these strings must never be renamed.
+ */
+export const LEGACY_CATEGORY_LABELS = [
+  'Fashion boutique',
+  "Men's suit retailer",
+  'Bridal shop',
+  'Furniture showroom',
+  'Beauty salon',
+  'Spa',
+  'Hotel',
+  'Guesthouse',
+  'Restaurant',
+  'Bakery',
+  'Auto dealership',
+  'Event planning',
+  'Photography studio',
+  'Gym',
+  'Training institution',
+  'Professional services',
+  'Clinic',
+  'Hospital',
+  'Herbal clinic',
+  'Pharmacy',
+] as const;
+
+/**
+ * Focus categories default to the original twenty. Widening a saved focus list automatically would
+ * change every prospect's industry-fit score without anyone asking for it.
+ */
+export const DEFAULT_FOCUS_CATEGORIES: string[] = [...LEGACY_CATEGORY_LABELS];
+
 
 const KEYWORDS: [RegExp, TrackKey][] = [
   [/brid|wedding gown/i, 'bridal'],
@@ -62,17 +95,85 @@ const KEYWORDS: [RegExp, TrackKey][] = [
   [/law|account|consult|professional|agency/i, 'professional'],
   [/pharmac|chemist|chemical (shop|seller)|drug ?store/i, 'pharmacy'],
   [/herbal|clinic|hospital\b|medical|dental|maternity|diagnostic|laborator|health (centre|center|facility)/i, 'health'],
+  // Added with the Ghana-wide expansion. These sit after the health rules on purpose: a "law clinic"
+  // stays a professional service and "hospitality" stays hospitality.
+  [/agri|farm|plantation|crop|maize|rice farm|cassava|yam farm|cocoa|oil palm|shea/i, 'agriculture'],
+  [/livestock|poultry|hatchery|\bpig\b|goat|sheep|cattle|fisher|aquacultur|veterinar/i, 'livestock'],
+  [/microfinance|susu|credit union|rural bank|savings and loans|insurance|forex|mobile money|payment service/i, 'finance'],
+  [/software|ICT|IT support|information technology|cyber|data analytic|hosting|computer|drone|startup|tech hub/i, 'ict'],
+  [/construct|civil engineer|\broad\b|mason|block mould|steel fabricat|aluminium|tiling|scaffold/i, 'construction'],
+  [/real estate|property (developer|management|investment)|land sales|letting|estate survey|valuation/i, 'real_estate'],
+  [/mining|quarry|gold buying|solar energy|generator|LPG|fuel station|petroleum|renewable energy|borehole/i, 'mining_energy'],
+  [/manufactur|factory|printing press|packaging|processing plant|bottl|fabrication workshop/i, 'manufacturing'],
+  [/transport|haulage|courier|freight|logistic|trotro|taxi|okada|warehous|storage|shipping|fleet/i, 'logistics'],
+  [/retail|supermarket|mini-?mart|grocery|provision|\bshop\b|\bstore\b|\bmarket\b|trader|vendor|hawker/i, 'retail'],
+  [/wholesal|distributor|import and export|commodity|bulk supplier/i, 'wholesale'],
+  [/facilit|cleaning|security serv|pest control|fumigation|janitor|landscap|funeral|laundry|repair service|maintenance/i, 'facilities'],
+  [/environment|water treatment|recycling|sanitation|pollution|afforest|green building/i, 'environment'],
+  [/non-?profit|\bNGO\b|association|cooperative|charity|foundation|social enterprise|government|library|embassy|community centre/i, 'nonprofit'],
 ];
 
+/**
+ * The track for a stored category. A built-in category id or label wins; next a group label, which
+ * is how a whole industry group is targeted; only then the keyword rules, which exist for
+ * categories the team typed by hand.
+ */
 export function trackForCategory(category: string): TrackKey {
-  const exact = DEFAULT_CATEGORIES.find((c) => c.label.toLowerCase() === category.trim().toLowerCase());
-  if (exact) return exact.track;
+  const known = findIndustryCategory(category);
+  if (known) return known.track;
+  const group = industryGroupByLabel(category);
+  if (group) return group.track;
   return KEYWORDS.find(([pattern]) => pattern.test(category))?.[1] ?? 'general';
 }
 
+/** The provider search phrase for a category, or the category itself when it is not built in. */
 export function searchTermForCategory(category: string): string {
-  return DEFAULT_CATEGORIES.find((c) => c.label === category)?.searchTerm ?? category.toLowerCase();
+  const known = findIndustryCategory(category);
+  if (known) return known.searchTerm;
+  const group = industryGroupByLabel(category);
+  if (group) return group.searchTerm;
+  return category.toLowerCase();
 }
+
+/**
+ * The single verified Google Places type for a category, when the taxonomy records one. A category
+ * with several plausible types returns the first; the text query is always sent as well, because a
+ * strict type filter alone loses local businesses that Google has typed differently.
+ */
+export function placesTypeForCategory(category: string): PlacesType | null {
+  return findIndustryCategory(category)?.placesTypes[0] ?? null;
+}
+
+export function placesTypesForCategory(category: string): readonly PlacesType[] {
+  return findIndustryCategory(category)?.placesTypes ?? [];
+}
+
+export interface CategoryGroup {
+  key: string;
+  label: string;
+  description: string;
+  /** Phrase used when the whole group is researched. */
+  searchTerm: string;
+  categories: string[];
+}
+
+/** Categories grouped for a picker. Workspace-specific categories appear in a final "Custom" group. */
+export function groupCategoryLabels(extraLabels: readonly string[] = []): CategoryGroup[] {
+  const known = new Set(DEFAULT_CATEGORIES.map((category) => category.label));
+  const groups: CategoryGroup[] = INDUSTRY_GROUPS.map((group) => ({
+    key: group.key,
+    label: group.label,
+    description: group.description,
+    searchTerm: group.searchTerm,
+    categories: DEFAULT_CATEGORIES.filter((category) => category.group === group.key).map((category) => category.label),
+  }));
+  const extra = [...new Set(extraLabels.map((label) => label.trim()).filter((label) => label && !known.has(label)))];
+  if (extra.length) {
+    groups.push({ key: 'custom', label: 'Custom categories', description: 'Added by this workspace.', searchTerm: 'custom category', categories: extra });
+  }
+  return groups;
+}
+
 
 export interface TrackGuidance {
   customerJourney: string;
@@ -240,6 +341,160 @@ export const TRACKS: Record<TrackKey, TrackGuidance> = {
     secondary: ['Product range pages for over-the-counter items', 'Delivery enquiries', 'Accepted insurance and payment options'],
     future: ['Refill reminders for customers who opt in', 'Online ordering feasibility study, subject to the rules for selling medicines'],
     archetype: 'health-facility',
+  },
+  nonprofit: {
+    customerJourney: 'Beneficiaries, donors and partners look for a clear mission, credible governance and an easy way to get involved or ask for help.',
+    opportunities: [
+      { title: 'Mission and programmes', description: 'Plain descriptions of programmes and reach help people decide whether to engage.' },
+      { title: 'Volunteer, donate and referral paths', description: 'Separate, short forms keep each audience’s request out of a shared inbox.' },
+    ],
+    primary: ['Mission-led website', 'Programmes and impact pages', 'Volunteer, donate and referral forms'],
+    secondary: ['Partner and funder reporting', 'Event registration', 'Newsletter with consent'],
+    future: ['Beneficiary case management, after a data protection review'],
+    archetype: 'nonprofit-mission',
+  },
+  environment: {
+    customerJourney: 'Clients and regulators need evidence of method, permits and measurable outcomes rather than marketing claims.',
+    opportunities: [
+      { title: 'Method and permits', description: 'Published methods, permits and sampling practice make technical work credible.' },
+      { title: 'Assessment requests', description: 'A structured request captures site details for a scoped proposal.' },
+    ],
+    primary: ['Technical services website', 'Methods, permits and coverage', 'Assessment request form'],
+    secondary: ['Report delivery for clients', 'Monitoring schedules', 'Compliance document library'],
+    future: ['Client portal for monitoring results'],
+    archetype: 'environment-services',
+  },
+  facilities: {
+    customerJourney: 'Facility managers and households compare responsiveness, vetting, insurance and clear scope before booking a service.',
+    opportunities: [
+      { title: 'Scope and standards', description: 'A clear service list with what is included prevents disputes about scope.' },
+      { title: 'Service requests', description: 'Scheduled requests and callout forms make recurring work trackable.' },
+    ],
+    primary: ['Service company website', 'Services, coverage and standards', 'Service and callout requests'],
+    secondary: ['Recurring schedules for clients', 'Staff vetting statements', 'Job completion records'],
+    future: ['Client portal for schedules and reports'],
+    archetype: 'facilities-services',
+  },
+  logistics: {
+    customerJourney: 'Customers want a price, a collection time and a way to know where a consignment is.',
+    opportunities: [
+      { title: 'Routes and pricing', description: 'Coverage, vehicle types and indicative pricing remove the first round of calls.' },
+      { title: 'Shipment enquiries', description: 'A tracking or enquiry form gives dispatch staff one queue instead of scattered chats.' },
+    ],
+    primary: ['Logistics company website', 'Coverage, fleet and services', 'Booking and tracking enquiries'],
+    secondary: ['Consignment status updates', 'Proof-of-delivery records', 'Account billing for regular customers'],
+    future: ['Customer tracking portal with driver updates'],
+    archetype: 'logistics-tracking',
+  },
+  manufacturing: {
+    customerJourney: 'Buyers ask what can be produced, at what volume, to which specification and how quickly it can be delivered.',
+    opportunities: [
+      { title: 'Product and capacity pages', description: 'Specifications, materials and production capacity answer the first trade questions.' },
+      { title: 'Quote requests', description: 'A quote form with quantity, material and delivery date makes pricing repeatable.' },
+    ],
+    primary: ['Manufacturer website', 'Product and capacity pages', 'Request-for-quote form'],
+    secondary: ['Order and production tracking for clients', 'Distributor enquiries', 'Quality and certification documents'],
+    future: ['Customer order portal and reorder flow'],
+    archetype: 'manufacturing-capability',
+  },
+  mining_energy: {
+    customerJourney: 'Buyers and regulators look for licences, safety practice, capacity and evidence that work is done to standard.',
+    opportunities: [
+      { title: 'Licence and capability', description: 'Permits, equipment and capacity information establish whether a company can be engaged.' },
+      { title: 'Service requests', description: 'A structured request for supply, servicing or a site visit replaces informal calls.' },
+    ],
+    primary: ['Industrial capability website', 'Licences, equipment and services', 'Supply and service requests'],
+    secondary: ['Safety and environmental statements', 'Field service scheduling', 'Customer equipment records'],
+    future: ['Customer portal for service history'],
+    archetype: 'industrial-capability',
+  },
+  real_estate: {
+    customerJourney: 'Buyers, tenants and landlords compare listings, verify documents and want a fast way to arrange a viewing.',
+    opportunities: [
+      { title: 'Verified listings', description: 'Listings with location, price and clear status save wasted viewings.' },
+      { title: 'Viewing requests', description: 'Scheduled viewing requests with contact details replace fragmented chat threads.' },
+    ],
+    primary: ['Property listing website', 'Listings with location and price', 'Viewing and enquiry requests'],
+    secondary: ['Landlord or tenant account area', 'Document checklists', 'Saved searches for buyers who opt in'],
+    future: ['Virtual tours for selected properties'],
+    archetype: 'property-listing',
+  },
+  construction: {
+    customerJourney: 'Clients judge contractors on completed work, licences, safety record and whether the quote is itemised.',
+    opportunities: [
+      { title: 'Project evidence', description: 'Photographs of completed work, with permission, answer the “have you done this before?” question.' },
+      { title: 'Quote requests', description: 'A structured brief — location, drawings, timeline — makes tendering and quoting faster.' },
+    ],
+    primary: ['Contractor portfolio website', 'Completed projects and trades', 'Site visit and quote requests'],
+    secondary: ['Project progress updates for clients', 'Safety and compliance documents', 'Supplier and subcontractor coordination'],
+    future: ['Client project portal with milestone updates'],
+    archetype: 'construction-portfolio',
+  },
+  ict: {
+    customerJourney: 'Buyers look for evidence of technical competence, relevant work and a clear way to discuss scope and support.',
+    opportunities: [
+      { title: 'Capability and proof', description: 'Case notes, technologies and team pages establish competence faster than a price list.' },
+      { title: 'Scoping requests', description: 'A short discovery form captures the problem, budget band and timeline before a call.' },
+    ],
+    primary: ['Technical capability website', 'Service and case pages', 'Discovery request form'],
+    secondary: ['Support desk integration', 'Client portal or documentation area', 'Status and uptime information'],
+    future: ['Productised service packages with online payment'],
+    archetype: 'ict-saas',
+  },
+  finance: {
+    customerJourney: 'Customers weigh trust, licensing, clear terms and how quickly they can speak to a person about savings, credit or claims.',
+    opportunities: [
+      { title: 'Credibility and terms', description: 'Licence details, product terms and branch information answer the first questions people ask.' },
+      { title: 'Application and appointment requests', description: 'Structured requests reduce queues and give staff a record to follow up.' },
+    ],
+    primary: ['Trust-led institution website', 'Product and terms pages', 'Application or appointment requests'],
+    secondary: ['Branch and agent locator', 'Secure document upload after identity checks', 'Rate and fee disclosure'],
+    future: ['Customer self-service portal, subject to a security review'],
+    archetype: 'finance-services',
+  },
+  wholesale: {
+    customerJourney: 'Trade buyers compare ranges, minimum quantities, credit terms and delivery schedules rather than browsing retail prices.',
+    opportunities: [
+      { title: 'Trade catalogue', description: 'A range list with pack sizes and minimum order quantities saves a phone call per buyer.' },
+      { title: 'Account enquiries', description: 'A trade account request form captures business details for a credit and pricing decision.' },
+    ],
+    primary: ['B2B website', 'Trade catalogue with pack sizes', 'Account and quote requests'],
+    secondary: ['Order history for approved accounts', 'Delivery scheduling', 'Price-list downloads for approved buyers'],
+    future: ['Buyer self-service ordering portal'],
+    archetype: 'wholesale-b2b',
+  },
+  retail: {
+    customerJourney: 'Shoppers check whether an item is in stock, what it costs and whether they can collect or have it delivered.',
+    opportunities: [
+      { title: 'Browsable stock', description: 'A catalogue with categories and prices answers the questions that fill a shop’s phone.' },
+      { title: 'Reserve or order', description: 'A WhatsApp or form order flow turns interest into a held item without a full ecommerce build.' },
+    ],
+    primary: ['Mobile-first shop website', 'Product catalogue with prices', 'WhatsApp or form orders'],
+    secondary: ['Stock levels', 'Mobile Money checkout when stock control is reliable', 'Delivery or pickup options'],
+    future: ['Loyalty and repeat-purchase reminders'],
+    archetype: 'retail-storefront',
+  },
+  livestock: {
+    customerJourney: 'Buyers and veterinary clients look for stock, breeds, feed, health services and delivery arrangements.',
+    opportunities: [
+      { title: 'Stock and service pages', description: 'Clear pages for what the farm or clinic supplies reduce speculative calls.' },
+      { title: 'Order and visit requests', description: 'Structured requests for stock or a farm visit make scheduling and pricing easier.' },
+    ],
+    primary: ['Farm or clinic website', 'Stock, breeds and services', 'Order and visit enquiries'],
+    secondary: ['Delivery and transport arrangements', 'Vaccination and health records for clients who opt in'],
+    future: ['Buyer repeat-order reminders'],
+    archetype: 'agro-catalogue',
+  },
+  agriculture: {
+    customerJourney: 'Buyers — traders, processors and households — need to know what is in season, how much is available and whether the farm can deliver.',
+    opportunities: [
+      { title: 'Produce and seasonality', description: 'A simple produce page with seasonal availability reduces repeated phone questions.' },
+      { title: 'Bulk enquiries', description: 'A structured enquiry form captures quantity, destination and timing for larger orders.' },
+    ],
+    primary: ['Farm profile website', 'Produce and seasonality pages', 'Bulk order and WhatsApp enquiries'],
+    secondary: ['Delivery-area information', 'Buyer list and order tracking', 'Mobile Money payment requests'],
+    future: ['Aggregator portal for outgrower schemes'],
+    archetype: 'agro-catalogue',
   },
   general: {
     customerJourney: 'Customers typically look for what the business offers, where it is, and how to get in touch.',

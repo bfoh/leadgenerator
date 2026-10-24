@@ -21,7 +21,7 @@ import { findDuplicates } from '@/lib/domain/dedupe';
 import { districtsIn, findDistrict } from '@/lib/domain/districts';
 import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
 import { businessFormSchema, businessToForm, fieldErrors, type BusinessForm } from '@/lib/domain/schemas';
-import { allCategories } from '@/lib/domain/settings';
+import { categoryGroups } from '@/lib/domain/settings';
 import type { Business, BusinessInsert } from '@/lib/domain/types';
 import { useAction, useBusinesses } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
@@ -122,7 +122,7 @@ export function BusinessFormDialog({
 
   const set = <K extends keyof FormInput>(key: K, value: FormInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const country = findCountry(text(form.country));
-  const categories = allCategories(settings);
+  const groups = categoryGroups(settings);
   const duplicates = useMemo(
     () =>
       text(form.name).trim().length > 2
@@ -203,13 +203,17 @@ export function BusinessFormDialog({
           <Field label="Business name" required error={errors.name} className="sm:col-span-2">
             {(p) => <Input {...p} value={text(form.name)} onChange={(e) => set('name', e.target.value)} autoFocus />}
           </Field>
-          <Field label="Category" required error={errors.category}>
+          <Field label="Category" required error={errors.category} hint="Type to search, or pick from an industry group. A custom category is allowed.">
             {(p) => (
               <>
                 <Input {...p} list="category-options" value={text(form.category)} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Furniture showroom" />
                 <datalist id="category-options">
-                  {categories.map((c) => (
-                    <option key={c} value={c} />
+                  {groups.map((group) => (
+                    <optgroup key={group.key} label={group.label}>
+                      {group.categories.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </optgroup>
                   ))}
                 </datalist>
               </>

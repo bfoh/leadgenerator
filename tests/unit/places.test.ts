@@ -92,6 +92,23 @@ describe('Google Places API (New) provider', () => {
     expect(error.retryable).toBe(true);
   });
 
+  it('narrows a mapped category with a verified Table A type, and never with a guessed one', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ places: [] }), { status: 200 })));
+    // Furniture showroom is mapped to furniture_store, a Table A type copied from Google's list.
+    await googlePlacesProvider.search(query, AbortSignal.timeout(1000));
+    expect(JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body))).toMatchObject({ includedType: 'furniture_store' });
+
+    // Custom terms win: a strict type filter could hide exactly what the researcher asked for.
+    await googlePlacesProvider.search({ ...query, terms: 'office furniture' }, AbortSignal.timeout(1000));
+    expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))).not.toHaveProperty('includedType');
+
+    // A category with no verified mapping still searches by phrase.
+    await googlePlacesProvider.search({ ...query, category: 'Mammy wagon transport' }, AbortSignal.timeout(1000));
+    const body = JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body));
+    expect(body).not.toHaveProperty('includedType');
+    expect(body.textQuery).toBe('mammy wagon transport in Kumasi, Ghana');
+  });
+
   it('rejects malformed place references before calling Google', async () => {
     await expect(googlePlacesProvider.getDetails('../../etc', AbortSignal.timeout(1000))).rejects.toThrow(/Invalid place reference/);
     expect(fetchMock).not.toHaveBeenCalled();

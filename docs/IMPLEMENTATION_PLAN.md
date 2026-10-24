@@ -60,7 +60,7 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 ## Phase 6 — Client delivery 🟡
 - ✅ Accepted proposal → project conversion (phases become milestones); manual project creation for existing clients.
 - ✅ Project detail: status, type, contract value, dates, deployment URL, maintenance and invoice status, deliverables, milestones, tasks; status changes logged on the prospect timeline.
-- ✅ Solution library with 8 archetypes, tailored design briefs (copy / download Markdown). Digne Suits & More is shown only as an internal creative reference with an explicit "not a client" notice.
+- ✅ Solution library with 22 archetypes, tailored design briefs (copy / download Markdown). Digne Suits & More is shown only as an internal creative reference with an explicit "not a client" notice.
 - ⏳ File attachments (Supabase Storage bucket + RLS) and client approval history.
 
 ## Phase 7 — Production readiness 🟡
@@ -71,6 +71,17 @@ Preserved: the 20 v1–v3 research records (`src/data/research.json`), browser d
 - ⏳ Background job runner (scheduled re-verification, reminders) — design in ARCHITECTURE.md §8.
 - ⏳ Edge rate limiting (Vercel WAF / Upstash), error monitoring, uptime checks.
 - ⏳ Invitation emails (invitations are recorded; the inviter shares the sign-in link).
+
+## Milestone 3A — Ghana-wide industry taxonomy (2026-10-24) ✅
+- ✅ 30 industry groups and 388 categories in `industry-taxonomy.ts`, containing local trading terms (chop bar, waakye, kenkey, provision shop, kente, susu, trotro, galamsey). The 20 original labels are unchanged, so saved prospects, reports and proposals keep their existing guidance.
+- ✅ 14 new sector tracks (29 total) with report guidance, proposal templates and 13 new solution-library archetypes (22 total).
+- ✅ Searchable, grouped, mobile-friendly category picker in Discover, with whole-group research; grouped pickers in Prospects, campaign targeting and Settings focus categories.
+- ✅ Campaigns can target a whole industry group in one of their 50 scope entries; a category entry stays exact.
+- ✅ Google Places mappings use only the verified Table A identifiers in `places-types.ts` (159 types); categories with no honest mapping, and every custom-term search, fall back to the text phrase.
+- ✅ No migration: `businesses.category` is free text (1–80 characters), so the catalogue is a constant-layer change. Migrations 009/010 were not modified or applied to production.
+- ✅ `npm run typecheck`, `npm run lint`, 443 unit tests, 165 database tests, 58 desktop + 17 mobile Playwright tests and the production build all pass.
+- ⏳ Analytics should roll category breakdowns up to industry groups now that there are 388 labels.
+- Details: `docs/INDUSTRY_TAXONOMY.md`.
 
 ## External dependencies still open
 | Dependency | Needed for | Owner action |

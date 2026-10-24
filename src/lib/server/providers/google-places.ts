@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { countryName } from '@/lib/domain/geo';
-import { searchTermForCategory } from '@/lib/domain/categories';
+import { placesTypeForCategory, searchTermForCategory } from '@/lib/domain/categories';
 import { serverEnv } from '../env';
 import { ProviderError, searchArea, type DiscoveryPage, type DiscoveryProvider, type DiscoveryQuery, type DiscoveryResult } from './discovery';
 
@@ -96,6 +96,17 @@ export function placesTextQuery(q: DiscoveryQuery) {
   return `${what} in ${where}`;
 }
 
+/**
+ * The validated Table A type to narrow a search, or null when there is nothing honest to send.
+ * Custom terms always win: if the researcher typed a phrase, a strict type filter could hide the
+ * very businesses they are looking for. The text query is sent either way, so an unmapped
+ * category still searches normally.
+ */
+export function placesIncludedType(q: Pick<DiscoveryQuery, 'category' | 'terms'>): string | null {
+  if (q.terms?.trim()) return null;
+  return placesTypeForCategory(q.category);
+}
+
 export const googlePlacesProvider: DiscoveryProvider = {
   id: 'google_places',
   name: 'Google Places API (New)',
@@ -117,6 +128,7 @@ export const googlePlacesProvider: DiscoveryProvider = {
   estimatedCostUsd: (op) => (op === 'search' ? serverEnv.cost.placesSearch() : serverEnv.cost.placesDetails()),
 
   async search(q, signal): Promise<DiscoveryPage> {
+    const includedType = placesIncludedType(q);
     const data = (await call(
       SEARCH_URL,
       {
@@ -127,6 +139,7 @@ export const googlePlacesProvider: DiscoveryProvider = {
           pageSize: Math.min(20, Math.max(1, q.limit)),
           regionCode: q.country,
           languageCode: 'en',
+          ...(includedType ? { includedType } : {}),
           ...(q.pageToken ? { pageToken: q.pageToken } : {}),
         }),
       },

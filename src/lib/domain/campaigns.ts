@@ -4,6 +4,7 @@
 // discovery-providers.ts for what a campaign provider must permit).
 
 import { z } from 'zod';
+import { industryGroupByLabel, industryGroupForCategory } from './categories';
 import { DISTRICTS, findDistrict } from './districts';
 import { campaignProviderBlocker } from './discovery-providers';
 import type { Tone } from './constants';
@@ -292,7 +293,14 @@ export function campaignScopeMatch(business: Pick<CampaignBusiness, 'region' | '
   }
   if (scope.categories.length) {
     const categories = new Set(scope.categories.map(norm));
-    if (!categories.has(norm(business.category))) return { matched: false, reason: 'Outside the selected industry / category.' };
+    // An entry that names an industry group (for example "Agriculture & Crop Farming") selects every
+    // prospect in that group, so a campaign can cover a whole sector without listing 12 categories.
+    // Category labels are exact: choosing "Fashion boutique" does not widen to the fashion group.
+    const groups = new Set(scope.categories.map((entry) => industryGroupByLabel(entry)?.key).filter(Boolean));
+    const ownGroup = industryGroupForCategory(business.category)?.key ?? null;
+    if (!categories.has(norm(business.category)) && !(ownGroup && groups.has(ownGroup))) {
+      return { matched: false, reason: 'Outside the selected industry / category.' };
+    }
   }
   const narrowed = scope.districtCodes.length > 0 || scope.towns.length > 0 || scope.categories.length > 0;
   const parts = [scope.regions.length || narrowed ? region : 'Nationwide', district?.name ?? null, business.city?.trim() || business.neighborhood?.trim() || null, business.category];
@@ -368,9 +376,10 @@ export function describeScope(scope: CampaignScope): string {
   const parts: string[] = [scope.regions.length ? scope.regions.join(', ') : 'Nationwide (all 16 regions)'];
   if (scope.districtCodes.length) parts.push(`${scope.districtCodes.length} district${scope.districtCodes.length === 1 ? '' : 's'}`);
   if (scope.towns.length) parts.push(scope.towns.slice(0, 3).join(', ') + (scope.towns.length > 3 ? ` +${scope.towns.length - 3}` : ''));
+  const industries = scope.categories.slice(0, 3).map((entry) => (industryGroupByLabel(entry) ? `${entry} (whole group)` : entry));
   parts.push(
     scope.categories.length
-      ? scope.categories.slice(0, 3).join(', ') + (scope.categories.length > 3 ? ` +${scope.categories.length - 3}` : '')
+      ? industries.join(', ') + (scope.categories.length > 3 ? ` +${scope.categories.length - 3}` : '')
       : 'all industries',
   );
   return parts.join(' · ');

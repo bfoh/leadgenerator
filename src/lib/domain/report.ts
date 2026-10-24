@@ -471,8 +471,9 @@ function websiteSentence(status: string, businessName: string) {
   }
 }
 
-const BOOKING: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional', 'health'];
-const CATALOGUE: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food', 'pharmacy'];
+const BOOKING: TrackKey[] = ['beauty', 'hospitality', 'fitness', 'events', 'creative', 'education', 'bridal', 'professional', 'health', 'finance', 'facilities', 'ict', 'real_estate'];
+const CATALOGUE: TrackKey[] = ['fashion', 'furniture', 'bridal', 'auto', 'food', 'pharmacy', 'retail', 'wholesale', 'manufacturing', 'agriculture', 'livestock'];
+
 
 const fact = (item: EvidenceItem, kind: StatementKind = 'verified_fact'): ReportStatement => ({ kind, text: item.statement, evidenceIds: [item.id] });
 

@@ -68,7 +68,7 @@ Full procedures: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 | Area | Highlights |
 | --- | --- |
 | Overview | Interested-lead alerts, pipeline and verification KPIs, period activity, verify-next list, overdue actions, tasks, meetings. |
-| Discover | Google Places Text Search with a strict field mask, quotas and cost estimates. Search a town (with an optional neighbourhood) or a whole region: all 16 regions of Ghana, with their main towns suggested. Categories include clinics, hospitals, herbal clinics and pharmacies, which get health and pharmacy guidance in reports and proposals. Results are display-only; "Track as candidate" stores just the Place ID and requires an independent source. "No website listed" is never treated as proof. |
+| Discover | Google Places Text Search with a strict field mask, quotas and cost estimates. Search a town (with an optional neighbourhood) or a whole region: all 16 regions of Ghana, with their main towns suggested. The category picker carries the Ghana-wide taxonomy — 30 industry groups and 388 categories, including local trading terms such as chop bar, waakye, kenkey, provision shop, kente, susu, trotro and galamsey — searchable by group or by phrase, and a whole group can be researched at once. Only verified Google Places Table A types are used to narrow a search; everything else falls back to the text phrase. Results are display-only; "Track as candidate" stores just the Place ID and requires an independent source. "No website listed" is never treated as proof. |
 | Prospects | Profiles, identity confidence, duplicate decisions (merge with undo, branch, different business — never automatic), digital audit findings that separate verified issues from growth hypotheses, CSV export (contact fields opt-in, logged). |
 | Verification | Manual records with six evidence-based outcomes, plus the Website Verification agent: the 13-step check (licensed search, DNS, robots.txt-respecting site checks), nine classifications, evidence confidence 0–100 with the factors shown, and a review queue for uncertain results. A person's verification is never silently replaced, and absence is never stated as fact. |
 | Scoring | Configurable weights; opportunity score separate from confidence; bands 80–100 / 60–79 / 40–59 / 0–39. Manual override with a written justification; the computed score stays visible and changes are audited. |
@@ -80,11 +80,11 @@ Full procedures: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 | Next steps | Per prospect: replies and what they mean, a follow-up plan added as tasks (never sends), a printable meeting brief built only from evidence-backed records, and open change requests. |
 | Pipeline | 12-stage kanban and table. Outreach stages require recorded permission with a lawful basis; opt-outs block contact. Tasks, meetings, lost reasons. |
 | Projects | Accepted proposal → project with milestones, deliverables, invoice and maintenance status. |
-| Solution library | 8 website archetypes with tailored design briefs. Digne Suits & More appears only as an internal creative reference, never as a client. |
+| Solution library | 22 website archetypes with tailored design briefs. Digne Suits & More appears only as an internal creative reference, never as a client. |
 | Analytics | Pipeline progression, score bands, verification outcomes over time, estimated API cost, proposals, replies by what they mean (flagged under 10 replies), lost reasons; table views and CSV. |
-| Settings | Agency profile and proposal branding, proposal defaults and taxes, scoring, categories, packages, add-on price list, team, integrations, data import/export/reset. |
+| Settings | Agency profile and proposal branding, proposal defaults and taxes, scoring, grouped focus and custom categories, packages, add-on price list, team, integrations, data import/export/reset. |
 
-Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Status: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · Privacy notice: `/privacy`
+Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Industry taxonomy: [docs/INDUSTRY_TAXONOMY.md](docs/INDUSTRY_TAXONOMY.md) · Status: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) · Privacy notice: `/privacy`
 
 ## Quality checks
 

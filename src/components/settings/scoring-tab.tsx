@@ -2,7 +2,7 @@
 
 import { RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { DEFAULT_CATEGORIES } from '@/lib/domain/categories';
+import { categoryGroups } from '@/lib/domain/settings';
 import { BAND_META, DEFAULT_WEIGHTS, FACTOR_LABELS, SCORE_FACTORS, type ScoreBand, type ScoreWeights } from '@/lib/domain/scoring';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Button } from '@/components/ui/button';
@@ -102,10 +102,21 @@ export function CategoriesTab() {
   const editable = can('settings.manage');
   const [focus, setFocus] = useState<string[]>(settings.focusCategories);
   const [custom, setCustom] = useState<string[]>(settings.customCategories);
+  const [query, setQuery] = useState('');
+  const [groupKey, setGroupKey] = useState('');
   const save = useSaveSettings('Categories saved');
   const cleanCustom = [...new Set(custom.map((c) => c.trim()).filter(Boolean))];
-  const all = [...new Set([...DEFAULT_CATEGORIES.map((c) => c.label), ...cleanCustom])];
+  const catalogue = categoryGroups({ ...settings, customCategories: cleanCustom });
+  const all = catalogue.flatMap((group) => group.categories);
   const toggle = (c: string) => setFocus((f) => (f.includes(c) ? f.filter((x) => x !== c) : [...f, c]));
+  const needle = query.trim().toLowerCase();
+  const visible = catalogue
+    .filter((group) => !groupKey || group.key === groupKey)
+    .map((group) => ({
+      ...group,
+      categories: needle ? group.categories.filter((label) => label.toLowerCase().includes(needle)) : group.categories,
+    }))
+    .filter((group) => group.categories.length > 0);
 
   return (
     <form
@@ -116,14 +127,55 @@ export function CategoriesTab() {
         save.run({ ...settings, customCategories: cleanCustom, focusCategories: focus.filter((f) => all.includes(f)) }, { rescore: true });
       }}
     >
-      <Card>
+      <Card className="lg:col-span-2">
         <CardHeader title="Focus categories" description="Prospects in these categories score higher on industry fit. Others are still tracked." />
-        <CardBody>
-          <fieldset disabled={!editable} className="grid gap-2 sm:grid-cols-2">
+        <CardBody className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs font-medium">
+              Industry group
+              <select
+                className="mt-1 h-8.5 w-full rounded-md border border-border bg-surface px-2 text-sm"
+                value={groupKey}
+                onChange={(e) => setGroupKey(e.target.value)}
+                disabled={!editable}
+              >
+                <option value="">All industry groups</option>
+                {catalogue.map((group) => (
+                  <option key={group.key} value={group.key}>
+                    {group.label} ({group.categories.length})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-medium">
+              Find a category
+              <Input type="search" className="mt-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. waakye, susu, kente" disabled={!editable} />
+            </label>
+          </div>
+          <p className="text-xs text-subtle">
+            {focus.length} focus categor{focus.length === 1 ? 'y' : 'ies'} · {all.length} available. Focus is capped at 100, so pick the industries this agency sells to most.
+          </p>
+          <fieldset disabled={!editable} className="max-h-80 space-y-3 overflow-y-auto rounded-md border border-border p-3">
             <legend className="sr-only">Focus categories</legend>
-            {all.map((c) => (
-              <Checkbox key={c} label={c} checked={focus.includes(c)} onChange={() => toggle(c)} />
+            {visible.map((group) => (
+              <div key={group.key}>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  {group.label} ({group.categories.length})
+                </p>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {group.categories.map((c) => (
+                    <Checkbox
+                      key={c}
+                      label={c}
+                      checked={focus.includes(c)}
+                      disabled={!focus.includes(c) && focus.length >= 100}
+                      onChange={() => toggle(c)}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
+            {!visible.length && <p className="text-sm text-subtle">No category matches “{query.trim()}”.</p>}
           </fieldset>
         </CardBody>
       </Card>

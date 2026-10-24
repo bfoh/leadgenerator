@@ -2,7 +2,7 @@
 // Parsing is tolerant: invalid or missing sections fall back to defaults.
 
 import { z } from 'zod';
-import { DEFAULT_CATEGORIES } from './categories';
+import { DEFAULT_CATEGORIES, DEFAULT_FOCUS_CATEGORIES, groupCategoryLabels, type CategoryGroup } from './categories';
 import { DEFAULT_ADD_ONS, DEFAULT_PACKAGES, addOnSchema, servicePackageSchema, type ServicePackage } from './packages';
 import { DEFAULT_REPORT_MIN_CONFIDENCE } from './report';
 import { DEFAULT_WEIGHTS, SCORE_FACTORS, type ScoreWeights } from './scoring';
@@ -55,7 +55,7 @@ export type OrgSettings = z.infer<typeof orgSettingsSchema>;
 export const DEFAULT_SETTINGS: OrgSettings = {
   agency: { name: '', email: '', phone: '', website: '', address: '', defaultTerms: '', accentColor: '', logoDataUrl: '' },
   scoringWeights: DEFAULT_WEIGHTS,
-  focusCategories: DEFAULT_CATEGORIES.map((c) => c.label),
+  focusCategories: [...DEFAULT_FOCUS_CATEGORIES],
   customCategories: [],
   packages: DEFAULT_PACKAGES,
   addOns: DEFAULT_ADD_ONS,
@@ -80,6 +80,14 @@ export function resolveSettings(raw: unknown): OrgSettings {
 
 export function allCategories(settings: OrgSettings): string[] {
   return [...new Set([...DEFAULT_CATEGORIES.map((c) => c.label), ...settings.customCategories])];
+}
+
+/**
+ * The same list, grouped by industry, for pickers. Custom categories are appended in their own
+ * group so a workspace can still file a business the built-in taxonomy does not name.
+ */
+export function categoryGroups(settings: OrgSettings): CategoryGroup[] {
+  return groupCategoryLabels(settings.customCategories);
 }
 
 export function findPackage(settings: OrgSettings, key: string | null | undefined): ServicePackage | null {
