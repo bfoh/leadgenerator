@@ -2,7 +2,8 @@
 // server secrets: key formats of the providers in use, a Supabase service-role token, and the actual
 // values of the secrets in the environment or .env.local. Variable names alone are allowed (the UI
 // tells people which variable to set). Prints only the file and the rule that matched, never the
-// match. Run after `next build`.
+// match. Part of `npm run build` (after `next build`), so CI and every Vercel build run it; on Vercel the
+// values are the deployment's real secrets.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';

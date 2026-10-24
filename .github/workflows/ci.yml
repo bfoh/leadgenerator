@@ -48,9 +48,10 @@ jobs:
       - run: npm run lint
       # Unit tests plus the RLS suite, which applies the migrations to an in-process Postgres (PGlite).
       - run: npm test
+      # The build ends with the client bundle scan (scripts/check-client-bundle.mjs): it fails if a key
+      # format, a service-role token or a configured secret value reaches the browser. Vercel runs the
+      # same script, so production builds are scanned against the real secret values.
       - run: npm run build
-      # Fails if a key format, a service-role token or a configured secret value reaches the browser.
-      - run: npm run check:bundle
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
