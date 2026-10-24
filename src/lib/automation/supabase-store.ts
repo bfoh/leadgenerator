@@ -96,7 +96,10 @@ export class SupabaseAutomationStore implements AutomationStore {
   }
 
   async enqueue(request: JobRequest) {
-    const { data, error } = await this.sb.rpc('enqueue_automation_job', {
+    // Campaign jobs use the 009 function, which also stores the campaign and membership; ordinary
+    // work keeps using the 003 function unchanged.
+    const campaign = Boolean(request.campaignId || request.campaignTargetId);
+    const params: Record<string, unknown> = {
       p_org: this.organizationId,
       p_agent: request.agent,
       p_business: request.businessId ?? null,
@@ -108,7 +111,12 @@ export class SupabaseAutomationStore implements AutomationStore {
       p_requires_approval: request.requiresApproval ?? false,
       p_estimated_cost: request.estimatedCostUsd ?? 0,
       p_max_attempts: request.maxAttempts ?? 3,
-    });
+    };
+    if (campaign) {
+      params.p_campaign = request.campaignId ?? null;
+      params.p_campaign_target = request.campaignTargetId ?? null;
+    }
+    const { data, error } = await this.sb.rpc(campaign ? 'enqueue_campaign_job' : 'enqueue_automation_job', params);
     if (error) throw automationError(error);
     const body = data as { created: boolean; job: Record<string, unknown> };
     return { created: body.created, job: toJob(body.job) };

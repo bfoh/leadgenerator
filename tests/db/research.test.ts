@@ -238,7 +238,7 @@ describe('audit findings', () => {
 
 describe('independence from migration 003, and rollback', () => {
   it('applies and merges without migration 003', async () => {
-    const d = await createDatabase({ skip: ['003', '007'] });
+    const d = await createDatabase({ skip: ['003', '007', '009'] });
     await createUser(d, OWNER, 'owner4@example.com');
     const { org_id } = await workspace(d, OWNER);
     const a = await business(OWNER, { name: 'Solo One' }, d, org_id);

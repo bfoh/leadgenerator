@@ -64,6 +64,10 @@ export interface AutomationJob {
   approvedBy: string | null;
   approvedAt: Timestamp | null;
   createdBy: string | null;
+  /** Research campaign this job belongs to (migration 009); null for ordinary work. */
+  campaignId?: string | null;
+  /** The campaign membership row this job serves; follow-ups inherit both keys. */
+  campaignTargetId?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -79,6 +83,9 @@ export interface JobRequest {
   requiresApproval?: boolean;
   estimatedCostUsd?: number;
   maxAttempts?: number;
+  /** Set by a campaign orchestrator; the engine copies both keys to every follow-up job. */
+  campaignId?: string | null;
+  campaignTargetId?: string | null;
 }
 
 export type JobOutcome = 'succeeded' | 'retry' | 'deferred' | 'failed' | 'cancelled' | 'awaiting_approval';

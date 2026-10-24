@@ -55,7 +55,8 @@ async function rescored(ctx: ServiceContext, business: Business | BusinessInsert
 
 export async function createBusiness(ctx: ServiceContext, form: BusinessForm, extra: Partial<BusinessInsert> = {}): Promise<Business> {
   const parsed = businessFormSchema.parse(form);
-  const draft = businessDefaults({ ...parsed, ...extra, ownerId: ctx.userId });
+  // A region- or district-level record has no town; the store writes NULL (migration 010).
+  const draft = businessDefaults({ ...parsed, ...extra, city: parsed.city ?? '', ownerId: ctx.userId });
   const created = await ctx.store.createBusiness({ ...draft, ...(await rescored(ctx, draft)) });
   await log(ctx, created.id, 'system', `Research candidate created (${created.sourceKind.replace(/_/g, ' ')})`);
   return created;
@@ -63,8 +64,9 @@ export async function createBusiness(ctx: ServiceContext, form: BusinessForm, ex
 
 export async function updateBusinessProfile(ctx: ServiceContext, business: Business, form: BusinessForm): Promise<Business> {
   const parsed = businessFormSchema.parse(form);
-  const next = { ...business, ...parsed };
-  return ctx.store.updateBusiness(business.id, { ...parsed, ...(await rescored(ctx, next, business.id)) });
+  const changes = { ...parsed, city: parsed.city ?? '' };
+  const next = { ...business, ...changes };
+  return ctx.store.updateBusiness(business.id, { ...changes, ...(await rescored(ctx, next, business.id)) });
 }
 
 export async function rescoreBusiness(ctx: ServiceContext, business: Business) {

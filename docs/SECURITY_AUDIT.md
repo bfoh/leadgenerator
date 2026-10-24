@@ -68,6 +68,26 @@ Result: no blocking issue. One change made: the bundle scan now runs in every bu
 - *Tests:* `unit/automation` "worker time limits and paid requests", `unit/paid-requests`, `db/automation` "hands a recovered job back marked as timed out…" and "paid-request ledger".
 - *The worker's privileges are unchanged.* The ledger rows are ordinary inserts in its own workspace, and `usage_records` stays insert-only for members.
 
+**Research campaigns (milestone 2, migration 009).**
+- *Scope:* campaign routes and worker ticks. Each query is scoped to the caller's organization; the
+  worker uses the service-role client per organization. No route returns another workspace's rows.
+- *Authorization:* `GET`/preview/run need `automation.run`; create/edit/delete need
+  `automation.manage` (owners/admins). RLS repeats both checks. Membership history is append-only at
+  grant and policy level.
+- *Input and output:* bodies are size-limited and schema-validated (scope arrays, region names,
+  district codes, schedule combinations, provider); errors are mapped without record contents.
+- *Consent:* the eligibility filter and the engine both refuse opted-out prospects; merged, archived
+  and inactive records are excluded. No outbound path is added.
+- *Provider boundary:* a campaign may use only a provider declared for unattended discovery + CRM
+  processing. Google Places is refused by the application **and** by a database check, so a bug or a
+  direct insert cannot turn user-initiated discovery into scheduled harvesting.
+- *Spend:* `campaign_spend` runs with the caller's rights (RLS applies) and is informational; every
+  paid call still passes the global budget checks.
+- *Residual risk:* a campaign can queue work faster than the worker drains it; the daily quota and
+  batch size bound this, and the queue's own concurrency/lease rules still apply.
+- *Tests:* `unit/campaigns`, `unit/campaign-mapping`, `db/campaigns` (RLS, append-only history,
+  provider refusal, job attribution, spend, rollbacks).
+
 ## 4. Re-running the audit
 
 Each release: `npm run check` (includes the bundle scan), `npm audit`, the E2E suite, and a review of any new route handler against §1 (authentication, role, origin, rate limit, input schema, error mapping, no secrets in responses or logs).

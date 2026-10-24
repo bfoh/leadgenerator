@@ -35,6 +35,16 @@ Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ 
   - Answers that arrive but cannot be used are now recorded at their actual cost. Before, they went unrecorded.
   - Tests: `tests/unit/automation.test.ts` (worker time limits and paid requests), `tests/unit/paid-requests.test.ts`, and `tests/db/automation.test.ts` (lease recovery mark, ledger rows).
 
+**Update 2026-10-24 (milestone 2 — research campaigns; built and tested, not deployed):**
+- **Delivered:** Automation Center → Campaigns; migration 009 (`research_campaigns`, `campaign_targets`, append-only `campaign_target_events`, `campaign_runs`, campaign keys on `automation_jobs`, `enqueue_campaign_job`, `campaign_spend`); migration 010 (`ghana_regions`, `ghana_districts` with all 261 MMDAs, optional `businesses.city`, `district_code` with region consistency).
+- **Research-only by design:** a campaign runs identity → website verification → contacts → audit → scoring → report over prospects the workspace already tracks. It never searches for new businesses and never contacts anyone.
+- **Provider architecture:** `src/lib/domain/discovery-providers.ts` declares each provider's permitted uses, retention, attribution, capabilities and status. Only tracked records permit unattended discovery + CRM processing; Google Places stays interactive and is refused by both the application and a database check. Licensed directory, B2B, self-submitted, public-dataset and registry providers are declared **not integrated** with no permitted use.
+- **Scheduling and control:** manual/daily/weekly/monthly schedules (Africa/Accra = UTC), batch and daily quotas, optional monthly campaign budget, cross-campaign deduplication (one active research chain per prospect), pause/resume, background ticks in the scheduled worker, run log and per-target agent job view.
+- **Safety:** consent/suppression untouched; opt-outs, merged, archived and inactive records are never targeted; campaign membership history is append-only; only owners/admins create or change campaigns.
+- **Verification:** 556 unit/database tests pass, including district-seed equality, RLS, state machines, job attribution, spend and both rollbacks; typecheck, lint, production build and the client-bundle scan pass.
+- **Not done:** migrations 009/010 are **not applied to production**, nothing is deployed, no paid provider call was added and no outbound path exists.
+- **Docs:** [MILESTONE_2_CAMPAIGNS](MILESTONE_2_CAMPAIGNS.md) (design, provider matrix, migration and rollback plan, remaining integrations).
+
 The v7 history is in [IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md). Each phase ends with a report: functionality, files, migrations, environment variables, tests, results, API cost, missing credentials, security notes, remaining work.
 
 | Phase | Scope | Status |

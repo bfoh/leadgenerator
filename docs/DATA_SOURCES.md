@@ -51,3 +51,38 @@ Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` 
 | Audit events | Life of record; payloads purged on deletion |
 
 Retention cleanup is documented as a planned background job (ARCHITECTURE.md §8); until then use Settings → Data to archive or delete records.
+
+## Ghana regions and districts (migration 010)
+
+Used for district targeting in campaigns and for region/district-level prospect records. It is
+reference geography, not business data: no personal data, no provider call, no cost.
+
+| Field | Value |
+| --- | --- |
+| Dataset | Ghana – Subnational Administrative Boundaries (COD-AB v01) |
+| Publisher | OCHA Field Information Services on HDX, from Ghana Statistical Service data |
+| Record | https://data.humdata.org/dataset/cod-ab-gha (`cod-ab-gha`) |
+| Licence | Creative Commons Attribution for Intergovernmental Organisations (CC BY-IGO 3.0), http://creativecommons.org/licenses/by/3.0/igo/legalcode |
+| Valid from | 8 March 2021 |
+| Reviewed by the source | 30 October 2025 |
+| HDX record last modified | 14 August 2026 (checked through the HDX API on 24 October 2026) |
+| Source structure | 16 ADM1 (regions), 260 ADM2 (districts) |
+
+**Local changes, as the licence asks us to state:**
+
+1. The region the source calls “Northern East” is called **North East** throughout the app.
+2. “Municipal”, “Metropolitan” and “Metropolis” are dropped from district names; `sourceName` keeps the
+   original. The source applies them inconsistently and several assemblies changed status in 2025.
+3. **Guan District** (Oti Region, capital Likpe-Mate), inaugurated 8 October 2021 as Ghana's 261st
+   district, is added. It postdates the source's boundaries, so it has the local code `GH10-GUAN`
+   instead of a P-code. Sources: Ministry of Local Government inauguration reported by Graphic Online
+   and the Ghana News Agency (October 2021); the 2025–2029 MMDA breakdown (ghanadistricts.com,
+   September 2025) lists the same 261 assemblies, with Guan in Oti.
+
+The TypeScript list is `src/lib/domain/districts.ts` (with `DISTRICT_SOURCE` metadata); migration 010
+seeds the same rows into `ghana_regions` and `ghana_districts`. `tests/db/campaigns.test.ts` compares
+the database copy with the TypeScript list code for code, name for name and source name for source
+name, so the two cannot drift silently.
+
+Attribution to display where this data is shown: **“District list: Ghana Statistical Service via
+OCHA/HDX (COD-AB), CC BY-IGO 3.0; Guan District added; names shortened.”**

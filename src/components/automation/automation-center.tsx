@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/field';
 import { Notice, PageHeader, PageSkeleton } from '@/components/ui/misc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentsTab } from './agents-tab';
+import { CampaignsTab } from './campaigns-tab';
 import { ControlsTab } from './controls-tab';
 import { JobsTab } from './jobs-tab';
 import { OverviewTab } from './overview-tab';
@@ -21,6 +22,7 @@ import { RunsTab } from './runs-tab';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'campaigns', label: 'Campaigns' },
   { key: 'jobs', label: 'Jobs' },
   { key: 'agents', label: 'Agents' },
   { key: 'controls', label: 'Controls' },
@@ -107,6 +109,9 @@ export function AutomationCenter() {
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab settings={settings.data} counts={counts} last={runner.last} live={live} onShowJobs={(s) => navigate('jobs', s ? { status: s } : undefined)} />
+        </TabsContent>
+        <TabsContent value="campaigns">
+          <CampaignsTab />
         </TabsContent>
         <TabsContent value="jobs">
           <JobsTab status={status} onStatus={(s) => navigate('jobs', s ? { status: s } : undefined)} live={live} />

@@ -406,3 +406,64 @@ Needs 002 and 006. **Do not apply to production without a backup and the owner's
 - **Team changes:** add members by invitation (Settings → Team) before they sign in. To remove one, delete the membership and sign them out in Supabase → Authentication.
 - **Retention:** Contacts lists details past their retention date; review monthly and delete what is no longer needed (§5).
 
+## 16. Research campaigns (migrations 009 and 010)
+
+Research-only campaigns run the existing research agents over prospects the workspace already tracks.
+They never search Google Places and never contact anyone. Full design, provider matrix and remaining
+integrations: [MILESTONE_2_CAMPAIGNS](MILESTONE_2_CAMPAIGNS.md).
+
+### Apply migrations 009 and 010
+
+**Prerequisites:** 002 and 003 applied (009 refuses to run without the automation queue); 010 needs 002
+only. Take a backup first (docs/BACKUPS.md).
+
+1. Run `supabase/checks/preflight.sql` (read only) and keep the output. New rows report whether 009
+   and 010 are installed.
+2. Apply `supabase/migrations/009_research_campaigns.sql`, then
+   `supabase/migrations/010_region_records.sql`, in staging.
+3. Run `supabase/checks/after-migrations.sql` and confirm every row says `ok`. Rows 19–23 cover
+   campaigns and districts: no campaign uses Google Places, 261 districts and 16 regions are seeded,
+   and membership history cannot be edited or deleted by members.
+4. Repeat in production during a quiet period and deploy the application.
+5. Open Automation Center → **Campaigns**. As an owner, create a draft for one region, press
+   **Preview the audience**, then activate it. One tick should appear in the run log within a minute
+   (or immediately with **Run now**), and the queued `business_identity` job should appear under
+   Jobs.
+
+**Rollback** (after a backup, newest first):
+`supabase/rollback/010_region_records_down.sql`, then
+`supabase/rollback/009_research_campaigns_down.sql`. 010 stops with a count if any prospect has no
+town: give each one a town (or delete it deliberately) and run it again. 009 leaves jobs and research
+in place. The 003 queue functions are not touched by either rollback.
+
+### Operating
+
+- **Create:** only owners and admins. Choose nationwide or regions (then optionally districts), towns,
+  industries, schedule, batch size, daily limit and an optional campaign budget. **Preview the
+  audience** counts the tracked prospects in scope before saving.
+- **Activate / pause / complete / cancel:** the campaign card. Pausing stops *new* prospects; queued
+  jobs finish. Completed and cancelled are terminal; a draft or cancelled campaign can be deleted.
+- **Scheduled ticks:** the background worker reconciles every active campaign each minute and runs
+  the ones that are due. Campaign jobs are queued at priority 200, behind interactive work.
+- **Deduplication:** one prospect is researched by one campaign at a time. A second campaign leaves it
+  queued until the first chain finishes.
+- **District targeting:** record a prospect's district on its profile (Prospects → Edit → District).
+  Choosing a district fills in the region; the town becomes optional. Existing records keep their
+  town and no district until someone adds one, so a district-only campaign will match only the
+  records that have a district set.
+- **Budgets:** a campaign's optional monthly budget stops new prospects at actual cost + open job
+  estimates. The global provider budgets still apply to every paid call.
+- **Where to look:** the campaign card shows counts and spend; **Details** shows prospects (state,
+  match reason, note), the run log and the agent jobs. Automation Center → Jobs shows the same jobs
+  with the full run history.
+
+### Troubleshooting
+
+| Symptom | Meaning and action |
+| --- | --- |
+| “Campaigns need database migration 009” | The campaign tables are absent. Apply 009/010 as above. |
+| A run says “No untargeted prospect matches the scope” | Everything in scope is already in the campaign, or no tracked record matches. Widen the scope or add prospects. |
+| A run says “N left for later because research is already in progress” | Cross-campaign deduplication is working; the next tick picks them up. |
+| A run says the daily limit or the budget is reached | Raise the limit only after checking Analytics → *Estimated API cost*. |
+| A target is **Failed** | Open **Details**; the job's error is recorded. Fix the cause (budget, research tools, duplicate decision), then run the campaign again. |
+| Google Places is disabled in the provider list | Deliberate: it requires a person to start every search and is never a campaign provider. |

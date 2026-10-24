@@ -13,6 +13,7 @@ function form(overrides: Partial<BusinessForm> = {}): BusinessForm {
     category: 'Furniture showroom',
     country: 'GH',
     region: 'Ashanti',
+    districtCode: null,
     city: 'Kumasi',
     neighborhood: 'Santasi',
     address: null,

@@ -1,5 +1,5 @@
 -- Pre-production inspection (phase 10). READ ONLY: run it in the Supabase SQL editor before applying
--- migrations 003–008 to a project that already holds data, and keep the output with the change
+-- migrations 003–010 to a project that already holds data, and keep the output with the change
 -- record. It is one SELECT that calls no writing function, so it changes nothing, and it returns one
 -- table: section, check, value, what it means. (No transaction wrapper: the SQL editor shows only
 -- the last statement's result.) It needs migration 002; every later migration is optional.
@@ -16,7 +16,9 @@ select section, "check", value, meaning from (
     ('005 contact intelligence', 'public.contact_points', 'Contact points, consent records, suppressions (opted-out businesses are suppressed).'),
     ('006 messaging', 'public.outreach_messages', 'Templates, gateway decisions, messages, replies, webhook events.'),
     ('007 sending policy', 'public.message_policies', 'Message policies, quiet hours, limits, pause switch.'),
-    ('008 replies and conversion', 'public.reply_classifications', 'Reply readings, change requests, acceptance guard.')
+    ('008 replies and conversion', 'public.reply_classifications', 'Reply readings, change requests, acceptance guard.'),
+    ('009 research campaigns', 'public.research_campaigns', 'Campaign membership, history, run log and campaign job attribution (needs 003).'),
+    ('010 region records', 'public.ghana_districts', '261 districts, 16 regions, optional town and district-level records.')
   ) as m(name, marker, meaning)
 
   union all select 2, 'database', 'Postgres version', current_setting('server_version'), 'Supabase runs 15 or later.'

@@ -6,6 +6,13 @@ Business-development platform for a Ghanaian digital agency, launching in Accra 
 
 **Automation (phases 2–6 of the autonomous platform):** research agents — identity, website verification, digital audit, scoring, contact research and validation, and reports — and the Proposal Generation agent work through a durable, budgeted job queue managed in the Automation Center. Workspaces start in *Research only* mode with the outbound emergency stop engaged. Phase 7 adds messaging infrastructure (eligibility gateway, templates, Resend and WhatsApp Cloud API adapters, webhooks) for **sandbox testing only**: nothing can be sent to businesses in this version. See [docs/AUTONOMOUS_PLATFORM_ARCHITECTURE.md](docs/AUTONOMOUS_PLATFORM_ARCHITECTURE.md) and [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
+**Research campaigns (milestone 2):** Automation Center → Campaigns runs that research pipeline over
+prospects the workspace already tracks — by region, district, town and industry, on a manual, daily,
+weekly or monthly schedule, with a batch size, a daily target limit and an optional campaign budget.
+One prospect can belong to several campaigns, and every membership change is kept in an append-only
+history. A campaign never searches Google Places and never contacts anyone. See
+[docs/MILESTONE_2_CAMPAIGNS.md](docs/MILESTONE_2_CAMPAIGNS.md).
+
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + RLS + Auth) · TanStack Query · Zod · Recharts · Anthropic Claude (optional) · Google Places API (New) (optional)
 
 ## Quick start (demo mode)
@@ -50,6 +57,7 @@ Copy `.env.example` to `.env.local` (gitignored) and fill in only what you use. 
 7. Optional, for contact intelligence (contact points with provenance, consent records, the suppression list): apply `005_contact_intelligence.sql` the same way (runbook §9).
 8. Optional, for messaging infrastructure (sandbox only): apply `006_messaging.sql` after 005 the same way (runbook §12), then `007_sending_policy.sql` for message policies, quiet hours, limits and the pause switch (runbook §13). Without 007, template messages cannot be approved.
 9. Optional, for reply readings, follow-up plans, meeting briefs and proposal change requests: apply `008_response_conversion.sql` after 006 (runbook §14). Without 008, replies are still read by the rules on arrival (opt-outs suppressed, an alert task), but readings are not stored, the Next steps tab and change requests are unavailable, and proposals accept as before.
+10. Optional, for research campaigns: apply `009_research_campaigns.sql` after 003, then `010_region_records.sql` (runbook §16). Migration 009 adds campaigns, membership history, the run log and campaign attribution on jobs; 010 adds the 261-district reference data and optional district/town-level records. Without them, the Campaigns tab explains what is missing and everything else works as before.
 
 Each user belongs to an organization with one of six roles — owner, admin, researcher, sales, developer, viewer. Row-level security enforces tenant isolation and role permissions in the database; the UI only mirrors it.
 

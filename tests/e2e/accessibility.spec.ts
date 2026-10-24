@@ -29,6 +29,13 @@ async function newProspect(page: Page) {
   return page.url();
 }
 
+test('the Campaigns tab explains its cloud boundary and passes axe', async ({ page }) => {
+  await page.goto('/automation?tab=campaigns');
+  await expect(page.getByRole('tab', { name: 'Campaigns' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('Campaigns need the cloud workspace')).toBeVisible();
+  await axe(page, 'automation campaigns');
+});
+
 test('every prospect profile tab, the proposal editor and the print views pass axe in light and dark', async ({ page }) => {
   // Twelve views, two themes each: more than the default minute when the suite runs in parallel.
   test.setTimeout(180_000);

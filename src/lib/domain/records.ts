@@ -9,7 +9,8 @@ export function businessDefaults(overrides: Partial<BusinessInsert> = {}): Busin
     category: 'Other',
     country: 'GH',
     region: null,
-    // No default town: every record states where the business is (the form and the database require it).
+    districtCode: null,
+    // No default town: a record may be known only to district or region level (migration 010).
     city: '',
     neighborhood: null,
     address: null,

@@ -282,6 +282,7 @@ const form = (overrides: Partial<BusinessForm> = {}): BusinessForm => ({
   category: 'Bridal shop',
   country: 'GH',
   region: 'Greater Accra',
+  districtCode: null,
   city: 'Accra',
   neighborhood: 'Osu',
   address: null,

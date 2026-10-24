@@ -43,6 +43,22 @@ The paid-request ledger is in `src/lib/automation/paid-calls.ts`, and the server
   - After checking the provider's usage page, a person can **Retry from the start**.
 - **Demo mode is not covered.** It runs in the browser and keeps no ledger.
 
+## 2b. Campaign budgets
+
+A research campaign may carry its own monthly ceiling (`research_campaigns.monthly_budget_usd`). It is
+an **additional** stop, never a replacement for the per-provider budgets in §2.
+
+- **What counts:** actual cost recorded by agent runs for the campaign's jobs, plus the estimated cost
+  of its jobs that are still pending or running (`campaign_spend(campaign_id)`, migration 009).
+- **When it is checked:** before a tick adds prospects. Once the ceiling is reached the campaign stops
+  starting **new** prospects and says so in its run log. Jobs already queued still finish, and their
+  cost is checked against the global budgets as usual.
+- **What it cannot do:** raise a provider budget, allow paid work without an Anthropic/Brave budget,
+  or bypass the engine's pre-call checks.
+- **Selecting prospects is free:** choosing tracked records makes no provider call. Paid work comes
+  only from the agents (Brave Search during verification/contact research, Anthropic for an AI
+  report), and each of those is metered and budget-checked exactly as before.
+
 ## 3. Unit costs (estimates — verify against current price lists)
 
 | Provider / operation | Default estimate | Variable |

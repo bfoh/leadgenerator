@@ -201,6 +201,8 @@ export class LocalAutomationStore implements AutomationStore {
         approvedBy: null,
         approvedAt: null,
         createdBy: this.userId,
+        campaignId: request.campaignId ?? null,
+        campaignTargetId: request.campaignTargetId ?? null,
         createdAt: at,
         updatedAt: at,
       };

@@ -242,6 +242,7 @@ describe('validation schemas and settings', () => {
       category: 'Bakery',
       country: 'GH',
       region: '',
+      districtCode: '',
       city: 'Accra',
       neighborhood: '',
       address: '',
@@ -268,6 +269,44 @@ describe('validation schemas and settings', () => {
     expect(parsed.officialWebsite).toBe('https://shop.com.gh');
     expect(parsed.region).toBeNull();
     expect(parsed.estimatedValue).toBeNull();
+  });
+
+  it('records a district or region without a town, and refuses a record with no place at all', () => {
+    const base = {
+      name: 'District Only',
+      category: 'Pharmacy',
+      country: 'GH',
+      region: null,
+      districtCode: null,
+      city: '',
+      neighborhood: null,
+      address: null,
+      businessStatus: 'unknown',
+      officialWebsite: null,
+      socialProfiles: [],
+      enquiryChannel: null,
+      phone: null,
+      email: null,
+      contactSource: null,
+      interestLevel: 'unknown',
+      budgetSignal: 'unknown',
+      serviceNeeds: [],
+      estimatedValue: null,
+      expectedCloseDate: null,
+      nextAction: null,
+      nextActionDue: null,
+      notes: '',
+      sourceUrl: null,
+      sourceKind: 'manual',
+      placesPlaceId: null,
+    };
+    const district = businessFormSchema.parse({ ...base, districtCode: 'GH0201' });
+    expect(district.city).toBeNull();
+    expect(district.region).toBeNull();
+    expect(businessFormSchema.parse({ ...base, region: 'Ashanti' }).city).toBeNull();
+    expect(businessFormSchema.safeParse(base).success).toBe(false);
+    expect(businessFormSchema.safeParse({ ...base, districtCode: 'GH9999' }).success).toBe(false);
+    expect(businessFormSchema.safeParse({ ...base, districtCode: 'GH0201', region: 'Greater Accra' }).success).toBe(false);
   });
 
   it('requires two methods to record "no official website found" and a domain for site outcomes', () => {

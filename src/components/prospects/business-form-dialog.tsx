@@ -18,6 +18,7 @@ import {
   type SocialPlatform,
 } from '@/lib/domain/constants';
 import { findDuplicates } from '@/lib/domain/dedupe';
+import { districtsIn, findDistrict } from '@/lib/domain/districts';
 import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
 import { businessFormSchema, businessToForm, fieldErrors, type BusinessForm } from '@/lib/domain/schemas';
 import { allCategories } from '@/lib/domain/settings';
@@ -48,6 +49,7 @@ export function emptyBusinessForm(overrides: Partial<FormInput> = {}): FormInput
     category: '',
     country: 'GH',
     region: '',
+    districtCode: '',
     city: '',
     neighborhood: '',
     address: '',
@@ -241,7 +243,7 @@ export function BusinessFormDialog({
           </Field>
           <Field label="Region" error={errors.region}>
             {(p) => (
-              <Select {...p} value={text(form.region)} onChange={(e) => set('region', e.target.value)}>
+              <Select {...p} value={text(form.region)} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value, districtCode: '' }))}>
                 <option value="">Not recorded</option>
                 {country?.regions.map((r) => (
                   <option key={r.name} value={r.name}>
@@ -251,7 +253,27 @@ export function BusinessFormDialog({
               </Select>
             )}
           </Field>
-          <Field label="City / town" required error={errors.city}>
+          <Field label="District" error={errors.districtCode} hint={text(form.region) ? undefined : 'Choose a region first.'}>
+            {(p) => (
+              <Select
+                {...p}
+                value={text(form.districtCode)}
+                disabled={!text(form.region)}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  setForm((f) => ({ ...f, districtCode: code, region: code ? (findDistrict(code)?.region ?? f.region) : f.region }));
+                }}
+              >
+                <option value="">Not recorded</option>
+                {districtsIn(text(form.region)).map((district) => (
+                  <option key={district.code} value={district.code}>
+                    {district.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="City / town" error={errors.city} hint="Optional when a district or region is recorded.">
             {(p) => (
               <>
                 <Input

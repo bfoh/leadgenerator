@@ -85,3 +85,12 @@ test('a prospect can be researched by agents from its profile', async ({ page })
   await expect(history).toContainText('Opportunity Scoring');
   await expect(history).toContainText('Workflow history');
 });
+
+test('campaigns explain their cloud-only, research-only boundary in demo mode', async ({ page }) => {
+  await page.goto('/automation?tab=campaigns');
+  await expect(page.getByRole('heading', { level: 1, name: 'Automation Center' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Campaigns' })).toHaveAttribute('aria-selected', 'true');
+  // Demo mode has no server queue, so the tab says so instead of pretending campaigns can run.
+  await expect(page.getByText('Campaigns need the cloud workspace')).toBeVisible();
+  await expect(page.getByText(/nowhere to queue background research/i)).toBeVisible();
+});

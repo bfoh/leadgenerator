@@ -44,6 +44,9 @@ export interface Business {
   category: string;
   country: string;
   region: string | null;
+  /** District P-code from src/lib/domain/districts.ts (migration 010). Absent on databases older than it. */
+  districtCode?: string | null;
+  /** Empty when the record is known only to district or region level; the database stores NULL then. */
   city: string;
   neighborhood: string | null;
   address: string | null;

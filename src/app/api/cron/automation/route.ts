@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { BACKGROUND_WORKER_ID } from '@/lib/automation/constants';
+import { tickDueCampaigns } from '@/lib/server/campaigns/orchestrator';
 import { RUN_LIMITS, finishWithinMs, isBackgroundWorkerConfigured, runOrganizationQueue, workerOrganizations } from '@/lib/server/automation/runner';
 import { serverEnv } from '@/lib/server/env';
 import { HttpError, fail, ok } from '@/lib/server/http';
@@ -65,7 +66,17 @@ export async function GET(req: NextRequest) {
         void logEvent('error', 'cron_organization_failed', { error: orgError instanceof Error ? orgError.name : 'unknown' });
       }
     }
-    return ok({ organizations: orgIds.length, processed, outcomes: totals });
+    // Campaigns reconcile and enqueue after the job loop: the jobs they queue run on the next tick.
+    let campaigns = { ticked: 0, enqueued: 0, completed: 0, skipped: 0, failed: 0 };
+    if (RUN_LIMITS.workerStartWindowMs - (Date.now() - startedAt) > 10_000) {
+      try {
+        const stopAt = Date.now() + finishWithinMs(startedAt) - 5_000;
+        campaigns = await tickDueCampaigns(sb, new Date(), 20, stopAt);
+      } catch (campaignError) {
+        void logEvent('error', 'cron_campaigns_failed', { error: campaignError instanceof Error ? campaignError.name : 'unknown' });
+      }
+    }
+    return ok({ organizations: orgIds.length, processed, outcomes: totals, campaigns });
   } catch (error) {
     return fail(error);
   }

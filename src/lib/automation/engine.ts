@@ -317,6 +317,9 @@ export async function runJob(ctx: EngineContext, job: AutomationJob, settings: A
       const { job: child, created } = await ctx.automation.enqueue({
         ...follow,
         parentJobId: job.id,
+        // A campaign's agent chain stays attributable from the first job to the last.
+        campaignId: job.campaignId ?? null,
+        campaignTargetId: job.campaignTargetId ?? null,
         idempotencyKey: followUpKey(job.traceId, follow.agent, follow.businessId),
         estimatedCostUsd: totalEstimate(def.estimate?.({ input: def.input.parse(follow.payload ?? {}), settings, tools: ctx.tools }) ?? {}),
       });

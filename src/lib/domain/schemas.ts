@@ -1,6 +1,7 @@
 // Input validation shared by forms, services and route handlers.
 
 import { z } from 'zod';
+import { findDistrict } from './districts';
 import {
   ACTIVITY_TYPES,
   BUDGET_SIGNALS,
@@ -47,33 +48,53 @@ export const socialProfileSchema = z.object({
   url: z.url({ protocol: /^https?$/ }).max(2000),
 });
 
-export const businessFormSchema = z.object({
-  name: z.string().trim().min(1, 'Business name is required').max(200),
-  category: z.string().trim().min(1, 'Category is required').max(80),
-  country: z.string().trim().min(2).max(3),
-  region: optionalText(80),
-  city: z.string().trim().min(1, 'City is required').max(80),
-  neighborhood: optionalText(80),
-  address: optionalText(300),
-  businessStatus: z.enum(BUSINESS_STATUSES),
-  officialWebsite: optionalUrl,
-  socialProfiles: z.array(socialProfileSchema).max(12),
-  enquiryChannel: optionalText(300),
-  phone: optionalPhone,
-  email: optionalEmail,
-  contactSource: optionalText(500),
-  interestLevel: z.enum(INTEREST_LEVELS),
-  budgetSignal: z.enum(BUDGET_SIGNALS),
-  serviceNeeds: z.array(z.string().trim().min(1).max(120)).max(20),
-  estimatedValue: z.preprocess((v) => (v === '' || v === undefined ? null : v), z.coerce.number().nonnegative().max(1e9).nullable()),
-  expectedCloseDate: optionalDate,
-  nextAction: optionalText(300),
-  nextActionDue: optionalDate,
-  notes: z.string().max(10000),
-  sourceUrl: optionalUrl,
-  sourceKind: z.enum(SOURCE_KINDS),
-  placesPlaceId: optionalText(300),
-});
+export const businessFormSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Business name is required').max(200),
+    category: z.string().trim().min(1, 'Category is required').max(80),
+    country: z.string().trim().min(2).max(3),
+    region: optionalText(80),
+    /** District P-code (migration 010); the database fills or checks the region from it. */
+    districtCode: optionalText(20),
+    /** Optional when a district or region is known: the database stores NULL for a region-level record. */
+    city: z
+      .string()
+      .trim()
+      .max(80)
+      .transform((value) => value || null),
+    neighborhood: optionalText(80),
+    address: optionalText(300),
+    businessStatus: z.enum(BUSINESS_STATUSES),
+    officialWebsite: optionalUrl,
+    socialProfiles: z.array(socialProfileSchema).max(12),
+    enquiryChannel: optionalText(300),
+    phone: optionalPhone,
+    email: optionalEmail,
+    contactSource: optionalText(500),
+    interestLevel: z.enum(INTEREST_LEVELS),
+    budgetSignal: z.enum(BUDGET_SIGNALS),
+    serviceNeeds: z.array(z.string().trim().min(1).max(120)).max(20),
+    estimatedValue: z.preprocess((v) => (v === '' || v === undefined ? null : v), z.coerce.number().nonnegative().max(1e9).nullable()),
+    expectedCloseDate: optionalDate,
+    nextAction: optionalText(300),
+    nextActionDue: optionalDate,
+    notes: z.string().max(10000),
+    sourceUrl: optionalUrl,
+    sourceKind: z.enum(SOURCE_KINDS),
+    placesPlaceId: optionalText(300),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.city && !value.districtCode && !value.region) {
+      ctx.addIssue({ code: 'custom', path: ['city'], message: 'Enter a town, or choose a district or region.' });
+    }
+    if (value.districtCode) {
+      const district = findDistrict(value.districtCode);
+      if (!district) ctx.addIssue({ code: 'custom', path: ['districtCode'], message: 'Choose a district from the list.' });
+      else if (value.region && value.region !== district.region) {
+        ctx.addIssue({ code: 'custom', path: ['districtCode'], message: `That district is in ${district.region}, not ${value.region}.` });
+      }
+    }
+  });
 export type BusinessForm = z.infer<typeof businessFormSchema>;
 
 export const permissionFormSchema = z
@@ -154,6 +175,7 @@ export function businessToForm(b: Business): z.input<typeof businessFormSchema> 
     category: b.category,
     country: b.country,
     region: b.region ?? '',
+    districtCode: b.districtCode ?? '',
     city: b.city,
     neighborhood: b.neighborhood ?? '',
     address: b.address ?? '',

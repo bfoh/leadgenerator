@@ -177,14 +177,30 @@ export class SupabaseStore implements DataStore {
     if (count === 0) throw new StoreError('Record not found or your role cannot delete it.', 'forbidden');
   }
 
-  listBusinesses() {
-    return this.all<Business>('businesses');
+  /** A region- or district-level record stores NULL for the town; the app reads it as an empty string. */
+  private toBusiness(row: Record<string, unknown>): Business {
+    const business = fromRow<Business>(row);
+    return { ...business, city: business.city ?? '', districtCode: business.districtCode ?? null };
   }
-  getBusiness(id: string) {
-    return this.one<Business>('businesses', id);
+
+  /** An empty town is stored as NULL (migration 010 allows it when a region or district is known). */
+  private businessPatch(values: object): Record<string, unknown> {
+    const row = { ...values } as Record<string, unknown>;
+    if (typeof row.city === 'string') row.city = row.city.trim() || null;
+    if ('districtCode' in row && (row.districtCode === '' || row.districtCode === undefined)) row.districtCode = null;
+    return row;
   }
-  createBusiness: DataStore['createBusiness'] = (input) => this.insert<Business>('businesses', input);
-  updateBusiness: DataStore['updateBusiness'] = (id, patch) => this.patch<Business>('businesses', id, patch);
+
+  async listBusinesses() {
+    return (await this.all<Record<string, unknown>>('businesses')).map((row) => this.toBusiness(row));
+  }
+  async getBusiness(id: string) {
+    const row = await this.one<Record<string, unknown>>('businesses', id);
+    return row ? this.toBusiness(row) : null;
+  }
+  createBusiness: DataStore['createBusiness'] = async (input) => this.toBusiness(await this.insert<Record<string, unknown>>('businesses', this.businessPatch(input)));
+  updateBusiness: DataStore['updateBusiness'] = async (id, patch) =>
+    this.toBusiness(await this.patch<Record<string, unknown>>('businesses', id, this.businessPatch(patch)));
   deleteBusiness = (id: string) => this.remove('businesses', id);
   async listWorkflowTransitions(businessId?: string) {
     try {

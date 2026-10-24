@@ -1,4 +1,4 @@
--- Right after applying 003–008 to a database with existing data. READ ONLY: one SELECT that calls no
+-- Right after applying 003–010 to a database with existing data. READ ONLY: one SELECT that calls no
 -- writing function, so it changes nothing; the SQL editor shows its result because it is the only
 -- statement. Every row should say ok: messages to businesses are blocked, every workspace is in
 -- Research only with the outbound stop engaged, opted-out businesses are suppressed, no consent was
@@ -25,5 +25,10 @@ from (
   union all select 16, 'the worker key can create change requests', 'false', has_table_privilege('service_role', 'public.proposal_change_requests', 'insert')::text
   union all select 17, 'signed-out visitors can merge businesses', 'false', has_function_privilege('anon', 'public.merge_businesses(uuid, uuid, text[], text)', 'execute')::text
   union all select 18, 'messaging clock works', 'true', (public.messaging_now() is not null)::text
+  union all select 19, 'campaigns using Google Places', '0', case when to_regclass('public.research_campaigns') is null then 'missing 009' else (select count(*)::text from public.research_campaigns where provider_key = 'google_places') end
+  union all select 20, 'Ghana districts seeded', '261', case when to_regclass('public.ghana_districts') is null then 'missing 010' else (select count(*)::text from public.ghana_districts) end
+  union all select 21, 'Ghana regions seeded', '16', case when to_regclass('public.ghana_regions') is null then 'missing 010' else (select count(*)::text from public.ghana_regions) end
+  union all select 22, 'members can edit campaign membership history', 'false', case when to_regclass('public.campaign_target_events') is null then 'missing 009' else has_table_privilege('authenticated', 'public.campaign_target_events', 'update')::text end
+  union all select 23, 'members can delete campaign membership history', 'false', case when to_regclass('public.campaign_target_events') is null then 'missing 009' else has_table_privilege('authenticated', 'public.campaign_target_events', 'delete')::text end
 ) checks
 order by ord;
