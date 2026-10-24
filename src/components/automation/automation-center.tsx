@@ -3,10 +3,11 @@
 import { Bot, Database, OctagonX, Pause, Play, Server } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { JOB_STATUSES, MODE_META, type JobStatus } from '@/lib/automation/constants';
+import type { WorkerActivity } from '@/lib/automation/store';
 import type { AutomationSettings } from '@/lib/automation/types';
-import { cn } from '@/lib/utils';
+import { cn, relativeTime } from '@/lib/utils';
 import { useServerStatus } from '@/lib/workspace/api';
-import { useAutomationAvailable, useAutomationSettings, useJobCounts, useQueueRunner } from '@/lib/workspace/automation';
+import { useAutomationAvailable, useAutomationSettings, useJobCounts, useQueueRunner, useWorkerActivity } from '@/lib/workspace/automation';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/field';
@@ -37,7 +38,11 @@ export function AutomationCenter() {
   const available = useAutomationAvailable();
   const settings = useAutomationSettings();
   const runner = useQueueRunner();
-  const { data: counts } = useJobCounts(runner.keepProcessing);
+  const { data: server } = useServerStatus();
+  // With a scheduled worker the server does the work; this page only shows it.
+  const background = workspace.mode === 'cloud' && server?.automation?.backgroundWorker === true;
+  const { data: counts } = useJobCounts(runner.keepProcessing ? 5_000 : background ? 15_000 : false);
+  const { data: activity } = useWorkerActivity(workspace.mode === 'cloud');
 
   const requested = params.get('tab');
   const tab: TabKey = TABS.some((t) => t.key === requested) ? (requested as TabKey) : 'overview';
@@ -71,7 +76,12 @@ export function AutomationCenter() {
         title="Automation Center"
         description={DESCRIPTION}
         actions={
-          can('automation.run') && (
+          can('automation.run') &&
+          (background ? (
+            <Button loading={runner.processing} onClick={() => void runner.runOnce()}>
+              <Play aria-hidden /> Run due jobs now
+            </Button>
+          ) : (
             <>
               <Checkbox
                 label="Keep processing while open"
@@ -83,10 +93,10 @@ export function AutomationCenter() {
                 <Play aria-hidden /> Process queue now
               </Button>
             </>
-          )
+          ))
         }
       />
-      <StatusStrip settings={settings.data} mode={workspace.mode} />
+      <StatusStrip settings={settings.data} worker={workerStatus(workspace.mode, background, activity)} />
       <Tabs value={tab} onValueChange={(v) => navigate(v as TabKey)}>
         <TabsList label="Automation Center sections" className="mb-5">
           {TABS.map((t) => (
@@ -115,17 +125,27 @@ export function AutomationCenter() {
   );
 }
 
-function StatusStrip({ settings, mode }: { settings: AutomationSettings; mode: 'demo' | 'cloud' }) {
-  const { data: status } = useServerStatus();
-  const worker = mode === 'demo' ? 'This browser tab' : status?.automation?.backgroundWorker ? 'Scheduled worker + this page' : 'This page only';
-  const items = [
+type StripTone = 'neutral' | 'warning' | 'success' | 'danger';
+
+/** Who processes the queue, from configuration and what the scheduled worker has actually done. */
+function workerStatus(mode: 'demo' | 'cloud', background: boolean, activity: WorkerActivity | undefined): { value: string; tone: StripTone } {
+  if (mode === 'demo') return { value: 'This browser tab', tone: 'neutral' };
+  if (!background) return { value: 'This page only', tone: 'warning' };
+  if (activity?.overdueJobs) return { value: `Background · ${activity.overdueJobs} overdue`, tone: 'warning' };
+  return { value: activity?.lastBackgroundRunAt ? `Background · last job ${relativeTime(activity.lastBackgroundRunAt)}` : 'Background · no jobs yet', tone: 'success' };
+}
+
+function StatusStrip({ settings, worker }: { settings: AutomationSettings; worker: { value: string; tone: StripTone } }) {
+  const items: { icon: typeof Bot; label: string; value: string; tone: StripTone }[] = [
     { icon: Bot, label: 'Mode', value: MODE_META[settings.mode].label, tone: 'neutral' },
     settings.paused
       ? { icon: Pause, label: 'Queue', value: 'Paused', tone: 'warning' }
       : { icon: Play, label: 'Queue', value: 'Running', tone: 'success' },
-    { icon: OctagonX, label: 'Outbound messages', value: 'Emergency stop engaged', tone: 'danger' },
-    { icon: Server, label: 'Worker', value: worker, tone: 'neutral' },
-  ] as const;
+    settings.outboundStopped
+      ? { icon: OctagonX, label: 'Outbound messages', value: 'Emergency stop engaged', tone: 'danger' }
+      : { icon: OctagonX, label: 'Outbound messages', value: 'Stop lifted · sandbox only', tone: 'warning' },
+    { icon: Server, label: 'Worker', value: worker.value, tone: worker.tone },
+  ];
   return (
     <ul className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Automation status">
       {items.map(({ icon: Icon, label, value, tone }) => (

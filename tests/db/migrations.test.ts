@@ -248,3 +248,118 @@ describe('after-migrations check', () => {
     expect(code(check).replace(/'[^']*'/g, "''")).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
   });
 });
+
+describe('worker health query', () => {
+  const health = read(join(process.cwd(), 'supabase', 'checks'), 'worker-health.sql');
+  // pg_cron and pg_net are absent from PGlite: minimal stand-ins with the columns the query reads.
+  const extensions = `
+    create schema cron;
+    create table cron.job (jobid bigint primary key, jobname text, schedule text, active boolean);
+    create table cron.job_run_details (jobid bigint, status text, start_time timestamptz);
+    create schema net;
+    create table net._http_response (id bigint, status_code integer, content text, timed_out boolean, error_msg text, created timestamptz);`;
+
+  it('is one read-only statement that shows the schedule, the route answers and the jobs the worker ran', async () => {
+    const db = await createDatabase({ skip: upgrades.map((f) => f.slice(0, 3)) });
+    const { org, ids } = await seedExistingWorkspace(db);
+    for (const f of upgrades) await db.exec(read(MIGRATIONS_DIR, f));
+    await db.exec(extensions);
+    await db.exec(`insert into cron.job values (7, 'automation-worker', '* * * * *', true);
+      insert into cron.job_run_details values (7, 'succeeded', now() - interval '2 minutes'), (7, 'succeeded', now() - interval '1 minute'), (7, 'failed', now() - interval '3 hours');
+      insert into net._http_response values (1, 200, '{"organizations":1,"processed":2}', false, null, now() - interval '1 minute'), (2, 401, 'Unauthorized.', false, null, now() - interval '30 minutes');`);
+    const run = (worker: string, agent: string) =>
+      db.query(`insert into public.agent_runs (organization_id, business_id, agent, agent_version, status, summary, worker, started_at, finished_at) values ($1, $2, $3, 'test', 'succeeded', 'Done.', $4, now() - interval '10 minutes', now())`, [org, ids.fresh, agent, worker]);
+    await run('cron', 'website_verification');
+    await run('cron', 'opportunity_scoring');
+    await run('web:1234abcd', 'digital_audit');
+    await db.query(`insert into public.automation_jobs (organization_id, business_id, agent, status, run_after) values ($1, $2, 'opportunity_scoring', 'pending', now() - interval '20 minutes'), ($1, $2, 'digital_audit', 'pending', now())`, [org, ids.verified]);
+
+    await db.exec('begin transaction read only');
+    try {
+      expect(await db.exec(health)).toHaveLength(1);
+      const v = Object.fromEntries(((await db.exec(health))[0].rows as { item: string; value: string }[]).map((r) => [r.item, r.value]));
+      expect(Object.keys(v)).toHaveLength(10);
+      expect(v).toMatchObject({
+        'automation-worker (schedule, state)': '* * * * *, active',
+        'runs in the last hour (succeeded / failed)': '2 / 0',
+        'HTTP answers in the last hour (200 = ran; 401 = wrong secret; 503 = not configured)': '200 1, 401 1',
+        'latest answer (counts only)': '{"organizations":1,"processed":2}',
+        'run by the background worker in the last 24 h (by agent)': 'opportunity_scoring 1, website_verification 1',
+        'run from the app (Run buttons) in the last 24 h': '1',
+        'overdue (claimable and due for over five minutes)': '1',
+        'open jobs by status': 'pending 2',
+      });
+      expect(v['latest run (start, status)']).toMatch(/, succeeded$/);
+    } finally {
+      await db.exec('rollback');
+    }
+    // A paused workspace's waiting jobs are not overdue.
+    await db.exec('begin');
+    try {
+      await db.query('update public.automation_settings set paused = true where organization_id = $1', [org]);
+      expect(((await db.exec(health))[0].rows as { item: string; value: string }[]).find((r) => r.item.startsWith('overdue'))?.value).toBe('0');
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+
+  it('says so when nothing is scheduled', async () => {
+    const db = await createDatabase();
+    await db.exec(extensions);
+    const rows = (await db.exec(health))[0].rows as { item: string; value: string }[];
+    expect(rows[0].value).toBe('not scheduled');
+    expect(rows.find((r) => r.item === 'latest background run')?.value).toBe('never');
+  });
+
+  it('contains nothing that writes', () => {
+    expect(code(health).replace(/'[^']*'/g, "''")).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+  });
+});
+
+describe('audit evidence query', () => {
+  const evidence = read(join(process.cwd(), 'supabase', 'checks'), 'audit-evidence.sql');
+  const values = async (db: PGlite) => Object.fromEntries(((await db.exec(evidence))[0].rows as { metric: string; value: string }[]).map((r) => [r.metric, r.value]));
+
+  it('is one read-only statement of counts after upgrading existing records from 002 to 008', async () => {
+    const db = await createDatabase({ skip: upgrades.map((f) => f.slice(0, 3)) });
+    await seedExistingWorkspace(db);
+    for (const f of upgrades) await db.exec(read(MIGRATIONS_DIR, f));
+
+    await db.exec('begin transaction read only');
+    try {
+      expect(await db.exec(evidence)).toHaveLength(1);
+      const v = await values(db);
+      expect(Object.keys(v)).toHaveLength(19);
+      expect(Object.values(v).every((x) => typeof x === 'string' && x.length > 0)).toBe(true);
+      expect(v).toMatchObject({
+        'accounts (confirmed)': '2 (2)',
+        'latest sign-in (date)': 'never',
+        'workspaces / members / open invitations': '1 / 2 / 0',
+        'workspaces with a priced package or add-on': '0',
+        'prospects (fictional demo / with a Place ID)': '6 (0 / 0)',
+        'proposals by status': 'draft 1, sent 1',
+        'consent granted / withdrawn': '0 / 0',
+        'active suppressions': '1',
+        'outbound messages by status': 'none',
+        'replies received / AI readings': '0 / 0',
+        'paid calls in the last 30 days by provider (US$ estimated)': 'none',
+      });
+    } finally {
+      await db.exec('rollback');
+    }
+
+    await db.exec('begin');
+    try {
+      await db.exec(`update public.organizations set settings = '{"packages":[{"lineItems":[{"defaultUnitPrice":1500}]}]}'`);
+      expect((await values(db))['workspaces with a priced package or add-on']).toBe('1');
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+
+  it('contains nothing that writes and no personal fields', () => {
+    expect(code(evidence).replace(/'[^']*'/g, "''")).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+    // Counts and dates only: no column holding contact details or message text is read.
+    expect(code(evidence)).not.toMatch(/\b(email|phone|address|notes|body|subject|sender_hint|normalized_value|person_name)\b/i);
+  });
+});

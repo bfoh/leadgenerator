@@ -43,7 +43,7 @@ Set these in the host's settings for each environment. Never prefix a secret wit
 2. **Database:** if the release needs a migration, apply it first (it is additive, and the old build keeps working), following docs/MIGRATION_REVIEW.md §3.
 3. **Deploy** through the host, from the main branch or by promoting the checked preview.
 4. **Smoke test** (§6).
-5. **Scheduled worker** (only once migration 003 is applied, and only if wanted): runbook §7. It uses Supabase pg_cron and pg_net every two minutes, because the Vercel Hobby plan's cron runs only once a day.
+5. **Scheduled worker** (only once migration 003 is applied, and only if wanted): runbook §7. It uses Supabase pg_cron and pg_net every minute, because the Vercel Hobby plan's cron runs only once a day. Check it with `supabase/checks/worker-health.sql`.
 6. **Webhooks** (messaging sandbox only): point Resend at `https://<domain>/api/webhooks/email` and Meta at `https://<domain>/api/webhooks/whatsapp` with the matching secrets (runbook §12).
 7. **Email domain** (sandbox sending only): verify the sending domain in Resend with SPF, DKIM and a DMARC record before any test send.
 

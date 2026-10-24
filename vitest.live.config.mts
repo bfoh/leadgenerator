@@ -28,5 +28,7 @@ export default defineConfig({
     testTimeout: 120_000,
     // One check at a time, so the budget is reserved in order.
     fileParallelism: false,
+    // The checks print provider evidence (counts, costs); passing tests must not hide it.
+    silent: false,
   },
 });

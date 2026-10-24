@@ -17,6 +17,16 @@ export function isBackgroundWorkerConfigured() {
   return Boolean(isSupabaseConfigured() && serverEnv.cronSecret() && serviceRoleKey());
 }
 
+/**
+ * Which workspaces one scheduled run visits, from due rows ordered oldest first: the longest-waiting
+ * come first, so every workspace is reached when more than `max` have work. A paused workspace claims
+ * nothing (its expired leases are recovered when it resumes), so it must not take the place of one
+ * with work to do.
+ */
+export function workerOrganizations(due: { organization_id: string }[], paused: ReadonlySet<string>, max: number) {
+  return [...new Set(due.map((r) => r.organization_id))].filter((id) => !paused.has(id)).slice(0, max);
+}
+
 /** Placeholder actor for the scheduled worker. Agents never write it into user-id columns. */
 export const WORKER_ACTOR = 'automation-worker';
 

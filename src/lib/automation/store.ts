@@ -23,6 +23,14 @@ export interface RunFilter {
   limit?: number;
 }
 
+/** What has processed this workspace's queue, so the browser can show it instead of running it. */
+export interface WorkerActivity {
+  /** When the scheduled background worker last started a job here; null if it never has. */
+  lastBackgroundRunAt: string | null;
+  /** Claimable jobs (not paused, agent on, not outbound) due for longer than OVERDUE_AFTER_MS. */
+  overdueJobs: number;
+}
+
 export interface AutomationStore {
   readonly mode: 'demo' | 'cloud';
   /** False when the cloud database has not had migration 003 applied. */
@@ -47,6 +55,7 @@ export interface AutomationStore {
 
   recordRun(run: AgentRunInsert): Promise<AgentRun>;
   listRuns(filter?: RunFilter): Promise<AgentRun[]>;
+  workerActivity(now?: Date): Promise<WorkerActivity>;
 }
 
 export class AutomationError extends Error {

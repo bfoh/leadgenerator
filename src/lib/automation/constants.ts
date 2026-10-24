@@ -71,6 +71,18 @@ export const JOB_STATUS_META: Record<JobStatus, { label: string; tone: Tone }> =
 };
 export const OPEN_JOB_STATUSES: readonly JobStatus[] = ['pending', 'running', 'awaiting_approval'];
 
+/** Worker id the scheduled background worker records on its runs (`/api/cron/automation`). */
+export const BACKGROUND_WORKER_ID = 'cron';
+/** What ran a job, for people: the scheduled worker, a member's request in the app, or a demo tab. */
+export function workerLabel(worker: string | null): string | null {
+  if (worker === BACKGROUND_WORKER_ID) return 'Background worker';
+  if (worker?.startsWith('web:')) return 'Started in the app';
+  if (worker === 'browser') return 'This browser tab';
+  return null;
+}
+/** A claimable job still waiting this long after it fell due means nothing is processing the queue. */
+export const OVERDUE_AFTER_MS = 5 * 60_000;
+
 export const ERROR_KINDS = ['retryable', 'permanent', 'budget', 'policy', 'timeout', 'uncertain_delivery', 'cancelled'] as const;
 export type ErrorKind = (typeof ERROR_KINDS)[number];
 export const ERROR_KIND_LABELS: Record<ErrorKind, string> = {

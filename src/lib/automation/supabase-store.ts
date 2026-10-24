@@ -6,8 +6,8 @@ import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 import { fromRow, toRow } from '@/lib/data/supabase-store';
 import { DEFAULT_SENDING_POLICY, resolveSendingPolicy, sendingPolicySchema } from '@/lib/domain/sending-policy';
 import { budgetsSchema } from './budget';
-import { MODE_META } from './constants';
-import { AutomationError, emptyCounts, type AutomationStore, type RunFilter } from './store';
+import { BACKGROUND_WORKER_ID, MODE_META, OUTBOUND_AGENTS, OVERDUE_AFTER_MS } from './constants';
+import { AutomationError, emptyCounts, type AutomationStore, type RunFilter, type WorkerActivity } from './store';
 import type { AgentRun, AgentRunInsert, AutomationJob, AutomationSettings, AutomationSettingsPatch, FinishRequest, JobFilter, JobRequest, SettingsChange } from './types';
 
 const MISSING = new Set(['42P01', 'PGRST205', 'PGRST202', '42883']);
@@ -197,5 +197,32 @@ export class SupabaseAutomationStore implements AutomationStore {
     const { data, error } = await q.order('started_at', { ascending: false }).limit(Math.min(filter.limit ?? 200, 1000));
     if (error) throw automationError(error);
     return (data ?? []).map(toRun);
+  }
+
+  async workerActivity(now = new Date()): Promise<WorkerActivity> {
+    const settings = await this.getSettings();
+    const last = await this.sb
+      .from('agent_runs')
+      .select('started_at')
+      .eq('organization_id', this.organizationId)
+      .eq('worker', BACKGROUND_WORKER_ID)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (last.error) throw automationError(last.error);
+    const lastBackgroundRunAt = (last.data?.started_at as string | undefined) ?? null;
+    // The same jobs claim_automation_jobs would take: a paused queue or a disabled agent is not overdue.
+    if (settings.paused) return { lastBackgroundRunAt, overdueJobs: 0 };
+    const skipped = [...new Set([...settings.disabledAgents, ...OUTBOUND_AGENTS])];
+    const { count, error } = await this.sb
+      .from('automation_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', this.organizationId)
+      .eq('status', 'pending')
+      .eq('cancel_requested', false)
+      .lt('run_after', new Date(now.getTime() - OVERDUE_AFTER_MS).toISOString())
+      .not('agent', 'in', `(${skipped.join(',')})`);
+    if (error) throw automationError(error);
+    return { lastBackgroundRunAt, overdueJobs: count ?? 0 };
   }
 }

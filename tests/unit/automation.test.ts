@@ -3,8 +3,10 @@ import type { ToolGateway } from '@/lib/automation/agents/types';
 import { checkBudgets, nextDayStart, spendByProvider } from '@/lib/automation/budget';
 import { backoffMs, classifyError, followUpKey, processQueue, queueAgent, type EngineContext } from '@/lib/automation/engine';
 import { LocalAutomationStore } from '@/lib/automation/local-store';
+import { workerLabel } from '@/lib/automation/constants';
 import { aiReportEstimateUsd } from '@/lib/automation/pricing';
 import { AutomationError } from '@/lib/automation/store';
+import { SupabaseAutomationStore } from '@/lib/automation/supabase-store';
 import { checkTransition, deriveWorkflowState, workflowStateOf } from '@/lib/automation/workflow';
 import { LocalStore, MemoryStorage } from '@/lib/data/local-store';
 import * as svc from '@/lib/data/services';
@@ -13,6 +15,7 @@ import { generateDeterministicReport, validateReport } from '@/lib/domain/report
 import type { BusinessForm, VerificationForm } from '@/lib/domain/schemas';
 import { DEFAULT_SETTINGS } from '@/lib/domain/settings';
 import type { Business } from '@/lib/domain/types';
+import { FakeSupabase } from './fake-supabase';
 
 const form = (overrides: Partial<BusinessForm> = {}): BusinessForm => ({
   name: 'Adom Bridal House',
@@ -238,6 +241,60 @@ describe('demo job queue', () => {
     expect(first).toHaveLength(2); // default concurrency
     expect(first[0].attempts).toBe(1);
     expect(await automation.claim('w', 5, 60)).toHaveLength(0);
+  });
+
+  it('reports jobs nothing has picked up for five minutes, but not paused, disabled or outbound work', async () => {
+    await automation.enqueue({ agent: 'opportunity_scoring', businessId: 'b1' });
+    await automation.enqueue({ agent: 'digital_audit', businessId: 'b2' });
+    expect(await automation.workerActivity(now)).toEqual({ lastBackgroundRunAt: null, overdueJobs: 0 });
+    const later = new Date(now.getTime() + 6 * 60_000);
+    expect((await automation.workerActivity(later)).overdueJobs).toBe(2);
+    await automation.updateSettings({ disabledAgents: ['digital_audit'] });
+    expect((await automation.workerActivity(later)).overdueJobs).toBe(1);
+    await automation.updateSettings({ paused: true });
+    expect((await automation.workerActivity(later)).overdueJobs).toBe(0);
+    // Only runs recorded by the scheduled worker count as background activity.
+    const run = {
+      jobId: null, businessId: 'b1', agent: 'opportunity_scoring' as const, agentVersion: 'test', status: 'succeeded' as const, summary: 'Scored.', decision: null, confidence: null,
+      input: null, output: null, providerCalls: [], model: null, inputTokens: null, outputTokens: null, estimatedCostUsd: 0, error: null, traceId: null,
+      startedAt: '2026-10-22T10:01:00Z', finishedAt: '2026-10-22T10:01:01Z', durationMs: 1000,
+    };
+    await automation.recordRun({ ...run, worker: 'browser' });
+    expect((await automation.workerActivity(later)).lastBackgroundRunAt).toBeNull();
+    await automation.recordRun({ ...run, worker: 'cron', startedAt: '2026-10-22T10:03:00Z' });
+    expect((await automation.workerActivity(later)).lastBackgroundRunAt).toBe('2026-10-22T10:03:00Z');
+  });
+
+  it('names what ran a job for people', () => {
+    expect(workerLabel('cron')).toBe('Background worker');
+    expect(workerLabel('web:1234abcd')).toBe('Started in the app');
+    expect(workerLabel('browser')).toBe('This browser tab');
+    expect(workerLabel(null)).toBeNull();
+  });
+
+  it('reads the same worker activity from the cloud tables, for this workspace only', async () => {
+    const fake = new FakeSupabase();
+    fake.tables.automation_settings = [{ organization_id: 'o1', mode: 'research_only', paused: false, disabled_agents: ['digital_audit'], budgets: {} }];
+    const due = '2026-10-22T09:50:00Z';
+    const job = (agent: string, extra: Record<string, unknown> = {}) => ({ organization_id: 'o1', agent, status: 'pending', cancel_requested: false, run_after: due, ...extra });
+    fake.tables.automation_jobs = [
+      job('opportunity_scoring'),
+      job('opportunity_scoring', { run_after: '2026-10-22T09:58:00Z' }), // due for only two minutes
+      job('digital_audit'), // agent turned off
+      job('outreach_execution'), // outbound work waits for a person
+      job('opportunity_scoring', { cancel_requested: true }),
+      job('opportunity_scoring', { status: 'awaiting_approval' }),
+      job('opportunity_scoring', { organization_id: 'o2' }),
+    ];
+    fake.tables.agent_runs = [
+      { organization_id: 'o1', worker: 'web:1234abcd', started_at: '2026-10-22T09:59:00Z' },
+      { organization_id: 'o1', worker: 'cron', started_at: '2026-10-22T09:40:00Z' },
+      { organization_id: 'o2', worker: 'cron', started_at: '2026-10-22T09:55:00Z' },
+    ];
+    const store = new SupabaseAutomationStore(fake.client, 'o1');
+    expect(await store.workerActivity(now)).toEqual({ lastBackgroundRunAt: '2026-10-22T09:40:00Z', overdueJobs: 1 });
+    fake.tables.automation_settings[0].paused = true;
+    expect((await store.workerActivity(now)).overdueJobs).toBe(0);
   });
 
   it('retries with backoff, dead-letters after the last attempt, and rejects stale leases', async () => {

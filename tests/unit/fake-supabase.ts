@@ -1,6 +1,6 @@
 // A small in-memory stand-in for the Supabase query builder, enough for the server's messaging code
-// (dispatch and webhooks) to run in unit tests: select/insert/upsert/update/delete with eq, not-null,
-// order, limit and range filters, unique keys and an rpc table. It does not run the database's
+// (dispatch and webhooks) to run in unit tests: select/insert/upsert/update/delete with eq, in, lt,
+// not-null, not-in, order, limit and range filters, unique keys and an rpc table. It does not run the database's
 // triggers or policies; those are covered by the PGlite suites in tests/db.
 
 import { randomUUID } from 'node:crypto';
@@ -85,7 +85,17 @@ class Query implements PromiseLike<Result> {
     this.filters.push((r) => values.includes(r[column]));
     return this;
   }
+  /** Compares as strings, which orders ISO timestamps correctly. */
+  lt(column: string, value: string) {
+    this.filters.push((r) => r[column] != null && String(r[column]) < value);
+    return this;
+  }
   not(column: string, operator: string, value: unknown) {
+    if (operator === 'in' && typeof value === 'string') {
+      const list = value.replace(/^\(|\)$/g, '').split(',');
+      this.filters.push((r) => !list.includes(String(r[column])));
+      return this;
+    }
     if (operator !== 'is' || value !== null) throw new Error(`FakeSupabase: not(${operator}) is not supported`);
     this.filters.push((r) => r[column] !== null && r[column] !== undefined);
     return this;

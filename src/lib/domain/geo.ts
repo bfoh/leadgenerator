@@ -153,8 +153,6 @@ export const COUNTRIES: Country[] = [
 ];
 
 /** Cities the agency currently focuses on; used as defaults, not as a restriction. */
-export const LAUNCH_CITIES = ['Accra', 'Kumasi'];
-
 export function findCountry(code: string) {
   return COUNTRIES.find((c) => c.code === code) ?? null;
 }

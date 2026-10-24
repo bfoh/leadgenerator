@@ -23,7 +23,7 @@ function Brand() {
       </span>
       <span className="leading-tight">
         <span className="block text-[13px] font-semibold">Opportunity Finder</span>
-        <span className="block text-[11px] text-subtle">Accra · Kumasi</span>
+        <span className="block text-[11px] text-subtle">Ghana · 16 regions</span>
       </span>
     </Link>
   );

@@ -2,7 +2,7 @@
 
 import { Bot } from 'lucide-react';
 import Link from 'next/link';
-import { WORKFLOW_META } from '@/lib/automation/constants';
+import { WORKFLOW_META, workerLabel } from '@/lib/automation/constants';
 import { workflowStateOf } from '@/lib/automation/workflow';
 import type { Business } from '@/lib/domain/types';
 import { formatDateTime } from '@/lib/utils';
@@ -12,6 +12,7 @@ import {
   describeRun,
   researchable,
   runResearchNow,
+  useQueueMode,
   useAgentRuns,
   useAutomationAction,
   useAutomationAvailable,
@@ -26,11 +27,12 @@ export function ProspectWorkflowBadge({ business }: { business: Business }) {
   return <WorkflowStateBadge state={workflowStateOf(business)} />;
 }
 
-/** Queues the research pipeline for one prospect and processes it straight away. */
+/** Queues the research pipeline for one prospect; it runs straight away unless the background worker takes it. */
 export function AutomateResearchButton({ business }: { business: Business }) {
-  const { can, workspace } = useWorkspace();
+  const { can } = useWorkspace();
+  const queueMode = useQueueMode();
   const { data: available } = useAutomationAvailable();
-  const run = useAutomationAction((actx, b: Business) => runResearchNow(actx, workspace.mode, [b]), {
+  const run = useAutomationAction((actx, b: Business) => runResearchNow(actx, queueMode, [b]), {
     success: ({ queued, run: r }) => (queued.created ? describeRun(r) : describeQueued(queued)),
   });
   if (!available || !can('automation.run') || !researchable(business)) return null;
@@ -43,9 +45,10 @@ export function AutomateResearchButton({ business }: { business: Business }) {
 
 /** Selection-bar action on the prospects list. */
 export function BulkAutomateResearch({ businesses, onDone }: { businesses: Business[]; onDone: () => void }) {
-  const { can, workspace } = useWorkspace();
+  const { can } = useWorkspace();
+  const queueMode = useQueueMode();
   const { data: available } = useAutomationAvailable();
-  const run = useAutomationAction((actx, list: Business[]) => runResearchNow(actx, workspace.mode, list), {
+  const run = useAutomationAction((actx, list: Business[]) => runResearchNow(actx, queueMode, list), {
     success: ({ queued, run: r }) => `${describeQueued(queued)} ${describeRun(r)}`,
     onSuccess: onDone,
   });
@@ -110,8 +113,7 @@ export function ProspectAutomationHistory({ business }: { business: Business }) 
                   </p>
                   <p className="mt-0.5">{r.summary}</p>
                   <p className="text-xs text-subtle">
-                    {formatDateTime(r.startedAt)}
-                    {r.estimatedCostUsd ? ` · ${usd(r.estimatedCostUsd)}` : ''}
+                    {[formatDateTime(r.startedAt), workerLabel(r.worker), r.estimatedCostUsd ? usd(r.estimatedCostUsd) : null].filter(Boolean).join(' · ')}
                   </p>
                 </li>
               ))}

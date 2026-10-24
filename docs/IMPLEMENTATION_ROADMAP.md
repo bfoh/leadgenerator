@@ -4,6 +4,21 @@ Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ 
 
 **Update 2026-10-23:** the owner applied migrations 003–008 to production, and the read-only `supabase/checks/after-migrations.sql` passed there. Phase notes below that say a migration is not applied describe the state when that phase ended. The phases stay 🟡 until their cloud paths and live providers have run for real.
 
+**Update 2026-10-24 (Ghana-wide brief, milestone 1):**
+- **Background worker:** production-ready in code; it is not yet configured on production. Changes:
+  - the cron route skips paused workspaces and serves the longest-waiting first;
+  - with the worker configured, bulk research only queues work;
+  - the Automation Center and System health show the worker's last job and any overdue jobs;
+  - runs are labelled with what ran them;
+  - the status tile now shows the real emergency-stop state;
+  - new read-only check: `supabase/checks/worker-health.sql`;
+  - new runbook §7 acceptance test: research continues with the browser closed.
+- **16-region audit:** Accra and Kumasi defaults were removed from Discover, the new-prospect form, record defaults and the header. The Discover town shortcuts now list the selected region's main towns.
+- **Still missing:**
+  - districts and municipalities (needs an authoritative MMDA list);
+  - region-level business records (`businesses.city` is required);
+  - research campaigns (milestone 2, migration 009).
+
 The v7 history is in [IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md). Each phase ends with a report: functionality, files, migrations, environment variables, tests, results, API cost, missing credentials, security notes, remaining work.
 
 | Phase | Scope | Status |

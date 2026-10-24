@@ -110,9 +110,15 @@ export function useJob(id: string | null, live = false) {
   const available = useAutomationAvailable();
   return useAutomationQuery(['job', id], (a) => a.getJob(id!), { enabled: Boolean(id) && available.data === true, refetchInterval: live ? 5_000 : false });
 }
-export function useJobCounts(live = false) {
+/** Job counts; `refreshMs` polls while the page shows work in progress. */
+export function useJobCounts(refreshMs: number | false = false) {
   const available = useAutomationAvailable();
-  return useAutomationQuery(['job-counts'], (a) => a.countJobs(), { enabled: available.data === true, refetchInterval: live ? 5_000 : false });
+  return useAutomationQuery(['job-counts'], (a) => a.countJobs(), { enabled: available.data === true, refetchInterval: refreshMs });
+}
+/** What the scheduled worker has done here (cloud mode); the page shows it rather than running the work. */
+export function useWorkerActivity(enabled: boolean) {
+  const available = useAutomationAvailable();
+  return useAutomationQuery(['worker-activity'], (a) => a.workerActivity(), { enabled: enabled && available.data === true, refetchInterval: enabled ? 30_000 : false });
 }
 export function useAgentRuns(filter: RunFilter = {}, enabled = true, live = false) {
   const available = useAutomationAvailable();
@@ -201,15 +207,29 @@ export async function queueResearch(actx: AutomationContext, businesses: Busines
   return { created, existing, skipped: businesses.length - eligible.length };
 }
 
-/** Queues research for the prospects, then processes the queue once so results appear straight away. */
-export async function runResearchNow(actx: AutomationContext, mode: 'demo' | 'cloud', businesses: Business[]) {
+/**
+ * Where bulk work runs: this tab (demo), the server while this page asks (cloud), or the scheduled
+ * background worker, in which case the page only queues and shows status and may be closed.
+ */
+export type QueueMode = 'demo' | 'cloud' | 'background';
+
+export function useQueueMode(): QueueMode {
+  const { workspace } = useWorkspace();
+  const { data: server } = useServerStatus();
+  return workspace.mode === 'cloud' && server?.automation?.backgroundWorker === true ? 'background' : workspace.mode;
+}
+
+const LEFT_FOR_WORKER: QueueRunSummary = { processed: 0, outcomes: [], stoppedBecause: 'queued' };
+
+/** Queues research for the prospects, then (without a background worker) processes the queue once so results appear straight away. */
+export async function runResearchNow(actx: AutomationContext, mode: QueueMode, businesses: Business[]) {
   const queued = await queueResearch(actx, businesses);
-  const run = await processQueueOnce(actx, mode);
+  const run = mode === 'background' ? LEFT_FOR_WORKER : await processQueueOnce(actx, mode);
   return { queued, run };
 }
 
-/** Queues one agent for several prospects (skipping ones already queued for it), then processes the queue once. */
-export async function runAgentForMany(actx: AutomationContext, mode: 'demo' | 'cloud', agent: AgentKey, businesses: Business[], payload: Record<string, unknown> = {}) {
+/** Queues one agent for several prospects (skipping ones already queued for it), then processes the queue once unless a background worker will. */
+export async function runAgentForMany(actx: AutomationContext, mode: QueueMode, agent: AgentKey, businesses: Business[], payload: Record<string, unknown> = {}) {
   const settings = await actx.automation.getSettings();
   const open = await actx.automation.listJobs({ statuses: [...OPEN_JOB_STATUSES], limit: 1000 });
   const busy = new Set(open.filter((j) => j.agent === agent).map((j) => j.businessId));
@@ -225,7 +245,7 @@ export async function runAgentForMany(actx: AutomationContext, mode: 'demo' | 'c
     if (res.created) created++;
     else existing++;
   }
-  const run = await processQueueOnce(actx, mode);
+  const run = mode === 'background' ? LEFT_FOR_WORKER : await processQueueOnce(actx, mode);
   return { queued: { created, existing, skipped: businesses.length - created - existing }, run };
 }
 
@@ -268,6 +288,7 @@ export async function processQueueOnce(actx: AutomationContext, mode: 'demo' | '
 
 export function describeRun(summary: QueueRunSummary) {
   if (!summary.processed) {
+    if (summary.stoppedBecause === 'queued') return 'The background worker runs them within a few minutes; you can close this page.';
     return summary.stoppedBecause === 'paused' ? 'Automation is paused.' : summary.stoppedBecause === 'aborted' ? 'Another tab is already processing the queue.' : 'No jobs are due.';
   }
   const by = summary.outcomes.reduce<Record<string, number>>((acc, o) => ({ ...acc, [o.outcome]: (acc[o.outcome] ?? 0) + 1 }), {});

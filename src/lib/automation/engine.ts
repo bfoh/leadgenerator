@@ -37,7 +37,8 @@ export interface JobOutcomeSummary {
 export interface QueueRunSummary {
   processed: number;
   outcomes: JobOutcomeSummary[];
-  stoppedBecause: 'empty' | 'limit' | 'deadline' | 'paused' | 'aborted' | 'error';
+  /** `queued`: nothing was run here; the scheduled background worker takes the jobs. */
+  stoppedBecause: 'empty' | 'limit' | 'deadline' | 'paused' | 'aborted' | 'error' | 'queued';
 }
 
 /** Lease for one claimed job: the longest agent timeout plus a margin. */

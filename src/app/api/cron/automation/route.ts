@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
-import { isBackgroundWorkerConfigured, runOrganizationQueue } from '@/lib/server/automation/runner';
+import { BACKGROUND_WORKER_ID } from '@/lib/automation/constants';
+import { isBackgroundWorkerConfigured, runOrganizationQueue, workerOrganizations } from '@/lib/server/automation/runner';
 import { serverEnv } from '@/lib/server/env';
 import { HttpError, fail, ok } from '@/lib/server/http';
 import { serviceSupabase } from '@/lib/supabase/service';
@@ -28,13 +29,18 @@ export async function GET(req: NextRequest) {
 
     const sb = serviceSupabase();
     const nowIso = new Date().toISOString();
+    const paused = await sb.from('automation_settings').select('organization_id').eq('paused', true);
+    if (paused.error) throw new HttpError(503, 'The job queue is unavailable.');
+    const skip = new Set((paused.data ?? []).map((r) => r.organization_id as string));
+    // Oldest first (see workerOrganizations).
     const { data, error } = await sb
       .from('automation_jobs')
       .select('organization_id')
       .or(`and(status.eq.pending,run_after.lte.${nowIso}),and(status.eq.running,locked_until.lt.${nowIso})`)
+      .order('run_after', { ascending: true })
       .limit(500);
     if (error) throw new HttpError(503, 'The job queue is unavailable.');
-    const orgIds = [...new Set((data ?? []).map((r) => r.organization_id as string))].slice(0, MAX_ORGS);
+    const orgIds = workerOrganizations((data ?? []) as { organization_id: string }[], skip, MAX_ORGS);
 
     const started = Date.now();
     const totals: Record<string, number> = {};
@@ -48,7 +54,7 @@ export async function GET(req: NextRequest) {
           orgId,
           requestCtx: { mode: 'worker', key: `worker:${orgId}`, userId: null, orgId, role: null, supabase: sb },
           actorLabel: 'Automation worker',
-          workerId: 'cron',
+          workerId: BACKGROUND_WORKER_ID,
           maxJobs: 5,
           deadlineMs: remaining,
         });

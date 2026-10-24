@@ -2,6 +2,7 @@
 
 import { ListChecks } from 'lucide-react';
 import Link from 'next/link';
+import { workerLabel } from '@/lib/automation/constants';
 import { formatDateTime } from '@/lib/utils';
 import { agentName, useAgentRuns } from '@/lib/workspace/automation';
 import { useBusinesses } from '@/lib/workspace/hooks';
@@ -45,6 +46,7 @@ export function RunsTab({ live }: { live: boolean }) {
                   r.decision && `Decision: ${r.decision}`,
                   r.confidence != null && `Confidence ${r.confidence}%`,
                   `${(r.durationMs / 1000).toFixed(1)} s`,
+                  workerLabel(r.worker),
                   r.estimatedCostUsd ? usd(r.estimatedCostUsd) : 'No paid calls',
                   r.model,
                   r.inputTokens != null && `${r.inputTokens.toLocaleString()} in / ${(r.outputTokens ?? 0).toLocaleString()} out tokens`,

@@ -30,6 +30,10 @@ export interface HealthSnapshot {
   budgets: { label: string; window: 'day' | 'month'; spentUsd: number; limitUsd: number }[];
   automationPaused: boolean;
   sendingPaused: boolean;
+  /** Claimable jobs due for more than five minutes: nothing is processing the queue. */
+  overdueJobs: number;
+  /** Whether a scheduled background worker is configured (cloud mode). */
+  backgroundWorker: boolean;
 }
 
 export const BUDGET_WARNING_SHARE = 0.8;
@@ -66,6 +70,17 @@ export function operationalAlerts(s: HealthSnapshot): OperationalAlert[] {
     } else if (share >= BUDGET_WARNING_SHARE) {
       alerts.push({ key: `budget-${b.label}-${b.window}`, level: 'warning', title: `${b.label} ${b.window === 'day' ? 'daily' : 'monthly'} budget at ${Math.floor(share * 100)}%`, detail: `${usd(b.spentUsd)} of ${usd(b.limitUsd)}.`, href: '/automation?tab=controls' });
     }
+  }
+  if (s.overdueJobs > 0) {
+    alerts.push({
+      key: 'overdue-jobs',
+      level: 'warning',
+      title: `${plural(s.overdueJobs, 'job')} overdue`,
+      detail: s.backgroundWorker
+        ? 'The background worker has not picked them up for over five minutes. Check its schedule (pg_cron) and the worker route (runbook §7).'
+        : 'No background worker is configured, so jobs run only while someone presses Process queue now or keeps this page processing. An owner can set one up (runbook §7).',
+      href: '/automation?tab=jobs&status=pending',
+    });
   }
   if (s.stuckJobs > 0) {
     alerts.push({ key: 'stuck-jobs', level: 'warning', title: `${plural(s.stuckJobs, 'job')} stopped mid-run`, detail: 'Their lease expired. The next queue run retries research work and fails outbound work as uncertain.', href: '/automation?tab=jobs&status=running' });

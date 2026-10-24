@@ -9,7 +9,7 @@ How the product is tested, what each requirement in the engineering brief is tes
 | `npm test` | Vitest: unit tests (`tests/unit`) and database tests (`tests/db`, the real migrations on PGlite with a stub of Supabase's auth schema and roles) | **Blocked.** `tests/setup/no-network.ts` makes any fetch to a host other than this machine fail, so a missing fake can never reach a paid API | $0 |
 | `npm run test:e2e` | Playwright on a production build in demo mode: workflows, accessibility (axe, light and dark), keyboard use and security headers and endpoints on desktop Chrome; phone layouts on a Pixel 7 profile | The test server runs with every key blank; replies, sends and research tools are simulated | $0 |
 | `npm run check` | Typecheck, lint, `npm test`, production build, then `npm run check:bundle` (the browser bundle contains no key format, service-role token or configured secret value) | Blocked | $0 |
-| `LIVE_INTEGRATION=1 npm run test:live` | `tests/live`: one free model lookup, one AI reply reading of a made-up message, one Brave query, one Places Text Search. Nothing stored, nothing sent | Real providers, keys from `.env.local` | Capped (§4) |
+| `LIVE_INTEGRATION=1 npm run test:live` | `tests/live`: one free model lookup, one AI reply reading of a made-up message, one AI report for a fictional business, one Brave query, one Places Text Search each in Accra and Kumasi, and a free website and MX check of a site we control. Nothing stored, nothing sent | Real providers, keys from `.env.local` | Capped (§4) |
 
 CI (`.github/workflows/ci.yml`) runs `check`, `npm audit --omit=dev --audit-level=high` and the E2E suite with every key, secret and `LIVE_INTEGRATION` blanked. It never runs the live checks.
 
@@ -80,6 +80,8 @@ Every test the brief asks for, and where it is. File paths are under `tests/`; n
 
 - **Budget.** Each check reserves its worst-case cost before calling and is skipped if the reservation would pass `LIVE_BUDGET_USD` (default $0.15, hard cap $0.50 in `tests/live/budget.ts`). The run prints what was reserved.
 - **Keys** come from `.env.local`, which wins over shell variables, so a stray exported key cannot pick the paying account. A check whose key is missing is skipped.
+- **The AI report check** reserves US$0.22 (its worst case), so it runs only when `LIVE_BUDGET_USD` leaves room for it (0.30 runs everything); at the default it is skipped.
+- **The website check** runs only when `LIVE_SITE_URL` names a site the agency controls (for example this app's `/privacy` page). It is free.
 - **Nothing is stored and nothing is sent.** Sandbox sending (to the agency's own test recipients) is checked by a person in the app (runbook §12), never by an automated test.
 - **Approval.** Live checks spend real money. Run them only with the owner's approval, and record the date, budget and result in the release notes.
 

@@ -10,7 +10,7 @@ import type { QueueRunSummary } from '@/lib/automation/engine';
 import type { AutomationSettings } from '@/lib/automation/types';
 import { cn, relativeTime } from '@/lib/utils';
 import { useServerStatus } from '@/lib/workspace/api';
-import { RESEARCH_PIPELINE, agentName, describeQueued, describeRun, researchable, runResearchNow, useAgentRuns, useAutomationAction } from '@/lib/workspace/automation';
+import { RESEARCH_PIPELINE, agentName, describeQueued, describeRun, researchable, runResearchNow, useAgentRuns, useAutomationAction, useQueueMode } from '@/lib/workspace/automation';
 import { useBusinesses, useUsage } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Button } from '@/components/ui/button';
@@ -65,12 +65,13 @@ export function OverviewTab({
 }
 
 function ResearchPipeline({ settings }: { settings: AutomationSettings }) {
-  const { can, workspace } = useWorkspace();
+  const { can } = useWorkspace();
+  const queueMode = useQueueMode();
   const { data: businesses = [] } = useBusinesses();
   const { data: status } = useServerStatus();
   const [confirming, setConfirming] = useState(false);
   const eligible = businesses.filter(researchable);
-  const run = useAutomationAction((actx, list: typeof eligible) => runResearchNow(actx, workspace.mode, list), {
+  const run = useAutomationAction((actx, list: typeof eligible) => runResearchNow(actx, queueMode, list), {
     success: ({ queued, run: r }) => `${describeQueued(queued)} ${describeRun(r)}`,
     onSuccess: () => setConfirming(false),
   });

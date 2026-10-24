@@ -75,6 +75,8 @@ Verified against the repository, not assumed: `tsc` clean, ESLint clean, 100 Vit
 | Scheduled | `GET /api/cron/automation` with `Authorization: Bearer $CRON_SECRET`, called every minute by Supabase pg_cron + pg_net (any plan) or Vercel Cron (Pro; Hobby runs at most daily) | Server-only `SUPABASE_SERVICE_ROLE_KEY`, used only inside the worker adapter, which scopes every query to the job's organization. | Disabled until both variables are set. Never exposed to the browser. |
 | Demo | The engine runs in the browser over local storage | Demo user | Jobs run only while the app is open; labelled as such. |
 
+**Re-checked 2026-10-24** against the Ghana-wide brief (background execution without an open browser, scheduled campaigns, retries, budgets, observability). The decision stands: the queue already has leases with recovery after a deploy, retries with exponential backoff, timeouts, idempotency keys, dead-lettering, pause, cancel, per-workspace isolation and daily and monthly budgets. What production lacked was the scheduled runner's configuration, and the browser's controls did not change when one was configured. Now, with the scheduled worker configured, bulk research buttons only queue, the Automation Center shows what the worker last did and how many jobs are overdue, and every run says whether the background worker or the app ran it. `supabase/checks/worker-health.sql` checks the schedule, the route's answers and the jobs it ran.
+
 **Exit strategy.** Agent definitions are plain typed functions (`input → AgentResult`) with no dependency on the queue. Moving to Inngest or a dedicated worker later means writing a new runner, not rewriting agents.
 
 ## 5. Execution model

@@ -4,10 +4,10 @@
 
 import { DEMO_ORG_ID, DEMO_USER_ID, type KeyValueStorage } from '@/lib/data/local-store';
 import { resolveSendingPolicy, sendingPolicySchema } from '@/lib/domain/sending-policy';
-import { AGENT_KEYS, AUTOMATION_MODES, MODE_META, OUTBOUND_AGENTS, type AgentKey } from './constants';
+import { AGENT_KEYS, AUTOMATION_MODES, BACKGROUND_WORKER_ID, MODE_META, OUTBOUND_AGENTS, OVERDUE_AFTER_MS, type AgentKey } from './constants';
 import { budgetsSchema } from './budget';
 import { AUTOMATION_KEY, forgetBusinessAutomation } from './local-keys';
-import { AutomationError, DEFAULT_SETTINGS_FOR, emptyCounts, type AutomationStore, type RunFilter } from './store';
+import { AutomationError, DEFAULT_SETTINGS_FOR, emptyCounts, type AutomationStore, type RunFilter, type WorkerActivity } from './store';
 import type { AgentRun, AgentRunInsert, AutomationJob, AutomationSettings, AutomationSettingsPatch, FinishRequest, JobFilter, JobRequest, SettingsChange } from './types';
 
 export { AUTOMATION_KEY };
@@ -382,6 +382,16 @@ export class LocalAutomationStore implements AutomationStore {
       )
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.createdAt.localeCompare(a.createdAt));
     return clone(runs.slice(0, filter.limit ?? 200));
+  }
+
+  async workerActivity(now = new Date()): Promise<WorkerActivity> {
+    const { settings, jobs, runs } = this.load();
+    const last = runs.filter((r) => r.worker === BACKGROUND_WORKER_ID).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+    const before = new Date(now.getTime() - OVERDUE_AFTER_MS).toISOString();
+    const overdueJobs = settings.paused
+      ? 0
+      : jobs.filter((j) => j.status === 'pending' && !j.cancelRequested && j.runAfter < before && !settings.disabledAgents.includes(j.agent) && !isOutbound(j.agent)).length;
+    return { lastBackgroundRunAt: last?.startedAt ?? null, overdueJobs };
   }
 
   /** Removes runs and jobs for a deleted business (the database cascades the same way). */

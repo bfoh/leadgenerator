@@ -7,7 +7,9 @@ import { hasLimit, monthStart, spendByProvider, spentFor } from '@/lib/automatio
 import { BUDGET_PROVIDER_LABELS, BUDGET_PROVIDERS } from '@/lib/automation/constants';
 import type { AutomationSettings } from '@/lib/automation/types';
 import { operationalAlerts, type AlertLevel, type HealthSnapshot } from '@/lib/domain/monitoring';
-import { useJobCounts, useJobs } from '@/lib/workspace/automation';
+import { useServerStatus } from '@/lib/workspace/api';
+import { useJobCounts, useJobs, useWorkerActivity } from '@/lib/workspace/automation';
+import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { useChangeRequests, useConversionSchema, useMessagingSchema, useOutreachMessages, useTasks, useUsage } from '@/lib/workspace/hooks';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -22,7 +24,11 @@ const DAY = 86_400_000;
 /** System health: dead letters, stuck jobs, uncertain deliveries, overdue opt-outs and budgets, from stored records. */
 export function SystemHealthCard({ settings }: { settings: AutomationSettings }) {
   const now = useMemo(() => new Date(), []);
+  const { workspace } = useWorkspace();
+  const { data: status } = useServerStatus();
+  const backgroundWorker = workspace.mode === 'cloud' && status?.automation?.backgroundWorker === true;
   const { data: counts } = useJobCounts();
+  const { data: activity } = useWorkerActivity(workspace.mode === 'cloud');
   const { data: running = [] } = useJobs({ statuses: ['running'] });
   const { data: messaging } = useMessagingSchema();
   const { data: messages = [] } = useOutreachMessages(undefined, messaging === true);
@@ -52,8 +58,10 @@ export function SystemHealthCard({ settings }: { settings: AutomationSettings })
       budgets,
       automationPaused: settings.paused,
       sendingPaused: settings.sendingPaused,
+      overdueJobs: activity?.overdueJobs ?? 0,
+      backgroundWorker,
     });
-  }, [counts, running, messages, tasks, requests, usage, settings, now]);
+  }, [counts, running, messages, tasks, requests, usage, settings, now, activity, backgroundWorker]);
 
   return (
     <Card data-testid="system-health">

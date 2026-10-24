@@ -4,7 +4,7 @@ import { AlertTriangle, AtSign, Building2, CircleSlash, Compass, ExternalLink, G
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { classifyListedLink, type ListedLinkKind } from '@/lib/domain/links';
-import { COUNTRIES, LAUNCH_CITIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
+import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
 import { allCategories } from '@/lib/domain/settings';
 import type { UsageInsert } from '@/lib/domain/types';
 import { cn, errorMessage, formatDateTime, safeHref } from '@/lib/utils';
@@ -80,8 +80,9 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
   const provider = providers.find((p) => p.id === providerId) ?? defaultProvider;
 
   const [country, setCountry] = useState('GH');
-  const [city, setCity] = useState('Kumasi');
-  const [region, setRegion] = useState<string>(regionForCity('Kumasi') ?? '');
+  // No default place: searches cover whichever of the sixteen regions (or towns) the user picks.
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState<string>('');
   const [neighborhood, setNeighborhood] = useState('');
   const [category, setCategory] = useState('Furniture showroom');
   const [terms, setTerms] = useState('');
@@ -190,23 +191,6 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
                     </Select>
                   )}
                 </Field>
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Launch cities">
-                  {LAUNCH_CITIES.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      aria-pressed={city === c}
-                      onClick={() => {
-                        setCity(c);
-                        setRegion(regionForCity(c) ?? '');
-                        setNeighborhood('');
-                      }}
-                      className={cn('rounded-full border border-border px-2.5 py-0.5 text-xs', city === c ? 'border-accent bg-accent-soft text-accent-strong' : 'text-muted hover:bg-surface-hover')}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Country">
                     {(p) => (
@@ -277,6 +261,24 @@ function Discover({ providers, serverTools, quota }: { providers: ProviderInfo[]
                     )}
                   </Field>
                 </div>
+                {region && (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Main towns in ${region}`}>
+                    {citiesFor(country, region).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-pressed={city === c}
+                        onClick={() => {
+                          setCity(city === c ? '' : c);
+                          setNeighborhood('');
+                        }}
+                        className={cn('rounded-full border border-border px-2.5 py-0.5 text-xs', city === c ? 'border-accent bg-accent-soft text-accent-strong' : 'text-muted hover:bg-surface-hover')}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <Field label="Category" required>
                   {(p) => (
                     <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -510,7 +512,7 @@ function ProviderPanel({ provider, usedToday, quota, spentToday }: { provider: P
         <p className="text-sm font-medium">{provider.name}</p>
         {!provider.configured && (
           <Notice tone="warning" className="text-xs">
-            Set GOOGLE_PLACES_API_KEY in the server environment (.env.local) and enable “Places API (New)” for the key’s project.
+            Set GOOGLE_PLACES_API_KEY in the server environment (Vercel environment variables, then redeploy; .env.local when running locally) and enable “Places API (New)” for the key’s project.
           </Notice>
         )}
         {metered ? (

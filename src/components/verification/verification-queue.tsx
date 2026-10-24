@@ -9,7 +9,7 @@ import type { Business, WebsiteVerification } from '@/lib/domain/types';
 import { CLASSIFICATION_META } from '@/lib/domain/website-assessment';
 import { cn, formatDate, todayIso } from '@/lib/utils';
 import { useServerStatus } from '@/lib/workspace/api';
-import { describeQueued, describeRun, runAgentForMany, useAutomationAction, useAutomationAvailable } from '@/lib/workspace/automation';
+import { describeQueued, describeRun, runAgentForMany, useAutomationAction, useAutomationAvailable, useQueueMode } from '@/lib/workspace/automation';
 import { useBusinesses, useResearchSchema, useVerifications } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { ScorePill, WebsiteStatusBadge } from '@/components/records/badges';
@@ -126,12 +126,13 @@ export function VerificationQueue() {
 
 /** Runs the Website Verification agent for the prospects in the current filter, after confirmation. */
 function BulkVerify({ businesses }: { businesses: Business[] }) {
-  const { can, workspace } = useWorkspace();
+  const { can } = useWorkspace();
   const { data: available } = useAutomationAvailable();
   const { data: schema } = useResearchSchema();
   const { data: status } = useServerStatus();
   const [confirming, setConfirming] = useState(false);
-  const run = useAutomationAction((actx, list: Business[]) => runAgentForMany(actx, workspace.mode, 'website_verification', list), {
+  const queueMode = useQueueMode();
+  const run = useAutomationAction((actx, list: Business[]) => runAgentForMany(actx, queueMode, 'website_verification', list), {
     success: ({ queued, run: r }) => `${describeQueued(queued).replace('Research pipeline', 'Website verification')} ${describeRun(r)}`,
     onSuccess: () => setConfirming(false),
   });

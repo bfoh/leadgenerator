@@ -28,6 +28,7 @@ vi.mock('@/lib/supabase/service', () => ({
 
 import { NextRequest } from 'next/server';
 import { GET as cron } from '@/app/api/cron/automation/route';
+import { workerOrganizations } from '@/lib/server/automation/runner';
 import { operationalAlerts, type HealthSnapshot } from '@/lib/domain/monitoring';
 import { logEvent, redact } from '@/lib/server/log';
 
@@ -54,11 +55,22 @@ const calm: HealthSnapshot = {
   budgets: [],
   automationPaused: false,
   sendingPaused: false,
+  overdueJobs: 0,
+  backgroundWorker: false,
 };
 
 describe('operational alerts', () => {
   it('stay quiet when nothing needs a person', () => {
     expect(operationalAlerts(calm)).toEqual([]);
+  });
+
+  it('flag overdue jobs, saying whether the background worker or a person should be processing them', () => {
+    const [noWorker] = operationalAlerts({ ...calm, overdueJobs: 3 });
+    expect(noWorker).toMatchObject({ key: 'overdue-jobs', level: 'warning', title: '3 jobs overdue' });
+    expect(noWorker.detail).toMatch(/No background worker is configured/);
+    const [stalled] = operationalAlerts({ ...calm, overdueJobs: 1, backgroundWorker: true });
+    expect(stalled.title).toBe('1 job overdue');
+    expect(stalled.detail).toMatch(/background worker has not picked them up/);
   });
 
   it('put compliance and uncertain deliveries first, then budgets, failures and notes', () => {
@@ -133,6 +145,14 @@ describe('scheduled worker route', () => {
       expect(await res.text()).not.toContain(ENV.values.CRON_SECRET);
     }
     expect(service.calls).toBe(0);
+  });
+
+  it('visits the longest-waiting workspaces first and skips paused ones', () => {
+    const due = ['paused', 'a', 'a', 'b', 'paused', 'c'].map((organization_id) => ({ organization_id }));
+    const paused = new Set(['paused']);
+    expect(workerOrganizations(due, paused, 20)).toEqual(['a', 'b', 'c']);
+    expect(workerOrganizations(due, paused, 2)).toEqual(['a', 'b']);
+    expect(workerOrganizations([], paused, 20)).toEqual([]);
   });
 
   it('is off (503) until the cron secret is configured', async () => {

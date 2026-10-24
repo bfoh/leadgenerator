@@ -13,15 +13,21 @@ test('searches a whole region when no town is given, and needs a region or a tow
   for (const c of ['Clinic', 'Hospital', 'Herbal clinic', 'Pharmacy']) await expect(category.locator('option', { hasText: new RegExp(`^${c}$`) })).toHaveCount(1);
   await category.selectOption('Pharmacy');
 
-  // Kumasi is in Ashanti, so choosing Volta clears the town and the search covers the region.
+  // No place is preselected. Kumasi is in Ashanti, so choosing Volta clears the town and the search
+  // covers the region.
+  await expect(page.getByLabel('Region')).toHaveValue('');
+  await expect(page.getByLabel('City / town')).toHaveValue('');
+  await page.getByLabel('Region').selectOption('Ashanti');
+  await page.getByLabel('City / town').fill('Kumasi');
   await page.getByLabel('Region').selectOption('Volta');
   await expect(page.getByLabel('City / town')).toHaveValue('');
   await expect(page.getByText('Leave empty to search the whole region.')).toBeVisible();
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.getByText('Fictional address, Volta Region').first()).toBeVisible();
 
-  // A town in the chosen region narrows the search to that town.
-  await page.getByLabel('City / town').fill('Hohoe');
+  // A town in the chosen region narrows the search to that town; the region's main towns are offered.
+  await page.getByRole('group', { name: 'Main towns in Volta' }).getByRole('button', { name: 'Hohoe' }).click();
+  await expect(page.getByLabel('City / town')).toHaveValue('Hohoe');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.getByText('Fictional address, Hohoe').first()).toBeVisible();
 
