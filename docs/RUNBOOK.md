@@ -110,7 +110,7 @@ The app runs without it. Apply it when you want the Automation Center in cloud m
 Without it, queued jobs run only while a member keeps the Automation Center open ("Keep processing while open") or presses *Process queue now*, and the Worker tile says **This page only**. With it, jobs run on the server whether or not anyone has the app open: the Automation Center only shows their status, bulk research buttons just queue, and the Worker tile says **Background** with the time of the worker's last job (or how many jobs are overdue). To run jobs in the background:
 
 1. Set `CRON_SECRET` (e.g. `openssl rand -hex 32`) and `SUPABASE_SERVICE_ROLE_KEY` on the host and redeploy. `GET /api/cron/automation` returns 503 until both are set, and 401 without the right bearer token.
-2. Call it every minute. Vercel Hobby cron runs only once a day, so use Supabase **pg_cron + pg_net** instead:
+2. Call it every minute. Vercel Hobby cron runs only once a day, so use Supabase **pg_cron + pg_net** instead. Keep the secret out of SQL: add it on the dashboard's **Vault** page (name `automation_cron_secret`, value exactly the `CRON_SECRET` value) and leave out the `vault.create_secret` line, because the SQL editor saves what you type as a snippet. If you do use that line, run it on its own and delete the snippet afterwards.
    ```sql
    create extension if not exists pg_cron;
    create extension if not exists pg_net;
@@ -119,17 +119,21 @@ Without it, queued jobs run only while a member keeps the Automation Center open
      select net.http_get(
        url := 'https://<your-domain>/api/cron/automation',
        headers := jsonb_build_object('Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'automation_cron_secret')),
-       timeout_milliseconds := 60000
+       timeout_milliseconds := 300000
      );
    $$);
    ```
    Stop it with `select cron.unschedule('automation-worker');`.
-3. Each call processes up to five jobs for each of up to 20 workspaces with due or stalled jobs (longest-waiting first; paused workspaces are skipped), scoped per workspace, and returns counts only.
-4. **Check it:** run `supabase/checks/worker-health.sql` (read only). After a few minutes the schedule row says `* * * * *, active`, the runs are `succeeded`, and the worker route answers `200`. A `401` means the Vault secret and `CRON_SECRET` differ; `503` means a variable is missing on the host (redeploy after setting it).
+
+   **Scheduled before 2026-10-24 with a 60000 ms timeout?** Run the `select cron.schedule(…)` statement again with `300000`. The schedule has the same name, so it is updated in place. With the old value the worker still runs, but `worker-health.sql` shows `timeout` for calls that take longer than a minute, because the route keeps working after pg_net stops waiting.
+3. Each call starts jobs only in its first 50 s, and only when the slowest job (its agent's timeout plus 30 s) can finish before the route's 300 s limit. So the platform never stops a job mid-run, and a lease (180 s) expires only after its worker has stopped.
+   - It processes up to five jobs for each of up to 20 workspaces with due or stalled jobs (longest-waiting first; paused workspaces are skipped).
+   - Work is scoped per workspace, and the call returns counts only.
+4. **Check it:** run `supabase/checks/worker-health.sql` (read only). After a few minutes the schedule row says `* * * * *, active`, the runs are `succeeded`, and the worker route answers `200`. A `401` means the Vault secret and `CRON_SECRET` differ: `select length(decrypted_secret) from vault.decrypted_secrets where name = 'automation_cron_secret';` shows the stored length without the value (64 for an `openssl rand -hex 32` secret; 65 usually means a pasted line break). `503` means a variable is missing on the host (redeploy after setting it).
 
 ### Acceptance test: research continues with the browser closed
 
-1. Automation Center shows **Worker: Background**. Set a budget for any paid provider the research will use (Controls).
+1. Automation Center shows **Worker: Background**. Set a budget for any paid provider the research will use (Controls). To keep the test free, leave the AI budget empty: automated work needs a budget for every paid provider, so the report step then stops with a budget message and makes no call.
 2. Add a prospect named "AUDIT TEST …" with a source URL you control. Press **Automate research** and close the browser straight away (the button only queues work when the background worker is configured).
 3. Wait five minutes, then run `supabase/checks/worker-health.sql`. Row "run by the background worker" lists the research agents (business identity, website verification, digital audit, scoring and, if the prospect qualifies, contact research and the report); "run from the app" stays at 0 for them.
 4. Open the app again: the prospect's Activity tab marks each run "Background worker", and the verification, audit, score and report are stored. Delete the test prospect afterwards.
@@ -141,7 +145,8 @@ Without it, queued jobs run only while a member keeps the Automation Center open
 | Something looks wrong | Controls → **Pause automation**. Running jobs finish; nothing new starts. |
 | Jobs waiting with "Budget limit" | Expected: the budget for that provider is used up. They resume in the next GMT day or month, or after an owner raises the budget. |
 | Job failed (dead letter) | Jobs → Failed → open the job, read the error and run log, fix the cause, then **Retry from the start**. Outbound jobs (future) are never retried. |
-| Job stuck in Running | Its lease expires after three minutes and the next claim recovers it (research work is retried; outbound work would be marked "delivery status unknown"). |
+| Job stuck in Running | Its lease expires after three minutes and the next claim recovers it. Research work is retried, unless the stopped attempt sent a paid request (see the next row). Outbound work would be marked "delivery status unknown". |
+| Job failed with "A paid request was sent but its answer never arrived" or "already answered" | Paid requests are never repeated automatically (COST_CONTROL §2a). A request with no answer counts against the budget at its maximum cost. Check the provider's usage page (for AI, the Anthropic Console), then press **Retry from the start** if the job should run again. |
 | An agent misbehaves | Agents → turn it off. Its jobs wait in the queue. |
 | Spend spike | Analytics → estimated API cost; Automation Center → Spend against budgets; lower or clear the provider's budget to stop paid automated work immediately. |
 

@@ -12,6 +12,7 @@ import { AGENTS, isAvailable } from './agents/catalog';
 import { AgentError, type AgentDefinition, type AgentResult, type ToolGateway } from './agents/types';
 import { checkBudgets, monthStart, spendByProvider, type CostEstimate } from './budget';
 import { MODE_META, OUTBOUND_AGENTS, WORKFLOW_META, modeAllows, type AgentKey, type ErrorKind, type RunStatus, type WorkflowState } from './constants';
+import { PAID_REQUEST_NOTE, billingOf, paidRequestsSince, worseBilling } from './paid-calls';
 import { AutomationError, type AutomationStore } from './store';
 import type { AgentRunInsert, AutomationJob, AutomationSettings, FinishRequest, JobOutcome, JobRequest, ProviderCall } from './types';
 import { checkTransition, workflowStateOf } from './workflow';
@@ -41,7 +42,16 @@ export interface QueueRunSummary {
   stoppedBecause: 'empty' | 'limit' | 'deadline' | 'paused' | 'aborted' | 'error' | 'queued';
 }
 
-/** Lease for one claimed job: the longest agent timeout plus a margin. */
+/** Time to load a job's data and record its result, on top of the agent's own timeout. */
+export const JOB_OVERHEAD_MS = 30_000;
+
+/** The longest a claimed job can run: the slowest agent's timeout plus the overhead. */
+export const LONGEST_JOB_MS = Math.max(...Object.values(AGENTS).map((a) => a.timeoutMs)) + JOB_OVERHEAD_MS;
+
+/**
+ * Lease for one claimed job. It outlasts the longest job, so a lease expires only after its worker
+ * has stopped, and a recovered job is never run by two workers at once.
+ */
 export const LEASE_SECONDS = 180;
 
 /** Exponential backoff with jitter: 30 s, 60 s, 120 s … capped at one hour, scaled by 50–100 %. */
@@ -91,16 +101,26 @@ export async function queueAgent(ctx: Pick<EngineContext, 'automation' | 'tools'
   return ctx.automation.enqueue({ ...request, payload: input as Record<string, unknown>, estimatedCostUsd: totalEstimate(estimate) });
 }
 
-export async function processQueue(ctx: EngineContext, opts: { maxJobs?: number; deadlineMs?: number; signal?: AbortSignal } = {}): Promise<QueueRunSummary> {
+/**
+ * Claims and runs due jobs one at a time. `deadlineMs`: no job starts after this. `finishWithinMs`:
+ * when the runner itself will be stopped (a route's maxDuration, less a margin); a job starts only if
+ * the longest job could still finish by then, so the platform never cuts one off mid-run.
+ */
+export async function processQueue(
+  ctx: EngineContext,
+  opts: { maxJobs?: number; deadlineMs?: number; finishWithinMs?: number; signal?: AbortSignal } = {},
+): Promise<QueueRunSummary> {
   const maxJobs = opts.maxJobs ?? 5;
-  const deadline = Date.now() + (opts.deadlineMs ?? 45_000);
+  const started = Date.now();
+  const deadline = started + (opts.deadlineMs ?? 45_000);
+  const finishBy = opts.finishWithinMs == null ? Infinity : started + opts.finishWithinMs;
   const outcomes: JobOutcomeSummary[] = [];
   const stop = (stoppedBecause: QueueRunSummary['stoppedBecause']) => ({ processed: outcomes.length, outcomes, stoppedBecause });
 
   while (true) {
     if (opts.signal?.aborted) return stop('aborted');
     if (outcomes.length >= maxJobs) return stop('limit');
-    if (Date.now() >= deadline) return stop('deadline');
+    if (Date.now() >= deadline || finishBy - Date.now() < LONGEST_JOB_MS) return stop('deadline');
     const settings = await ctx.automation.getSettings();
     if (settings.paused) return stop('paused');
     // One job per claim keeps leases short and lets a deadline stop between jobs.
@@ -199,9 +219,19 @@ export async function runJob(ctx: EngineContext, job: AutomationJob, settings: A
     }
   }
 
-  // ── Budget hard stop ──
   const estimate = agent.estimate?.({ input: parsed.data, settings, tools: ctx.tools }) ?? {};
-  if (totalEstimate(estimate) > 0) {
+  const paid = totalEstimate(estimate) > 0;
+
+  // ── Paid requests are never repeated on their own ──
+  // The last attempt stopped without a result (its lease expired). If it had sent a paid request,
+  // that request may have been charged, so a person decides whether to run the job again.
+  if (paid && job.errorKind === 'timeout') {
+    const prior = paidRequestsSince(await ctx.svc.store.listUsage(job.createdAt), job.id, job.createdAt);
+    if (prior !== 'none') return done('failed', { outcome: 'failed', error: PAID_REQUEST_NOTE[prior], errorKind: 'permanent' });
+  }
+
+  // ── Budget hard stop ──
+  if (paid) {
     const usage = await ctx.svc.store.listUsage(monthStart(now).toISOString());
     const decision = checkBudgets(settings.budgets, spendByProvider(usage, now), estimate, { automated: true, now });
     if (!decision.ok) {
@@ -237,7 +267,18 @@ export async function runJob(ctx: EngineContext, job: AutomationJob, settings: A
     });
     if (timedOut) throw new Error('timeout');
   } catch (error) {
-    const { kind, message } = classifyError(error, timedOut, agent.timeoutMs);
+    const classified = classifyError(error, timedOut, agent.timeoutMs);
+    // A paid request sent in this attempt (answered or not) is not repeated automatically. If the
+    // ledger cannot be read, assume one was sent. Earlier automatic attempts can only have refused
+    // requests, so a margin for clock differences is safe.
+    let billing = billingOf(error) ?? 'none';
+    if (paid) {
+      const since = new Date(now.getTime() - 60_000).toISOString();
+      const usage = await ctx.svc.store.listUsage(since).catch(() => null);
+      billing = worseBilling(billing, usage ? paidRequestsSince(usage, job.id, since) : 'unknown');
+    }
+    const kind: ErrorKind = billing === 'none' ? classified.kind : 'permanent';
+    const message = billing === 'none' ? classified.message : clip(`${classified.message} ${PAID_REQUEST_NOTE[billing]}`, 1000);
     const retryable = (kind === 'retryable' || kind === 'timeout') && !OUTBOUND_AGENTS.includes(job.agent);
     const final = !retryable || job.attempts >= job.maxAttempts;
     if (final && business) {

@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { BACKGROUND_WORKER_ID } from '@/lib/automation/constants';
-import { isBackgroundWorkerConfigured, runOrganizationQueue, workerOrganizations } from '@/lib/server/automation/runner';
+import { RUN_LIMITS, finishWithinMs, isBackgroundWorkerConfigured, runOrganizationQueue, workerOrganizations } from '@/lib/server/automation/runner';
 import { serverEnv } from '@/lib/server/env';
 import { HttpError, fail, ok } from '@/lib/server/http';
 import { serviceSupabase } from '@/lib/supabase/service';
@@ -11,10 +11,9 @@ import { logEvent } from '@/lib/server/log';
 // `Authorization: Bearer $CRON_SECRET`. Disabled until CRON_SECRET and SUPABASE_SERVICE_ROLE_KEY are
 // set. Returns counts only — no organization identifiers or record data.
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // RUN_LIMITS.maxDurationMs
 
 const MAX_ORGS = 20;
-const DEADLINE_MS = 50_000;
 
 function authorized(req: NextRequest) {
   const expected = Buffer.from(`Bearer ${serverEnv.cronSecret()}`);
@@ -23,6 +22,7 @@ function authorized(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const startedAt = Date.now();
   try {
     if (!isBackgroundWorkerConfigured()) throw new HttpError(503, 'The background worker is not configured.');
     if (!authorized(req)) throw new HttpError(401, 'Unauthorized.');
@@ -42,11 +42,10 @@ export async function GET(req: NextRequest) {
     if (error) throw new HttpError(503, 'The job queue is unavailable.');
     const orgIds = workerOrganizations((data ?? []) as { organization_id: string }[], skip, MAX_ORGS);
 
-    const started = Date.now();
     const totals: Record<string, number> = {};
     let processed = 0;
     for (const orgId of orgIds) {
-      const remaining = DEADLINE_MS - (Date.now() - started);
+      const remaining = RUN_LIMITS.workerStartWindowMs - (Date.now() - startedAt);
       if (remaining < 5_000) break;
       try {
         const summary = await runOrganizationQueue({
@@ -57,6 +56,7 @@ export async function GET(req: NextRequest) {
           workerId: BACKGROUND_WORKER_ID,
           maxJobs: 5,
           deadlineMs: remaining,
+          finishWithinMs: finishWithinMs(startedAt),
         });
         processed += summary.processed;
         for (const o of summary.outcomes) totals[o.outcome] = (totals[o.outcome] ?? 0) + 1;

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ToolGateway } from '@/lib/automation/agents/types';
 import { checkBudgets, nextDayStart, spendByProvider } from '@/lib/automation/budget';
-import { backoffMs, classifyError, followUpKey, processQueue, queueAgent, type EngineContext } from '@/lib/automation/engine';
+import { AGENTS } from '@/lib/automation/agents/catalog';
+import { JOB_OVERHEAD_MS, LEASE_SECONDS, LONGEST_JOB_MS, backoffMs, classifyError, followUpKey, processQueue, queueAgent, type EngineContext } from '@/lib/automation/engine';
 import { LocalAutomationStore } from '@/lib/automation/local-store';
+import { PAID_REQUEST_NOTE, paidRequestsSince } from '@/lib/automation/paid-calls';
 import { workerLabel } from '@/lib/automation/constants';
 import { aiReportEstimateUsd } from '@/lib/automation/pricing';
 import { AutomationError } from '@/lib/automation/store';
@@ -514,5 +516,189 @@ describe('automation engine', () => {
     const [planned] = (await processQueue(engine(), { maxJobs: 1 })).outcomes;
     expect(planned.outcome).toBe('failed');
     expect(planned.message).toMatch(/not available in this version/);
+  });
+});
+
+describe('worker time limits and paid requests', () => {
+  const ever = '2000-01-01T00:00:00.000Z';
+  const marker = (jobId: string, callId: string, maxCostUsd = 0.5) =>
+    svcCtx.store.recordUsage({ provider: 'anthropic', operation: 'ai_report:sent', units: 1, estimatedCostUsd: 0, metadata: { jobId, callId, maxCostUsd } });
+  const answer = (jobId: string, callId: string, operation = 'ai_report', estimatedCostUsd = 0.05) =>
+    svcCtx.store.recordUsage({ provider: 'anthropic', operation, units: 1, estimatedCostUsd, metadata: { jobId, callId } });
+
+  async function aiReportJob() {
+    const business = await qualifiedBusiness();
+    await automation.updateSettings({ budgets: { anthropic: { dailyUsd: 5, monthlyUsd: null } } });
+    const { job } = await queueAgent(engine(), await automation.getSettings(), { agent: 'opportunity_report', businessId: business.id, payload: { generator: 'ai' } });
+    return job;
+  }
+
+  /** A worker claims the job and is stopped (crash, platform limit) after `during` ran; its lease then expires. */
+  async function crashedAttempt(during: (jobId: string) => Promise<void>) {
+    const [held] = await automation.claim('crashed-worker', 1, 30);
+    await during(held.id);
+    now = new Date(now.getTime() + 60_000);
+  }
+
+  it('keeps every job inside its lease', () => {
+    for (const agent of Object.values(AGENTS)) expect(agent.timeoutMs + JOB_OVERHEAD_MS).toBeLessThanOrEqual(LONGEST_JOB_MS);
+    expect(LEASE_SECONDS * 1000).toBeGreaterThan(LONGEST_JOB_MS);
+  });
+
+  it('starts no job that could not finish before the runner is stopped', async () => {
+    const job = await aiReportJob();
+    const tooShort = await processQueue(engine(), { maxJobs: 1, finishWithinMs: LONGEST_JOB_MS - 1 });
+    expect(tooShort).toMatchObject({ processed: 0, stoppedBecause: 'deadline' });
+    expect(await automation.getJob(job.id)).toMatchObject({ status: 'pending', attempts: 0 });
+    expect((await processQueue(engine(), { maxJobs: 1, deadlineMs: 0 })).processed).toBe(0);
+
+    expect((await processQueue(engine(), { maxJobs: 1, finishWithinMs: LONGEST_JOB_MS })).outcomes[0].outcome).toBe('succeeded');
+    expect(aiCalls).toBe(1);
+  });
+
+  it('does not repeat a paid request whose answer never arrived before the worker stopped', async () => {
+    const job = await aiReportJob();
+    await crashedAttempt((id) => marker(id, 'c1'));
+    const [outcome] = (await processQueue(engine(), { maxJobs: 1 })).outcomes;
+    expect(outcome).toMatchObject({ outcome: 'failed', message: PAID_REQUEST_NOTE.unknown });
+    expect(aiCalls).toBe(0);
+    expect(await automation.getJob(job.id)).toMatchObject({ status: 'failed', errorKind: 'permanent' });
+    // The open request still counts at its maximum cost.
+    expect(spendByProvider(await svcCtx.store.listUsage(ever), new Date()).day.anthropic).toBe(0.5);
+
+    // A person decides to run it again.
+    await automation.retry(job.id);
+    expect((await processQueue(engine(), { maxJobs: 1 })).outcomes[0].outcome).toBe('succeeded');
+    expect(aiCalls).toBe(1);
+  });
+
+  it('does not repeat a paid request that was answered before the worker stopped', async () => {
+    await aiReportJob();
+    await crashedAttempt(async (id) => {
+      await marker(id, 'c1');
+      await answer(id, 'c1');
+    });
+    const [outcome] = (await processQueue(engine(), { maxJobs: 1 })).outcomes;
+    expect(outcome).toMatchObject({ outcome: 'failed', message: PAID_REQUEST_NOTE.charged });
+    expect(aiCalls).toBe(0);
+  });
+
+  it('runs a recovered job again when its stopped attempt sent nothing or was refused without charge', async () => {
+    await aiReportJob();
+    await crashedAttempt(async (id) => {
+      await marker(id, 'c1');
+      await answer(id, 'c1', 'ai_report:refused', 0);
+    });
+    expect((await processQueue(engine(), { maxJobs: 1 })).outcomes[0].outcome).toBe('succeeded');
+
+    await aiReportJob();
+    await crashedAttempt(async () => undefined);
+    expect((await processQueue(engine(), { maxJobs: 1 })).outcomes[0].outcome).toBe('succeeded');
+    expect(aiCalls).toBe(2);
+  });
+
+  it('fails without retrying when a paid request in this attempt got no answer', async () => {
+    const job = await aiReportJob();
+    const lost = fakeTools({
+      aiReport: async (_pack, { jobId }) => {
+        aiCalls++;
+        await marker(jobId, 'c2');
+        throw Object.assign(new Error('The AI request was sent but no answer arrived, so it may have been charged.'), { retryable: true, billing: 'unknown' });
+      },
+    });
+    const [outcome] = (await processQueue(engine(lost), { maxJobs: 1 })).outcomes;
+    expect(outcome.outcome).toBe('failed');
+    expect(outcome.message).toContain(PAID_REQUEST_NOTE.unknown);
+    expect(await automation.getJob(job.id)).toMatchObject({ status: 'failed', errorKind: 'permanent' });
+    now = new Date(now.getTime() + 3_600_000);
+    expect((await processQueue(engine(lost), { maxJobs: 1 })).processed).toBe(0);
+    expect(aiCalls).toBe(1);
+  });
+
+  it('trusts the ledger over the error: a sent request with no answer is not retried', async () => {
+    await aiReportJob();
+    const hangUp = fakeTools({
+      aiReport: async (_pack, { jobId }) => {
+        await marker(jobId, 'c3');
+        throw Object.assign(new Error('socket hang up'), { retryable: true });
+      },
+    });
+    expect((await processQueue(engine(hangUp), { maxJobs: 1 })).outcomes[0].outcome).toBe('failed');
+  });
+
+  it('treats a timeout during a paid request as possibly charged', async () => {
+    await aiReportJob();
+    const slow = fakeTools({
+      aiReport: async (_pack, { jobId }, signal) => {
+        await marker(jobId, 'c4');
+        return new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
+      },
+    });
+    const { opportunityReportAgent } = await import('@/lib/automation/agents/research');
+    const original = opportunityReportAgent.timeoutMs;
+    opportunityReportAgent.timeoutMs = 20;
+    try {
+      const [outcome] = (await processQueue(engine(slow), { maxJobs: 1 })).outcomes;
+      expect(outcome.outcome).toBe('failed');
+      expect(outcome.message).toMatch(/^Timed out after 0 s\. A paid request was sent/);
+    } finally {
+      opportunityReportAgent.timeoutMs = original;
+    }
+  });
+
+  it('retries a request the provider refused without charge', async () => {
+    await aiReportJob();
+    const busy = fakeTools({
+      aiReport: async (_pack, { jobId }) => {
+        await marker(jobId, 'c5');
+        await answer(jobId, 'c5', 'ai_report:refused', 0);
+        throw Object.assign(new Error('AI provider error (529).'), { retryable: true, billing: 'none' });
+      },
+    });
+    expect((await processQueue(engine(busy), { maxJobs: 1 })).outcomes[0].outcome).toBe('retry');
+  });
+
+  it('does not retry an answered but unusable request, or any paid failure when the ledger cannot be read', async () => {
+    await aiReportJob();
+    const unusable = fakeTools({
+      aiReport: async () => {
+        throw Object.assign(new Error('The AI response was cut off. Try again.'), { retryable: true, billing: 'charged' });
+      },
+    });
+    const [cutOff] = (await processQueue(engine(unusable), { maxJobs: 1 })).outcomes;
+    expect(cutOff.outcome).toBe('failed');
+    expect(cutOff.message).toContain(PAID_REQUEST_NOTE.charged);
+
+    await aiReportJob();
+    const flaky = fakeTools({
+      aiReport: async () => {
+        throw Object.assign(new Error('AI provider error (500).'), { retryable: true });
+      },
+    });
+    const store = svcCtx.store;
+    const listUsage = store.listUsage.bind(store);
+    let reads = 0;
+    // The budget check reads the ledger first; the failure check then finds it unavailable.
+    store.listUsage = (since) => (++reads > 1 ? Promise.reject(new Error('database unavailable')) : listUsage(since));
+    expect((await processQueue(engine(flaky), { maxJobs: 1 })).outcomes[0].outcome).toBe('failed');
+  });
+
+  it('counts open paid requests at their maximum cost against budgets', async () => {
+    await marker('j1', 'open', 0.5);
+    await marker('j2', 'done', 0.5);
+    await answer('j2', 'done', 'ai_report', 0.04);
+    await marker('j3', 'refused', 0.5);
+    await answer('j3', 'refused', 'ai_report:refused', 0);
+    const usage = await svcCtx.store.listUsage(ever);
+    const spend = spendByProvider(usage, new Date());
+    expect(spend.day.anthropic).toBeCloseTo(0.54, 6);
+    expect(spend.day.total).toBeCloseTo(0.54, 6);
+    const budgets = { anthropic: { dailyUsd: 0.6, monthlyUsd: null } };
+    expect(checkBudgets(budgets, spend, { anthropic: 0.05 }, { automated: true, now: new Date() }).ok).toBe(true);
+    expect(checkBudgets(budgets, spend, { anthropic: 0.1 }, { automated: true, now: new Date() })).toMatchObject({ ok: false, kind: 'exceeded' });
+    expect(paidRequestsSince(usage, 'j1', ever)).toBe('unknown');
+    expect(paidRequestsSince(usage, 'j2', ever)).toBe('charged');
+    expect(paidRequestsSince(usage, 'j3', ever)).toBe('none');
+    expect(paidRequestsSince(usage, 'j4', ever)).toBe('none');
   });
 });

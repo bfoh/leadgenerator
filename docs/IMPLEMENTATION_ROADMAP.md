@@ -5,7 +5,7 @@ Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ 
 **Update 2026-10-23:** the owner applied migrations 003–008 to production, and the read-only `supabase/checks/after-migrations.sql` passed there. Phase notes below that say a migration is not applied describe the state when that phase ended. The phases stay 🟡 until their cloud paths and live providers have run for real.
 
 **Update 2026-10-24 (Ghana-wide brief, milestone 1):**
-- **Background worker:** production-ready in code; it is not yet configured on production. Changes:
+- **Background worker:** production-ready, and running on production since 2026-10-24 (see the next update). Changes:
   - the cron route skips paused workspaces and serves the longest-waiting first;
   - with the worker configured, bulk research only queues work;
   - the Automation Center and System health show the worker's last job and any overdue jobs;
@@ -18,6 +18,22 @@ Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ 
   - districts and municipalities (needs an authoritative MMDA list);
   - region-level business records (`businesses.city` is required);
   - research campaigns (milestone 2, migration 009).
+
+**Update 2026-10-24 (milestone 1 operationally verified; worker reliability):**
+- **Verified by the owner on production:**
+  - Vault secret, pg_cron and pg_net were configured, and the worker route answers 200.
+  - For the prospect `AUDIT TEST - Background Worker`, the scheduled worker ran Business Identity (succeeded, 2.2 s) and Website Verification (succeeded, 3.3 s), both labelled *Background worker*.
+  - No paid provider call was made. Website verification asked for a person's review because the evidence was insufficient, which is the expected outcome.
+- **Caveat:** "ran with the browser closed" holds only if no app-driven worker was active during the test.
+  - The *Background worker* label is written only by the scheduled route (`worker = 'cron'`). Runs started from the app are labelled *Started in the app*, so these two jobs were run by the scheduled worker.
+  - The data cannot show whether a browser window was open at the time.
+- **Fixed before automated paid AI is enabled:**
+  - **Time limits.** Agent timeouts go up to 120 s, but the worker route was stopped at 60 s. Both job routes now allow 300 s (the Vercel Hobby maximum with Fluid compute). They start jobs only in their first 45–50 s, and only when the slowest job (agent timeout + 30 s) can finish before the route is stopped. Leases (180 s) outlast every job, so a lease expires only after its worker has stopped.
+  - **Paid requests are not repeated by retries.** The AI SDK no longer retries on its own (`maxRetries: 0`). Every paid AI request is written to a ledger in `usage_records` before it is sent and settled when its answer arrives.
+  - A request with no answer counts against budgets at its maximum cost.
+  - A job that already sent a paid request in an attempt is not retried automatically, whether the request was answered, unusable or unanswered; a person retries it. The exception is a request the provider refused without charge (rate limit, overloaded), which is retried with backoff.
+  - Answers that arrive but cannot be used are now recorded at their actual cost. Before, they went unrecorded.
+  - Tests: `tests/unit/automation.test.ts` (worker time limits and paid requests), `tests/unit/paid-requests.test.ts`, and `tests/db/automation.test.ts` (lease recovery mark, ledger rows).
 
 The v7 history is in [IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md). Each phase ends with a report: functionality, files, migrations, environment variables, tests, results, API cost, missing credentials, security notes, remaining work.
 

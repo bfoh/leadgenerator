@@ -1,13 +1,14 @@
 import 'server-only';
 
 import type { ToolGateway } from '@/lib/automation/agents/types';
+import { aiClassifyEstimateUsd, aiNoteEstimateUsd, aiReportEstimateUsd } from '@/lib/automation/pricing';
 import { generateOutreachNote } from '../ai/outreach-note';
 import { classifyReplyWithAi } from '../ai/reply-classifier';
 import { generateAiReport, isAiConfigured } from '../ai/report-generator';
 import type { RequestContext } from '../context';
 import { serverEnv } from '../env';
 import { researchToolStatus, runContactPage, runDomainProbes, runInspection, runMxLookups, runWebSearch } from '../research-tools';
-import { enforceQuota, recordUsage } from '../usage';
+import { enforceQuota, paidCall, tokenCharge } from '../usage';
 
 /** Privileged tools for agents running on the server: same quotas and usage records as the routes. */
 export function serverToolGateway(ctx: RequestContext): ToolGateway {
@@ -16,39 +17,21 @@ export function serverToolGateway(ctx: RequestContext): ToolGateway {
     aiModel: isAiConfigured() ? serverEnv.anthropicModel() : null,
     async aiReport(pack, { jobId }, signal) {
       await enforceQuota(ctx, 'ai_report', serverEnv.quota.aiReports());
-      const result = await generateAiReport(pack, signal);
-      await recordUsage(ctx, {
-        provider: 'anthropic',
-        operation: 'ai_report',
-        units: 1,
-        estimatedCostUsd: result.usage.estimatedCostUsd,
-        metadata: { model: result.model, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, jobId },
-      });
-      return { ...result, call: { provider: 'anthropic', operation: 'ai_report', units: 1, estimatedCostUsd: result.usage.estimatedCostUsd, ok: true } };
+      const spec = { provider: 'anthropic', operation: 'ai_report', maxCostUsd: aiReportEstimateUsd(serverEnv.anthropicModel()), metadata: { jobId }, signal };
+      const { result, charge } = await paidCall(ctx, spec, () => generateAiReport(pack, signal), tokenCharge);
+      return { ...result, call: { provider: 'anthropic', operation: 'ai_report', units: 1, estimatedCostUsd: charge.estimatedCostUsd, ok: true } };
     },
     async aiOutreachNote(pack, { jobId }, signal) {
       await enforceQuota(ctx, 'ai_note', serverEnv.quota.aiNotes());
-      const result = await generateOutreachNote(pack, signal);
-      await recordUsage(ctx, {
-        provider: 'anthropic',
-        operation: 'ai_note',
-        units: 1,
-        estimatedCostUsd: result.usage.estimatedCostUsd,
-        metadata: { model: result.model, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, jobId },
-      });
-      return { ...result, call: { provider: 'anthropic', operation: 'ai_note', units: 1, estimatedCostUsd: result.usage.estimatedCostUsd, ok: true } };
+      const spec = { provider: 'anthropic', operation: 'ai_note', maxCostUsd: aiNoteEstimateUsd(serverEnv.anthropicModel()), metadata: { jobId }, signal };
+      const { result, charge } = await paidCall(ctx, spec, () => generateOutreachNote(pack, signal), tokenCharge);
+      return { ...result, call: { provider: 'anthropic', operation: 'ai_note', units: 1, estimatedCostUsd: charge.estimatedCostUsd, ok: true } };
     },
     async aiClassifyReply(message, { jobId }, signal) {
       await enforceQuota(ctx, 'ai_classify', serverEnv.quota.aiClassifications());
-      const result = await classifyReplyWithAi(message, signal);
-      await recordUsage(ctx, {
-        provider: 'anthropic',
-        operation: 'ai_classify',
-        units: 1,
-        estimatedCostUsd: result.usage.estimatedCostUsd,
-        metadata: { model: result.model, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, jobId },
-      });
-      return { ...result, call: { provider: 'anthropic', operation: 'ai_classify', units: 1, estimatedCostUsd: result.usage.estimatedCostUsd, ok: true } };
+      const spec = { provider: 'anthropic', operation: 'ai_classify', maxCostUsd: aiClassifyEstimateUsd(serverEnv.anthropicModel()), metadata: { jobId }, signal };
+      const { result, charge } = await paidCall(ctx, spec, () => classifyReplyWithAi(message, signal), tokenCharge);
+      return { ...result, call: { provider: 'anthropic', operation: 'ai_classify', units: 1, estimatedCostUsd: charge.estimatedCostUsd, ok: true } };
     },
     research: { available: true, ...researchToolStatus() },
     async webSearch(query, { jobId, purpose }, signal) {

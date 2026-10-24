@@ -9,7 +9,7 @@ import { requireContext } from '@/lib/server/context';
 import { serverEnv } from '@/lib/server/env';
 import { HttpError, fail, ok, readJson } from '@/lib/server/http';
 import { ProviderError } from '@/lib/server/providers/discovery';
-import { enforceQuota, recordUsage } from '@/lib/server/usage';
+import { enforceQuota, paidCall, tokenCharge } from '@/lib/server/usage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -29,16 +29,11 @@ export async function POST(req: NextRequest) {
     const { jobId, ...message } = await readJson(req, bodySchema, 40_000);
     if (!isAiConfigured()) throw new HttpError(503, 'AI classification is not configured (ANTHROPIC_API_KEY). Set the intent yourself.');
     await enforceQuota(ctx, 'ai_classify', serverEnv.quota.aiClassifications());
-    await enforceBudget(ctx, { anthropic: aiClassifyEstimateUsd(serverEnv.anthropicModel()) });
-    const result = await classifyReplyWithAi(message);
-    const usage = await recordUsage(ctx, {
-      provider: 'anthropic',
-      operation: 'ai_classify',
-      units: 1,
-      estimatedCostUsd: result.usage.estimatedCostUsd,
-      metadata: { model: result.model, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, ...(jobId ? { jobId } : {}) },
-    });
-    return ok({ ...result, charge: usage });
+    const maxCostUsd = aiClassifyEstimateUsd(serverEnv.anthropicModel());
+    await enforceBudget(ctx, { anthropic: maxCostUsd });
+    const spec = { provider: 'anthropic', operation: 'ai_classify', maxCostUsd, metadata: jobId ? { jobId } : {} };
+    const { result, charge } = await paidCall(ctx, spec, () => classifyReplyWithAi(message), tokenCharge);
+    return ok({ ...result, charge });
   } catch (error) {
     if (error instanceof ProviderError) return ok({ error: error.message, retryable: error.retryable }, { status: 502 });
     return fail(error);

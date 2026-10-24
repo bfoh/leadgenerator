@@ -1,6 +1,7 @@
 // A small in-memory stand-in for the Supabase query builder, enough for the server's messaging code
 // (dispatch and webhooks) to run in unit tests: select/insert/upsert/update/delete with eq, in, lt,
-// not-null, not-in, order, limit and range filters, unique keys and an rpc table. It does not run the database's
+// gt, gte, like, not-null, not-in, order, limit and range filters, unique keys, an rpc table and
+// tables whose writes fail. It does not run the database's
 // triggers or policies; those are covered by the PGlite suites in tests/db.
 
 import { randomUUID } from 'node:crypto';
@@ -17,6 +18,8 @@ export class FakeSupabase {
   /** Column defaults applied on insert. */
   defaults: Record<string, Row> = {};
   writes: { table: string; op: string; values: unknown }[] = [];
+  /** Tables whose inserts fail, as if the database were unavailable. */
+  failWrites = new Set<string>();
 
   rows(table: string) {
     return (this.tables[table] ??= []);
@@ -90,6 +93,20 @@ class Query implements PromiseLike<Result> {
     this.filters.push((r) => r[column] != null && String(r[column]) < value);
     return this;
   }
+  gt(column: string, value: string | number) {
+    this.filters.push((r) => r[column] != null && (typeof value === 'number' ? Number(r[column]) > value : String(r[column]) > value));
+    return this;
+  }
+  gte(column: string, value: string | number) {
+    this.filters.push((r) => r[column] != null && (typeof value === 'number' ? Number(r[column]) >= value : String(r[column]) >= value));
+    return this;
+  }
+  /** SQL LIKE with % wildcards only. */
+  like(column: string, pattern: string) {
+    const re = new RegExp(`^${pattern.split('%').map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+    this.filters.push((r) => typeof r[column] === 'string' && re.test(r[column] as string));
+    return this;
+  }
   not(column: string, operator: string, value: unknown) {
     if (operator === 'in' && typeof value === 'string') {
       const list = value.replace(/^\(|\)$/g, '').split(',');
@@ -135,6 +152,7 @@ class Query implements PromiseLike<Result> {
     const rows = this.db.rows(this.table);
     let out: Row[];
     if (this.op === 'insert' || this.op === 'upsert') {
+      if (this.db.failWrites.has(this.table)) return { data: null, error: { code: '08006', message: 'connection failure' } };
       out = [];
       for (const v of this.values) {
         const row: Row = { id: randomUUID(), created_at: new Date().toISOString(), ...this.db.defaults[this.table], ...v };

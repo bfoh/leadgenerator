@@ -19,7 +19,7 @@ export function inputTokenBound(...parts: unknown[]) {
 
 /** Refuses, before anything is spent, a request that could use more input tokens than were reserved. */
 export function assertWithinInputBudget(bound: number, reserved: number, advice: string) {
-  if (bound > reserved) throw new ProviderError(`This request is larger than one AI call is budgeted for (${bound} bytes, ${reserved} reserved). ${advice}`, false);
+  if (bound > reserved) throw new ProviderError(`This request is larger than one AI call is budgeted for (${bound} bytes, ${reserved} reserved). ${advice}`, false, 'none');
 }
 
 /** Cuts text to at most maxBytes of UTF-8 without splitting a character. */

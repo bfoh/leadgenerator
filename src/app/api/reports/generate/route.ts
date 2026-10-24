@@ -8,7 +8,7 @@ import { requireContext } from '@/lib/server/context';
 import { serverEnv } from '@/lib/server/env';
 import { HttpError, fail, ok, readJson } from '@/lib/server/http';
 import { ProviderError } from '@/lib/server/providers/discovery';
-import { enforceQuota, recordUsage } from '@/lib/server/usage';
+import { enforceQuota, paidCall, tokenCharge } from '@/lib/server/usage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -19,16 +19,11 @@ export async function POST(req: NextRequest) {
     const { pack, jobId } = await readJson(req, z.object({ pack: evidencePackSchema, jobId: z.string().uuid().optional() }), 150_000);
     if (!isAiConfigured()) throw new HttpError(503, 'AI reports are not configured (ANTHROPIC_API_KEY). The rule-based generator is available.');
     await enforceQuota(ctx, 'ai_report', serverEnv.quota.aiReports());
-    await enforceBudget(ctx, { anthropic: aiReportEstimateUsd(serverEnv.anthropicModel()) });
-    const result = await generateAiReport(pack);
-    const usage = await recordUsage(ctx, {
-      provider: 'anthropic',
-      operation: 'ai_report',
-      units: 1,
-      estimatedCostUsd: result.usage.estimatedCostUsd,
-      metadata: { model: result.model, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, ...(jobId ? { jobId } : {}) },
-    });
-    return ok({ ...result, charge: usage });
+    const maxCostUsd = aiReportEstimateUsd(serverEnv.anthropicModel());
+    await enforceBudget(ctx, { anthropic: maxCostUsd });
+    const spec = { provider: 'anthropic', operation: 'ai_report', maxCostUsd, metadata: jobId ? { jobId } : {} };
+    const { result, charge } = await paidCall(ctx, spec, () => generateAiReport(pack), tokenCharge);
+    return ok({ ...result, charge });
   } catch (error) {
     if (error instanceof ProviderError) return ok({ error: error.message, retryable: error.retryable }, { status: 502 });
     return fail(error);

@@ -2,15 +2,15 @@ import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { NOTE_MAX_INPUT_TOKENS, NOTE_MAX_OUTPUT_TOKENS, tokenCostUsd } from '@/lib/automation/pricing';
+import { NOTE_MAX_INPUT_TOKENS, NOTE_MAX_OUTPUT_TOKENS } from '@/lib/automation/pricing';
 import type { EvidencePack } from '@/lib/domain/evidence';
 import { PERSONAL_NOTE_MAX_WORDS } from '@/lib/domain/messaging';
 import { groundNote, outreachNoteDraftSchema } from '@/lib/domain/outreach-note';
 import type { ReportUsage } from '@/lib/domain/types';
 import { serverEnv } from '../env';
-import { ProviderError } from '../providers/discovery';
 import { assertWithinInputBudget, inputTokenBound } from './input-bound';
 import { assertUsable, checkModel } from './model-check';
+import { aiRequestError, responseUsage, unusableAnswer } from './request-errors';
 
 // One evidence-based sentence for the {{personal_note}} slot of an approved template. The model
 // only writes text: it cannot choose the recipient, the template or the channel, and the draft it
@@ -45,7 +45,7 @@ export async function generateOutreachNote(pack: EvidencePack, signal?: AbortSig
   const check = await checkModel();
   assertUsable(check);
 
-  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 60_000, maxRetries: 1 });
+  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 60_000, maxRetries: 0 });
   // Escape "<" so evidence text cannot close the <evidence_pack> wrapper.
   const evidence = JSON.stringify(pack, null, 2).replace(/</g, '\\u003c');
   const format = betaZodOutputFormat(outreachNoteDraftSchema);
@@ -66,28 +66,21 @@ export async function generateOutreachNote(pack: EvidencePack, signal?: AbortSig
       { signal },
     );
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new ProviderError('The AI provider rejected the API key. Check ANTHROPIC_API_KEY.', false);
-    if (error instanceof Anthropic.RateLimitError) throw new ProviderError('The AI provider is rate limiting requests. Try again shortly.', true);
-    if (error instanceof Anthropic.BadRequestError) throw new ProviderError('The AI provider rejected the request. Check the configured model.', false);
-    if (error instanceof Anthropic.APIConnectionError) throw new ProviderError('Could not reach the AI provider.', true);
-    if (error instanceof Anthropic.APIError) throw new ProviderError(`AI provider error (${error.status ?? 'unknown'}).`, true);
-    throw error;
+    throw aiRequestError(error);
   }
 
-  if (response.stop_reason === 'refusal') throw new ProviderError('The AI model declined to write this note. Write it by hand instead.', false);
-  if (response.stop_reason === 'max_tokens') throw new ProviderError('The AI response was cut off. Try again.', true);
+  if (response.stop_reason === 'refusal') throw unusableAnswer('The AI model declined to write this note. Write it by hand instead.', false, response);
+  if (response.stop_reason === 'max_tokens') throw unusableAnswer('The AI response was cut off. Try again.', true, response);
   const parsed = outreachNoteDraftSchema.safeParse(response.parsed_output);
-  if (!parsed.success) throw new ProviderError('The AI response did not match the note format. Try again or write the note by hand.', true);
+  if (!parsed.success) throw unusableAnswer('The AI response did not match the note format. Try again or write the note by hand.', true, response);
   // A note that fails grounding is discarded, but its tokens were spent: callers still record usage.
   const grounded = groundNote(parsed.data, pack);
 
-  const inputTokens = (response.usage.input_tokens ?? 0) + (response.usage.cache_read_input_tokens ?? 0) + (response.usage.cache_creation_input_tokens ?? 0);
-  const outputTokens = response.usage.output_tokens ?? 0;
   return {
     note: grounded.ok ? grounded.note : null,
     evidenceIds: grounded.ok ? grounded.evidenceIds : [],
     reason: grounded.ok ? null : grounded.reason,
     model: response.model,
-    usage: { inputTokens, outputTokens, estimatedCostUsd: tokenCostUsd(response.model, inputTokens, outputTokens) },
+    usage: responseUsage(response),
   };
 }

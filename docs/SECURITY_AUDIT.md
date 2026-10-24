@@ -59,6 +59,15 @@ Scope: `GET /api/cron/automation`, the service-role client, and everything the w
 
 Result: no blocking issue. One change made: the bundle scan now runs in every build, including Vercel's.
 
+**Follow-up after activation (2026-10-24): time limits and repeated paid requests.**
+- *Finding:* the worker route was stopped at 60 s while AI steps may take 120 s. A paid request cut off by the platform went unrecorded and was retried, and the AI SDK also retried timed-out requests on its own.
+- *Fix:*
+  - Both job routes allow 300 s and start a job only if the slowest job can finish in time.
+  - SDK retries are off.
+  - Every paid AI request goes through the paid-request ledger (COST_CONTROL §2a): recorded before sending, open requests counted at their maximum cost, and no automatic retry after a request that was or may have been charged.
+- *Tests:* `unit/automation` "worker time limits and paid requests", `unit/paid-requests`, `db/automation` "hands a recovered job back marked as timed out…" and "paid-request ledger".
+- *The worker's privileges are unchanged.* The ledger rows are ordinary inserts in its own workspace, and `usage_records` stays insert-only for members.
+
 ## 4. Re-running the audit
 
 Each release: `npm run check` (includes the bundle scan), `npm audit`, the E2E suite, and a review of any new route handler against §1 (authentication, role, origin, rate limit, input schema, error mapping, no secrets in responses or logs).

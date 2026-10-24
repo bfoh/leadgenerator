@@ -282,7 +282,7 @@ describe('worker health query', () => {
       expect(v).toMatchObject({
         'automation-worker (schedule, state)': '* * * * *, active',
         'runs in the last hour (succeeded / failed)': '2 / 0',
-        'HTTP answers in the last hour (200 = ran; 401 = wrong secret; 503 = not configured)': '200 1, 401 1',
+        'HTTP answers in the last hour (200 = ran; 401 = wrong secret; 503 = not configured; timeout = pg_net stopped waiting, RUNBOOK §7)': '200 1, 401 1',
         'latest answer (counts only)': '{"organizations":1,"processed":2}',
         'run by the background worker in the last 24 h (by agent)': 'opportunity_scoring 1, website_verification 1',
         'run from the app (Run buttons) in the last 24 h': '1',

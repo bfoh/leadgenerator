@@ -21,6 +21,28 @@ The app enforces its own spending limits. Provider billing alerts (for example G
 - **Automation needs an explicit budget.** With no budget set for a provider, manual use continues within quotas, but automated jobs that would call that provider stop with *Set a budget for … to allow automated use*.
 - Estimates are conservative upper bounds (for AI: `max_tokens` worth of output). Actual cost is recorded after the call.
 
+## 2a. Paid requests are sent once
+
+The paid-request ledger is in `src/lib/automation/paid-calls.ts`, and the server wrapper is `paidCall` in `src/lib/server/usage.ts`.
+
+- **Recorded before sending.** A zero-cost `<operation>:sent` row holding the request's maximum cost (`metadata.maxCostUsd`, with a `callId` and the `jobId`) is written to `usage_records`. If that write fails, nothing is sent.
+- **Settled by the outcome:**
+
+  | Outcome | Row written |
+  | --- | --- |
+  | Answer arrived | The usual usage row with its actual cost |
+  | Answer arrived but cannot be used (cut off, refused by the model, wrong format) | Actual cost, with `metadata.outcome = 'unusable'`; the answer was charged |
+  | Provider refused without charging (rate limit, overloaded, invalid request, bad key) | `<operation>:refused` at zero cost |
+  | No answer arrived (timeout, dropped connection, worker stopped mid-call) | None: the marker stays open |
+
+- **Open markers count at their maximum cost** in every budget check, manual and automated, and in the Automation Center's spend.
+- **No automatic repeats.**
+  - The AI SDK's own retries are off (`maxRetries: 0`), because a request that timed out may still have been processed.
+  - If a job sent a paid request in an attempt and that attempt failed, the job is not retried automatically, unless the provider refused the request without charge. The job fails with a message saying whether the request was charged or may have been.
+  - A job recovered from an expired lease is checked the same way before it runs again.
+  - After checking the provider's usage page, a person can **Retry from the start**.
+- **Demo mode is not covered.** It runs in the browser and keeps no ledger.
+
 ## 3. Unit costs (estimates — verify against current price lists)
 
 | Provider / operation | Default estimate | Variable |

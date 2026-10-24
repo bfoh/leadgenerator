@@ -71,5 +71,5 @@ export async function checkModel(force = false): Promise<ModelCheck> {
 
 /** Refuses (before any paid call) when the model cannot be used for reports. */
 export function assertUsable(check: ModelCheck) {
-  if (!check.available || check.structuredOutputs === false) throw new ProviderError(check.error ?? `The model “${check.model}” cannot be used for reports.`, Boolean(check.transient));
+  if (!check.available || check.structuredOutputs === false) throw new ProviderError(check.error ?? `The model “${check.model}” cannot be used for reports.`, Boolean(check.transient), 'none');
 }

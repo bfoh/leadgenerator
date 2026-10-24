@@ -2,14 +2,14 @@ import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { REPORT_MAX_INPUT_TOKENS, REPORT_MAX_OUTPUT_TOKENS, tokenCostUsd } from '@/lib/automation/pricing';
+import { REPORT_MAX_INPUT_TOKENS, REPORT_MAX_OUTPUT_TOKENS } from '@/lib/automation/pricing';
 import type { EvidencePack } from '@/lib/domain/evidence';
 import { NEXT_ACTION_META, allowedNextActions, reportDraftSchema, validateReport, type ReportContent, type ReportValidation } from '@/lib/domain/report';
 import type { ReportUsage } from '@/lib/domain/types';
 import { serverEnv } from '../env';
-import { ProviderError } from '../providers/discovery';
 import { assertWithinInputBudget, inputTokenBound } from './input-bound';
 import { assertUsable, checkModel } from './model-check';
+import { aiRequestError, responseUsage, unusableAnswer } from './request-errors';
 
 const SYSTEM_PROMPT = `You write evidence-based digital opportunity reports for a web and software agency in Ghana. The reader is the agency's own team, who review your draft before anything reaches the business.
 
@@ -50,7 +50,7 @@ export async function generateAiReport(pack: EvidencePack, signal?: AbortSignal)
   const check = await checkModel();
   assertUsable(check);
 
-  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 100_000, maxRetries: 1 });
+  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 100_000, maxRetries: 0 });
   // Escape "<" so evidence text cannot close the <evidence_pack> wrapper.
   const evidence = JSON.stringify(pack, null, 2).replace(/</g, '\\u003c');
   const allowed = allowedNextActions(pack)
@@ -76,29 +76,16 @@ export async function generateAiReport(pack: EvidencePack, signal?: AbortSignal)
       { signal },
     );
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new ProviderError('The AI provider rejected the API key. Check ANTHROPIC_API_KEY.', false);
-    if (error instanceof Anthropic.RateLimitError) throw new ProviderError('The AI provider is rate limiting requests. Try again shortly.', true);
-    if (error instanceof Anthropic.BadRequestError) throw new ProviderError('The AI provider rejected the request. Check the configured model.', false);
-    if (error instanceof Anthropic.APIConnectionError) throw new ProviderError('Could not reach the AI provider.', true);
-    if (error instanceof Anthropic.APIError) throw new ProviderError(`AI provider error (${error.status ?? 'unknown'}).`, true);
-    throw error;
+    throw aiRequestError(error);
   }
 
-  if (response.stop_reason === 'refusal') throw new ProviderError('The AI model declined to write this report. Use the rule-based generator instead.', false);
-  if (response.stop_reason === 'max_tokens') throw new ProviderError('The AI response was cut off. Try again.', true);
-  if (!response.parsed_output) throw new ProviderError('The AI response did not match the report format. Try again or use the rule-based generator.', true);
+  if (response.stop_reason === 'refusal') throw unusableAnswer('The AI model declined to write this report. Use the rule-based generator instead.', false, response);
+  if (response.stop_reason === 'max_tokens') throw unusableAnswer('The AI response was cut off. Try again.', true, response);
+  if (!response.parsed_output) throw unusableAnswer('The AI response did not match the report format. Try again or use the rule-based generator.', true, response);
 
   // Re-validate independently of the SDK, then enforce grounding.
   const parsed = reportDraftSchema.safeParse(response.parsed_output);
-  if (!parsed.success) throw new ProviderError('The AI response did not match the report format.', true);
+  if (!parsed.success) throw unusableAnswer('The AI response did not match the report format.', true, response);
   const { content, validation } = validateReport(parsed.data, pack);
-
-  const inputTokens = (response.usage.input_tokens ?? 0) + (response.usage.cache_read_input_tokens ?? 0) + (response.usage.cache_creation_input_tokens ?? 0);
-  const outputTokens = response.usage.output_tokens ?? 0;
-  return {
-    content,
-    validation,
-    model: response.model,
-    usage: { inputTokens, outputTokens, estimatedCostUsd: tokenCostUsd(response.model, inputTokens, outputTokens) },
-  };
+  return { content, validation, model: response.model, usage: responseUsage(response) };
 }

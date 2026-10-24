@@ -2,13 +2,13 @@ import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { CLASSIFY_MAX_INPUT_TOKENS, CLASSIFY_MAX_OUTPUT_TOKENS, tokenCostUsd } from '@/lib/automation/pricing';
+import { CLASSIFY_MAX_INPUT_TOKENS, CLASSIFY_MAX_OUTPUT_TOKENS } from '@/lib/automation/pricing';
 import { aiClassificationSchema, type AiClassification } from '@/lib/domain/replies';
 import type { ReportUsage } from '@/lib/domain/types';
 import { serverEnv } from '../env';
-import { ProviderError } from '../providers/discovery';
 import { assertWithinInputBudget, clipUtf8, inputTokenBound } from './input-bound';
 import { assertUsable, checkModel } from './model-check';
+import { aiRequestError, responseUsage, unusableAnswer } from './request-errors';
 
 // Reads one received message and says what it means (phase 9). The model only labels text: its
 // answer is reconciled with the deterministic rules (which alone decide that a reply is an opt-out
@@ -55,7 +55,7 @@ export async function classifyReplyWithAi(input: { channel: string; subject: str
   const check = await checkModel();
   assertUsable(check);
 
-  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 60_000, maxRetries: 1 });
+  const client = new Anthropic({ apiKey: serverEnv.anthropicKey(), timeout: 60_000, maxRetries: 0 });
   // Escape "<" so the message cannot close the <reply> wrapper, then cap the bytes sent.
   const reply = clipUtf8(maskReply(`${input.subject ? `Subject: ${input.subject}\n\n` : ''}${input.body}`).replace(/</g, '\\u003c'), REPLY_MAX_BYTES);
   const format = betaZodOutputFormat(aiClassificationSchema);
@@ -76,24 +76,17 @@ export async function classifyReplyWithAi(input: { channel: string; subject: str
       { signal },
     );
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new ProviderError('The AI provider rejected the API key. Check ANTHROPIC_API_KEY.', false);
-    if (error instanceof Anthropic.RateLimitError) throw new ProviderError('The AI provider is rate limiting requests. Try again shortly.', true);
-    if (error instanceof Anthropic.BadRequestError) throw new ProviderError('The AI provider rejected the request. Check the configured model.', false);
-    if (error instanceof Anthropic.APIConnectionError) throw new ProviderError('Could not reach the AI provider.', true);
-    if (error instanceof Anthropic.APIError) throw new ProviderError(`AI provider error (${error.status ?? 'unknown'}).`, true);
-    throw error;
+    throw aiRequestError(error);
   }
 
-  if (response.stop_reason === 'refusal') throw new ProviderError('The AI model declined to read this message. Set the intent yourself.', false);
-  if (response.stop_reason === 'max_tokens') throw new ProviderError('The AI response was cut off. Try again.', true);
+  if (response.stop_reason === 'refusal') throw unusableAnswer('The AI model declined to read this message. Set the intent yourself.', false, response);
+  if (response.stop_reason === 'max_tokens') throw unusableAnswer('The AI response was cut off. Try again.', true, response);
   const parsed = aiClassificationSchema.safeParse(response.parsed_output);
-  if (!parsed.success) throw new ProviderError('The AI response did not match the expected format. Try again or set the intent yourself.', true);
+  if (!parsed.success) throw unusableAnswer('The AI response did not match the expected format. Try again or set the intent yourself.', true, response);
 
-  const inputTokens = (response.usage.input_tokens ?? 0) + (response.usage.cache_read_input_tokens ?? 0) + (response.usage.cache_creation_input_tokens ?? 0);
-  const outputTokens = response.usage.output_tokens ?? 0;
   return {
     result: parsed.data,
     model: response.model,
-    usage: { inputTokens, outputTokens, estimatedCostUsd: tokenCostUsd(response.model, inputTokens, outputTokens) },
+    usage: responseUsage(response),
   };
 }

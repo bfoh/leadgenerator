@@ -11,7 +11,7 @@ from (
     (select count(*) filter (where d.status = 'succeeded') || ' / ' || count(*) filter (where d.status = 'failed') from cron.job_run_details d join cron.job j on j.jobid = d.jobid where j.jobname = 'automation-worker' and d.start_time > now() - interval '1 hour')
   union all select 3, 'schedule', 'latest run (start, status)',
     coalesce((select d.start_time::text || ', ' || d.status from cron.job_run_details d join cron.job j on j.jobid = d.jobid where j.jobname = 'automation-worker' order by d.start_time desc limit 1), 'never')
-  union all select 4, 'worker route', 'HTTP answers in the last hour (200 = ran; 401 = wrong secret; 503 = not configured)',
+  union all select 4, 'worker route', 'HTTP answers in the last hour (200 = ran; 401 = wrong secret; 503 = not configured; timeout = pg_net stopped waiting, RUNBOOK §7)',
     (select coalesce(string_agg(code || ' ' || n, ', ' order by code), 'none') from (select coalesce(status_code::text, case when timed_out then 'timeout' else 'error' end) as code, count(*) as n from net._http_response where created > now() - interval '1 hour' group by 1) s)
   union all select 5, 'worker route', 'latest answer (counts only)',
     coalesce((select left(coalesce(r.content, r.error_msg, ''), 200) from net._http_response r order by r.created desc limit 1), 'none')

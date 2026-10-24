@@ -1,5 +1,8 @@
 import 'server-only';
 
+import type { Billing } from '@/lib/automation/paid-calls';
+import type { ReportUsage } from '@/lib/domain/types';
+
 // Discovery providers declare what their data may be used for. The UI shows these declarations,
 // and only fields listed in `storableFields` may ever be written to the CRM.
 
@@ -76,9 +79,16 @@ export interface DiscoveryProvider {
 }
 
 export class ProviderError extends Error {
+  /**
+   * @param billing whether a failed paid request was charged, when the caller knows (paid-calls.ts);
+   *   left out, the paid-request ledger assumes it may have been.
+   * @param charge the cost of an answer that arrived but could not be used.
+   */
   constructor(
     message: string,
     readonly retryable: boolean,
+    readonly billing?: Billing,
+    readonly charge?: { model: string; usage: ReportUsage },
   ) {
     super(message);
   }

@@ -392,6 +392,21 @@ describe('claiming and finishing jobs', () => {
     await expect(as(db, user, () => db.query('select public.retry_automation_job($1)', [outbound.id]))).rejects.toThrow(/never re-sent/);
   });
 
+  it('hands a recovered job back marked as timed out, and a person’s retry clears the mark', async () => {
+    // The engine reads this mark to look for paid requests the stopped attempt may have sent.
+    const { user, org: o } = await freshOwner();
+    await enqueue(user, o, 'opportunity_scoring');
+    const [job] = await claim(user, o);
+    await expireLease(job.id);
+    const [again] = await claim(user, o);
+    expect(again).toMatchObject({ id: job.id, status: 'running', error_kind: 'timeout' });
+    expect(again.last_error).toMatch(/lease expired/);
+    await finish(user, again, 'failed', { error: 'A paid request was sent but its answer never arrived.', kind: 'permanent' });
+    expect(await jobById(job.id)).toMatchObject({ status: 'failed', error_kind: 'permanent' });
+    await as(db, user, () => db.query('select public.retry_automation_job($1)', [job.id]));
+    expect(await jobById(job.id)).toMatchObject({ status: 'pending', attempts: 0, error_kind: null, last_error: null });
+  });
+
   it('cancels queued jobs at once and running jobs at their next checkpoint', async () => {
     const { user, org: o } = await freshOwner();
     const queued = await enqueue(user, o, 'opportunity_scoring', { priority: 500 });
@@ -480,5 +495,30 @@ describe('rollback', () => {
     expect(b.workflow_state).toBe('client_won');
     expect(await rows(fresh, 'select 1 from public.automation_settings where organization_id = $1', [org_id])).toHaveLength(1);
     await fresh.close();
+  });
+});
+
+describe('paid-request ledger', () => {
+  const insert = (organization: string, user: string | null, operation: string, cost: number) =>
+    db.query(
+      `insert into public.usage_records (organization_id, user_id, provider, operation, units, estimated_cost_usd, metadata)
+       values ($1, $2, 'anthropic', $3, 1, $4, $5)`,
+      [organization, user, operation, cost, JSON.stringify({ callId: 'call-1', jobId: 'job-1', maxCostUsd: 0.22 })],
+    );
+
+  it('takes zero-cost "sent" and "refused" rows from members and the scheduled worker, and keeps them append-only', async () => {
+    const { user, org: o } = await freshOwner();
+    await as(db, user, () => insert(o, user, 'ai_report:sent', 0));
+    await as(db, user, () => insert(o, user, 'ai_report', 0.05));
+    await asServiceRole(db, () => insert(o, null, 'ai_classify:sent', 0));
+    await asServiceRole(db, () => insert(o, null, 'ai_classify:refused', 0));
+    const ledger = await rows<{ operation: string; estimated_cost_usd: string }>(db, 'select operation, estimated_cost_usd from public.usage_records where organization_id = $1 order by id', [o]);
+    expect(ledger.map((r) => r.operation)).toEqual(['ai_report:sent', 'ai_report', 'ai_classify:sent', 'ai_classify:refused']);
+    // Nobody can settle a request by editing or deleting its marker.
+    await expect(as(db, user, () => db.query('update public.usage_records set estimated_cost_usd = 0 where organization_id = $1', [o]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, user, () => db.query('delete from public.usage_records where organization_id = $1', [o]))).rejects.toThrow(/permission denied/);
+    // Members write only their own workspace's rows, in their own name.
+    await expect(as(db, user, () => insert(org, user, 'ai_report:sent', 0))).rejects.toThrow(/row-level security/);
+    await expect(as(db, user, () => insert(o, OWNER, 'ai_report:sent', 0))).rejects.toThrow(/row-level security/);
   });
 });

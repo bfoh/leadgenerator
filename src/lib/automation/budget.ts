@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import type { UsageRecord } from '@/lib/domain/types';
 import { BUDGET_PROVIDER_LABELS, BUDGET_PROVIDERS, USAGE_PROVIDER, type BudgetProvider } from './constants';
+import { isSentMarker, markerMaxCost, settledCallIds } from './paid-calls';
 import type { BudgetLimit, Budgets } from './types';
 
 export type PaidProvider = Exclude<BudgetProvider, 'total'>;
@@ -31,13 +32,21 @@ export interface Spend {
   month: Record<string, number>;
 }
 
-/** Sums estimated cost by usage provider for today and this month. */
-export function spendByProvider(usage: Pick<UsageRecord, 'provider' | 'estimatedCostUsd' | 'createdAt'>[], now: Date): Spend {
+export type SpendRow = Pick<UsageRecord, 'provider' | 'estimatedCostUsd' | 'createdAt'> & Partial<Pick<UsageRecord, 'operation' | 'metadata'>>;
+
+/**
+ * Sums estimated cost by usage provider for today and this month. A paid request with no answer
+ * recorded (an unsettled "sent" marker, see paid-calls.ts) counts at its maximum cost.
+ */
+export function spendByProvider(usage: SpendRow[], now: Date): Spend {
   const dayIso = dayStart(now).toISOString();
   const monthIso = monthStart(now).toISOString();
   const spend: Spend = { day: { total: 0 }, month: { total: 0 } };
+  const settled = settledCallIds(usage.map((u) => ({ operation: u.operation ?? '', metadata: u.metadata ?? null })));
   for (const u of usage) {
-    const cost = Number(u.estimatedCostUsd) || 0;
+    const marker = u.operation != null && isSentMarker({ operation: u.operation });
+    const open = marker && !settled.has(String(u.metadata?.callId ?? ''));
+    const cost = open ? markerMaxCost({ metadata: u.metadata ?? null }) : Number(u.estimatedCostUsd) || 0;
     if (!cost || u.createdAt < monthIso) continue;
     spend.month[u.provider] = (spend.month[u.provider] ?? 0) + cost;
     spend.month.total += cost;
