@@ -30,9 +30,12 @@ The intended EEA use is managing a sales team's named opportunities (permitted u
 is shown; only the API-provided source links are attached to Google content. Account-specific terms
 still govern. Independent website data and owner-authorized materials never inherit Google's rights.
 
-Google attribution and returned author/provider credits accompany results. Public terms and privacy
-links explain Google's terms. A missing website field is not proof that the business has no website.
-Website ownership and export rights must be independently confirmed; a discovered URL grants neither.
+Google's required Google Maps logo and the returned author/provider credits accompany results: the
+viewer footer carries the official, unmodified logo next to Terms and Privacy, and each photo shows its
+author's avatar, name and profile link plus a direct link to the source photo on Google Maps. Public
+terms and privacy links explain Google's terms. A missing website field is not proof that the business
+has no website. Website ownership and export rights must be independently confirmed; a discovered URL
+grants neither.
 
 ## Verification
 
@@ -41,8 +44,9 @@ Implemented:
 - **Collect Business Resources** on a prospect and inside its existing Studio concept opens
   `/prospects/:id/resources`. It does not require or run website generation.
 - Google lookup starts from the retained Place ID, or one explicit three-choice search. Details
-  request only the displayed fields; at most six photo references are offered. Each photo has its
-  own explicit request, attribution and source link. No map is embedded.
+  request only the displayed fields; at most six photo references are offered. Each photo has its own
+  explicit request, author credit (avatar, name, profile link) and Google Maps source link
+  (`googleMapsUri`), and the viewer footer shows Google's official Google Maps logo. No map is embedded.
 - The independently verified official homepage is read once, respecting robots.txt, socket-time
   public-address checks, redirects, time and size limits. It yields logo/favicon/image references,
   palette/type declarations, structured product/service candidates, contact and linked-social

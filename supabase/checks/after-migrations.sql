@@ -1,10 +1,12 @@
--- Right after applying 003–010 to a database with existing data. READ ONLY: one SELECT that calls no
+-- Right after applying 003–016 to a database with existing data. READ ONLY: one SELECT that calls no
 -- writing function, so it changes nothing; the SQL editor shows its result because it is the only
 -- statement. Every row should say ok: messages to businesses are blocked, every workspace is in
 -- Research only with the outbound stop engaged, opted-out businesses are suppressed, no consent was
 -- invented, and the append-only records and safety triggers are in place. Rows 3, 8 and 9 describe
 -- a fresh upgrade: once the team records consent, queues messages or changes the mode, they differ
--- by design. See docs/MIGRATION_REVIEW.md §3.
+-- by design. Rows 24–33 inspect the optional later migrations: 011 discovery, the 012–015 Studio
+-- chain and the 016 resource ledger. An optional row that says 'not applied' is a recorded gap, not
+-- a failure of the migrations that were applied. See docs/MIGRATION_REVIEW.md §3.
 select "check", expected, actual, case when expected = actual then 'ok' else 'LOOK AT THIS' end as result
 from (
   select 1 as ord, 'messages to businesses are blocked' as "check", 'false' as expected, public.outbound_available()::text as actual
@@ -30,5 +32,15 @@ from (
   union all select 21, 'Ghana regions seeded', '16', case when to_regclass('public.ghana_regions') is null then 'missing 010' else (select count(*)::text from public.ghana_regions) end
   union all select 22, 'members can edit campaign membership history', 'false', case when to_regclass('public.campaign_target_events') is null then 'missing 009' else has_table_privilege('authenticated', 'public.campaign_target_events', 'update')::text end
   union all select 23, 'members can delete campaign membership history', 'false', case when to_regclass('public.campaign_target_events') is null then 'missing 009' else has_table_privilege('authenticated', 'public.campaign_target_events', 'delete')::text end
+  union all select 24, '011 discovery tables installed', 'yes', case when to_regclass('public.discovery_runs') is null then 'not applied' else 'yes' end
+  union all select 25, '012 Studio project tables installed', 'yes', case when to_regclass('public.studio_projects') is null then 'not applied' else 'yes' end
+  union all select 26, '013 asset vault tables installed', 'yes', case when to_regclass('public.studio_assets') is null then 'not applied' else 'yes' end
+  union all select 27, '014 creative direction tables installed', 'yes', case when to_regclass('public.studio_creative_directions') is null then 'not applied' else 'yes' end
+  union all select 28, '015 website prototype table installed', 'yes', case when to_regclass('public.studio_website_prototypes') is null then 'not applied' else 'yes' end
+  union all select 29, '016 resource ledger installed', 'yes', case when to_regclass('public.business_resource_entries') is null then 'not applied' else 'yes' end
+  union all select 30, '016 resource ledger has RLS', 'true', case when to_regclass('public.business_resource_entries') is null then 'not applied' else (select relrowsecurity::text from pg_class where relname = 'business_resource_entries' and relnamespace = 'public'::regnamespace) end
+  union all select 31, '016 resource ledger policies', '3', case when to_regclass('public.business_resource_entries') is null then 'not applied' else (select count(*)::text from pg_policies where schemaname = 'public' and tablename = 'business_resource_entries') end
+  union all select 32, '016 resource ledger triggers', '2', case when to_regclass('public.business_resource_entries') is null then 'not applied' else (select count(*)::text from pg_trigger where tgrelid = to_regclass('public.business_resource_entries') and tgname in ('business_resource_guard', 'business_resource_audit')) end
+  union all select 33, 'members can delete resource entries', 'false', case when to_regclass('public.business_resource_entries') is null then 'not applied' else has_table_privilege('authenticated', 'public.business_resource_entries', 'delete')::text end
 ) checks
 order by ord;

@@ -418,13 +418,14 @@ integrations: [MILESTONE_2_CAMPAIGNS](MILESTONE_2_CAMPAIGNS.md).
 only. Take a backup first (docs/BACKUPS.md).
 
 1. Run `supabase/checks/preflight.sql` (read only) and keep the output. New rows report whether 009
-   and 010 are installed.
+   and 010 are installed, along with markers for 011-016.
 2. Apply `supabase/migrations/009_research_campaigns.sql`, then
    `supabase/migrations/010_region_records.sql`, in staging. Both are re-runnable and additive; 009
    also adds the `auto_complete` preference (default on) to an earlier copy of its own table.
-3. Run `supabase/checks/after-migrations.sql` and confirm every row says `ok`. Rows 19–23 cover
+3. Run `supabase/checks/after-migrations.sql` and confirm rows 1-23 say `ok`. Rows 19-23 cover
    campaigns and districts: no campaign uses Google Places, 261 districts and 16 regions are seeded,
-   and membership history cannot be edited or deleted by members.
+   and membership history cannot be edited or deleted by members. Rows 24-33 inspect the optional
+   011-016 migrations and say `not applied` until each of those is applied.
 4. Repeat in production during a quiet period and deploy the application.
 5. Open Automation Center → **Campaigns**. As an owner, create a draft for one region, press
    **Preview the audience**, then activate it. One tick should appear in the run log within a minute

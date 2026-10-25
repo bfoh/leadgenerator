@@ -228,7 +228,7 @@ describe('after-migrations check', () => {
     try {
       expect(await db.exec(check)).toHaveLength(1);
       const ok = await results(db);
-      expect(ok).toHaveLength(23);
+      expect(ok).toHaveLength(33);
       expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
     } finally {
       await db.exec('rollback');

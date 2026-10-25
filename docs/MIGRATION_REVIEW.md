@@ -43,6 +43,6 @@ Every forward migration is additive and re-runnable (`if not exists`, `create or
    ```bash
    psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f supabase/migrations/003_automation_infrastructure.sql
    ```
-   (or paste one whole file per run in the SQL editor). Re-run the preflight after each file; the matching `installed` row turns to `yes`. After 008, run `supabase/checks/after-migrations.sql`: every row should say `ok` (tested on PGlite after a 002→008 upgrade with existing records).
+   (or paste one whole file per run in the SQL editor). Re-run the preflight after each file; the matching `installed` row turns to `yes`. After 008, run `supabase/checks/after-migrations.sql`: rows 1-23 should say `ok` (tested on PGlite after a 002→008 upgrade with existing records). Rows 24-33 inspect the optional later migrations, so on a project without 011-016 they say `not applied` by design.
 6. **Deploy** the application. It works with any prefix of the migrations; features whose tables are missing say "database update required".
 7. **If a step fails:** the transaction leaves nothing behind. Fix the cause and re-run the same file. To undo a completed migration, use its rollback (newest first), or restore the backup (docs/BACKUPS.md §4).

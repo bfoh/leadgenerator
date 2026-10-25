@@ -14,9 +14,14 @@ import { extractPageFacts } from '@/lib/domain/page-signals';
 const entry = { businessId: '00000000-0000-4000-8000-000000000001', category: 'service' as const, label: 'Services', value: 'Original owner-authorized service description', sourceKind: 'business_owner' as const, sourceUrl: 'https://sample.example.org/permission', evidence: 'Owner email dated 25 October permits independent verification, storage and export.', independentlyVerified: true as const, exportPermission: 'granted' as const };
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('Independent resources and permitted downloads', () => {
-  it.each(['https://maps.google.com/place/test', 'https://lh3.googleusercontent.com/image', 'https://maps.app.goo.gl/test', 'https://instagram.com/business', 'javascript:alert(1)', 'https://user:password@official.example.org'])('refuses restricted or unsafe independent source %s', (url) => {
+  it.each(['https://maps.google.com/place/test', 'https://lh3.googleusercontent.com/image', 'https://maps.app.goo.gl/test', 'https://fictionalbakery.business.site/', 'https://instagram.com/business', 'javascript:alert(1)', 'https://user:password@official.example.org'])('refuses restricted or unsafe independent source %s', (url) => {
     expect(restrictedResourceUrl(url)).toBe(true);
     expect(resourceEntrySchema.safeParse({ ...entry, sourceUrl: url }).success).toBe(false);
+  });
+  it('does not over-block hosts that merely contain the retired Google Business Profile host', () => {
+    expect(restrictedResourceUrl('https://notmybusiness.site/permission')).toBe(false);
+    expect(restrictedResourceUrl('https://business.site.example.org/permission')).toBe(false);
+    expect(restrictedResourceUrl('https://samplebakery.example.org/permission')).toBe(false);
   });
   it('requires independent verification, permission evidence and a non-Google source type', () => {
     expect(resourceEntrySchema.safeParse({ ...entry, sourceKind: 'google' }).success).toBe(false);
@@ -93,13 +98,16 @@ describe('Official transient Google resource provider', () => {
     vi.stubEnv('GOOGLE_PLACES_API_KEY', 'FAKE_SERVER_KEY');
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'fictional_place_12345', displayName: { text: 'Test Bakery' }, websiteUri: withSite ? 'https://sample.example.org' : undefined,
       regularOpeningHours: { weekdayDescriptions: ['Monday: 8–5'] }, googleMapsUri: 'https://maps.google.com/test',
-      photos: Array.from({ length: 9 }, (_, i) => ({ name: `places/fictional_place_12345/photos/photo${i}`, authorAttributions: [{ displayName: 'Sample photographer', uri: 'https://maps.google.com/contrib/test' }] })), attributions: [{ provider: 'Provider credit', providerUri: 'https://example.org' }] })));
+      photos: Array.from({ length: 9 }, (_, i) => ({ name: `places/fictional_place_12345/photos/photo${i}`, widthPx: 800, heightPx: 600, googleMapsUri: 'https://maps.google.com/photos/test', authorAttributions: [{ displayName: 'Sample photographer', uri: 'https://maps.google.com/contrib/test', photoUri: 'https://lh3.googleusercontent.com/a/sample' }] })), attributions: [{ provider: 'Provider credit', providerUri: 'https://example.org' }] })));
     vi.stubGlobal('fetch', fetch);
     const listing = await googleResourceDetails('fictional_place_12345');
     expect(listing.website).toBe(withSite ? 'https://sample.example.org/' : null);
     expect(simulatedResourceListing(withSite ? 'fictional_place_with_website' : 'fictional_place_no_website').website).toBe(withSite ? 'https://resource-bakery.example.org' : null);
     expect(listing.photos).toHaveLength(6);
     expect(listing.photos[0].authors[0].name).toBe('Sample photographer');
+    // Google requires the author's avatar, name and profile link plus a direct photo link on Google Maps.
+    expect(listing.photos[0].authors[0]).toEqual({ name: 'Sample photographer', uri: 'https://maps.google.com/contrib/test', photoUri: 'https://lh3.googleusercontent.com/a/sample' });
+    expect(listing.photos[0].googleMapsUri).toBe('https://maps.google.com/photos/test');
     expect(listing.attributions[0].provider).toBe('Provider credit');
     const [url, init] = fetch.mock.calls[0];
     expect(url).not.toContain('FAKE_SERVER_KEY');

@@ -36,17 +36,21 @@ table and backfills nothing, so no existing row is rewritten.
 - `business_resource_guard` before update, `business_resource_audit` after insert/update/delete
 
 The denylist rejects Google and social hosts at the database boundary: google.*, googleapis.com,
-googleusercontent.com, gstatic.com, goo.gl and its subdomains, ggpht.com, facebook.com, fbcdn.net,
-instagram.com, cdninstagram.com, tiktok.com, linkedin.com, x.com and twitter.com. It matches Google
-content arriving as a "source", which is the leak this table exists to prevent. `business.site` is not
-listed; the retired Google Business Profile host would still be accepted, so a hardening pass should
-add it to both this check and `restrictedResourceUrl` in `src/lib/domain/business-resources.ts`.
+googleusercontent.com, gstatic.com, goo.gl and its subdomains, ggpht.com, business.site, facebook.com,
+fbcdn.net, instagram.com, cdninstagram.com, tiktok.com, linkedin.com, x.com and twitter.com. It matches
+Google content arriving as a "source", which is the leak this table exists to prevent. `business.site`
+(the retired Google Business Profile website host) was added on 25 October 2026 to both this check and
+`restrictedResourceUrl` in `src/lib/domain/business-resources.ts`, with regression tests in
+`tests/unit/business-resources.test.ts` and `tests/db/business-resources.test.ts` that also prove a
+lookalike domain such as `notmybusiness.site` is not over-blocked.
 
 ## 2. Dependencies
 
 - Migration 002: `organizations`, `businesses` with `unique (id, organization_id)`, `audit_events`,
-  `audit_row_change()`, `is_org_member()` and `has_org_role()`. Production has 001-008 since
-  2026-10-23, so this is present.
+  `audit_row_change()`, `is_org_member()` and `has_org_role()`. It is recorded as applied to production
+  with 001-008 on 2026-10-23 (`docs/MIGRATION_REVIEW.md`, `docs/IMPLEMENTATION_ROADMAP.md`,
+  `docs/PRODUCTION_ACCEPTANCE_AUDIT.md`), so it is expected to be present. That is a record, not a
+  re-verification: see the uncertainty note below.
 - The Supabase `auth` schema: the `auth.uid()` default and the `auth.users` foreign key.
 - PostgreSQL 13 or later for `gen_random_uuid()` in core; Supabase runs 15 and later.
 
@@ -62,6 +66,24 @@ Keeping the retained Place ID needs only 002's `businesses.places_place_id`.
 The runbook records 011 as not applied and does not record 012-015, so 016 is the last link of a chain
 whose earlier Studio links have not been reviewed for production here. Applying 016 alone is safe for
 the database but would ship a collector whose vault cannot store files.
+
+### What the production migration state actually rests on
+
+- 003-008 were applied by the owner through the Supabase SQL editor on 2026-10-23. The only evidence in
+  the repository is prose (`docs/MIGRATION_REVIEW.md`, the roadmap update, `docs/PRODUCTION_ACCEPTANCE_AUDIT.md`
+  and `docs/SECURITY_AUDIT.md` R-5) plus the saved `after-migrations.sql` result (18 of 18 checks ok).
+- There is no Supabase CLI history in the repository: `supabase/config.toml` does not exist, so nothing
+  here proves whether `supabase_migrations.schema_migrations` exists in the production project or what it
+  holds. An SQL-editor apply would not have written to it at all.
+- 009 and 010 were reviewed and accepted only on PGlite and a local staging copy
+  (`docs/MIGRATION_REVIEW_009_010.md`, `docs/STAGING_ACCEPTANCE_009_010.md`); neither document claims a
+  production apply, and this review therefore treats their production state as unknown.
+- 011 is explicitly unapplied (`docs/RUNBOOK.md` §"Autonomous discovery (migration 011) — not applied").
+  012-016 appear in no production record at all.
+- So the honest production picture is: 001-008 recorded, 009-016 unrecorded; 011 recorded as not applied.
+  `supabase/checks/preflight.sql` is now the way to replace that with fact: it reports a marker for every
+  migration 001-016 and whether the CLI history table exists, without writing anything. Capture its
+  output from production before planning any apply. Nothing in this review authorizes that apply.
 
 ## 3. RLS and organization isolation
 
@@ -147,16 +169,19 @@ later migrations.
 
 1. Back up production and record the current migration markers from Section 2.
 2. Decide 009-015 first: the collector's vault and ZIP are only usable after 012-015.
-3. Run `supabase/checks/preflight.sql` (read only) and keep the output. Its `installed` rows stop at
-   010, so extend that list with 011-016 before relying on it for this apply.
-4. Apply in staging, run `supabase/checks/after-migrations.sql`, and confirm the four resource tests in
-   `tests/db/business-resources.test.ts` still describe the deployed schema.
+3. Run `supabase/checks/preflight.sql` (read only) and keep the output. It now reports markers for
+   001-016 and whether the Supabase CLI history table exists; that output, not this file, is the
+   authoritative production state. Confirm 002 exists and 016 is absent before applying, and record
+   which of 009-015 are present.
+4. Apply in staging, run `supabase/checks/after-migrations.sql` (rows 24-33 inspect 011-016), and confirm
+   the four resource tests in `tests/db/business-resources.test.ts` still describe the deployed schema.
 5. Apply during a quiet period, deploy the application, then open one prospect's resources page and
    confirm the "Migration 016 is needed" notice is gone and an entry can be saved and revoked.
 
 ## 8. Verdict
 
 Low risk as a database change: additive, no backfill, no rewrite, org-scoped RLS, immutable with an
-audited one-way revocation and a clean rollback. Two items belong beside it rather than inside it: the
-`business.site` denylist gap, and the fact that 016 alone does not make the vault or ZIP usable.
-Nothing in this review authorizes applying it.
+audited one-way revocation and a clean rollback. The `business.site` denylist gap recorded in the first
+revision is now closed in both the check constraint and the application guard, with tests. One item
+still belongs beside 016 rather than inside it: 016 alone does not make the vault or ZIP usable. Nothing
+in this review authorizes applying it.

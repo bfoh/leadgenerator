@@ -19,7 +19,7 @@ export function simulatedResourceListing(id: string): GoogleResourceListing {
   return { id, name: 'Fictional Coast Bakery', address: '12 Sample Lane, Cape Coast', phone: '+233 24 000 0100',
     website: id.endsWith('with_website') ? 'https://resource-bakery.example.org' : null,
     mapsUri: 'https://www.google.com/maps', directionsUri: null, hours: ['Monday–Friday: 8:00 AM–5:00 PM'], status: 'OPERATIONAL',
-    photos: [{ name: `places/${id}/photos/fictional_sample`, width: 800, height: 500, authors: [{ name: 'Original test illustration — simulated photo', uri: null }] }],
+    photos: [{ name: `places/${id}/photos/fictional_sample`, width: 800, height: 500, googleMapsUri: 'https://www.google.com/maps', authors: [{ name: 'Original test illustration — simulated photo', uri: null, photoUri: null }] }],
     attributions: [], simulated: true };
 }
 

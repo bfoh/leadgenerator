@@ -68,10 +68,13 @@ Add `LIVE_PLACES_PHOTO=1` to spend one photo request as well; the check reuses t
 details call, so it never pays for a second lookup.
 
 Expected: both checks pass and print counts only, for example
-`Place Details ChIJ...: photos 3, author credits 3, hours 7, provider credits 0, website listed false,
-phone listed true`. A failing `website listed false` assertion means Google now lists a website for
-that business: pick another prospect, do not loosen the check. The photo check prints only the host
-(`*.googleusercontent.com`, `*.ggpht.com` or `*.gstatic.com`) and confirms no bytes were fetched.
+`Place Details ChIJ...: photos 3, author credits 3, author avatars 3, author profiles 3, photo source
+links 3, hours 7, provider credits 0, website listed false, phone listed true`. A failing
+`website listed false` assertion means Google now lists a website for that business: pick another
+prospect, do not loosen the check. Every returned photo must carry a Google Maps link to the source
+photo (`googleMapsUri`) and at least one author link or avatar; a failure there is an attribution
+defect in the provider mapping, not a reason to relax the assertion. The photo check prints only the
+host (`*.googleusercontent.com`, `*.ggpht.com` or `*.gstatic.com`) and confirms no bytes were fetched.
 
 ## Part B — the same request through the in-app button
 
@@ -90,13 +93,15 @@ Never point this at the production project. Steps once cloud mode is running:
 2. Press **Collect Business Resources** and confirm the page loads without a website-generation step.
 3. Paste the Place ID and press **Load Google listing** — one billed details request. Check the address,
    phone, hours, the "Website field: Not supplied — independently verify website status" line, the
-   source link, the provider credits, the "Google Maps · Terms · Privacy · Preview only" line, and that
-   the photo tiles show "Preview photo N" rather than loading images.
+   source link, the provider credits, and the footer: the official unmodified Google Maps logo (18px,
+   accessible name "Google Maps", clear space around it) followed by Terms · Privacy · Preview only.
+   The photo tiles must show "Preview photo N" rather than loading images.
 4. Press **Save Place ID only**. Reload the page: the Place ID persists, and no other Google field was
    written anywhere.
-5. Preview at most one photo — one billed photo request. Confirm the image loads from Google's host,
-   the author credit and the "Photo source" link are visible, and that the image is not offered in the
-   vault or the ZIP.
+5. Preview at most one photo — one billed photo request. Confirm the image loads from Google's host, the
+   author avatar, name and profile link are visible (or, if Google returns no avatar, the name and
+   profile link), the "View this photo on Google Maps" link opens Google's own photo page, and the image
+   is not offered in the vault or the ZIP.
 6. Leave the listing open for five minutes and confirm the viewer clears itself.
 7. Optional, free: run the guarded homepage read for a website the business owns, add one independent
    entry with source, evidence, `independently_verified` and export permission, revoke it, then export
@@ -123,19 +128,31 @@ backup if one exists), reset the Cloud quota and delete the test key if it is si
 check is opt-in only: without `LIVE_INTEGRATION=1` it skips before any import of a provider module, so
 the normal suites stay free.
 
-## Attribution and retention obligations (confirmed against Google's published policy, 23 Oct 2026)
+## Attribution and retention obligations (Google's policy page revision of 23 Oct 2026, re-checked 25 Oct 2026)
+
+Google's current wording asks for the **Google Maps** logo (or, where space is limited, the text
+"Google Maps") whenever Places content is shown without a Google map, and for each photo the author's
+avatar, name and profile link plus a direct link to the source photo on Google Maps.
 
 - Publicly reachable Terms and Privacy pages that name Google's terms: `/terms` and `/privacy` already
   do, and the viewer links to both.
-- Anything shown without an embedded map must carry Google attribution and any third-party provider
-  credits near the content; photos additionally need their author credits. The viewer shows the
-  provider credits, per-photo author credits, a source link and a "Photo source" link.
+- The viewer renders the official, unmodified Google Maps logo from Google's own
+  `Google_Maps_Attribution_Assets.zip` (the dark-grey, non-outlined variant for a plain background),
+  served from `public/brand/google-maps-attribution.svg` at 18px high with 10dp clear space at the
+  sides and top and 5dp below, and an accessible label reading "Google Maps". The logo is branding,
+  not Places content: it is never modified, never imported into a vault and never added to a kit.
+  Provenance and checksum: `public/brand/README.md`.
+- Third-party provider credits stay next to the content, and each photo shows its author avatar, name
+  and profile link plus "View this photo on Google Maps" (`photo.googleMapsUri`), which is Google's
+  required route to the source photo and its reporting controls.
+- Text is no longer used as the attribution: space is available for the logo, and Google prefers it.
+  If a future layout cannot fit the logo, use the text "Google Maps" with `translate="no"`,
+  12–16sp, weight 400, colour white/#1F1F1F/#5E5E5E and 4.5:1 contrast instead of a cropped logo.
 - Content other than a Place ID may not be cached or stored. The app stores nothing else: `no-store`
   fetches, view-only state, a five-minute clear, no local or session storage, and only the Place ID is
   persisted. Photo references expire, so each preview re-requests one and the UI asks for a reload
   when it fails.
-- Known gap before public use: the viewer renders a "Google Maps" text chip, not the official Google
-  logo. Google's policy expects the logo when Places data is displayed without a map, so the logo
-  asset and its placement need the owner's approval before the feature is used outside internal
-  research.
+- Remaining gap: no live run has yet shown the real logo, avatars and photo links on a real listing,
+  because no paid request has been authorized. Part A's assertions and Part B's visual checks are the
+  evidence that closes it.
 

@@ -6,13 +6,17 @@ import { phoneKey } from './web-research';
 export const RESOURCE_CATEGORIES = ['identity', 'contact', 'location', 'social', 'product', 'service', 'color', 'typography', 'brief'] as const;
 export type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
 
-/** Google and social-platform content cannot become independent source material. */
+/**
+ * Google and social-platform content cannot become independent source material. `business.site` is
+ * the retired Google Business Profile website host: a page there can look like an independent site
+ * while remaining Google-supplied content, so it is refused with the other Google hosts.
+ */
 export function restrictedResourceUrl(raw: string): boolean {
   try {
     const u = new URL(raw);
     const h = u.hostname.toLowerCase();
     return !['https:', 'http:'].includes(u.protocol) || Boolean(u.username || u.password) ||
-      /(^|\.)(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|maps\.app\.goo\.gl|ggpht\.com|facebook\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)$/.test(h);
+      /(^|\.)(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|maps\.app\.goo\.gl|ggpht\.com|business\.site|facebook\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)$/.test(h);
   } catch { return true; }
 }
 
@@ -36,7 +40,8 @@ export interface GoogleResourceListing {
   id: string; name: string; address: string | null; phone: string | null; website: string | null;
   mapsUri: string | null; directionsUri: string | null; hours: string[]; status: string | null;
   attributions: { provider: string; uri: string | null }[];
-  photos: { name: string; width: number; height: number; authors: { name: string; uri: string | null }[] }[];
+  /** `googleMapsUri` per photo is Google's required direct link to the source photo. */
+  photos: { name: string; width: number; height: number; googleMapsUri: string | null; authors: { name: string; uri: string | null; photoUri: string | null }[] }[];
   simulated: boolean;
 }
 export interface WebsiteResources {

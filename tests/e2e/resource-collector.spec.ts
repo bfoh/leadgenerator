@@ -24,6 +24,11 @@ for (const withSite of [false, true]) test(`Google-first collection and authoriz
   await page.getByRole('button', { name: 'Load Google listing' }).click();
   expect((await response).headers()['cache-control']).toBe('no-store');
   const listing = page.getByTestId('google-listing');
+  // Google's required branding when Places content is shown without a map: the official logo, at
+  // real intrinsic size (a broken asset would render 0px), next to the content.
+  const mapsLogo = page.getByRole('img', { name: 'Google Maps' });
+  await expect(mapsLogo).toBeVisible();
+  await expect.poll(() => mapsLogo.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect(listing.getByRole('heading', { name: 'Fictional Coast Bakery' })).toBeVisible();
   await expect(listing).toContainText('12 Sample Lane, Cape Coast');
   if (withSite) await expect(listing.getByRole('link', { name: 'https://resource-bakery.example.org' })).toBeVisible();
@@ -40,6 +45,8 @@ for (const withSite of [false, true]) test(`Google-first collection and authoriz
   await expect(img).toBeVisible();
   await expect.poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1);
   await expect(listing).toContainText('Original test illustration — simulated photo');
+  // Each photo carries its author credit and the required direct link to the source photo.
+  await expect(listing.getByRole('link', { name: 'View this photo on Google Maps' })).toBeVisible();
   const local = await page.evaluate(() => JSON.stringify(localStorage));
   expect(local).toContain(withSite ? 'fictional_place_with_website' : 'fictional_place_no_website');
   expect(local).not.toContain('12 Sample Lane'); expect(local).not.toContain('fictional_sample'); expect(local).not.toContain('lh3.googleusercontent');

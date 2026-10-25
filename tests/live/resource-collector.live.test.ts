@@ -50,10 +50,14 @@ describe.skipIf(!LIVE_ENABLED)('live Resource Collector (paid, opt-in)', () => {
       expect(photo.width).toBeGreaterThan(0);
       expect(photo.authors.length).toBeGreaterThan(0);
       expect(photo.authors.every((a) => a.name.trim().length > 0)).toBe(true);
+      // Google's policy requires direct access to the source photo on Google Maps from every photo.
+      expect(photo.googleMapsUri).toMatch(/^https:\/\/([^/]+\.)?google\.[a-z.]+\//);
+      expect(photo.authors.some((a) => a.uri || a.photoUri)).toBe(true);
     }
     firstPhoto = listing.photos[0]?.name ?? null;
+    const credits = listing.photos.flatMap((p) => p.authors);
     console.log(
-      `Place Details ${placeId}: photos ${listing.photos.length}, author credits ${listing.photos.reduce((n, p) => n + p.authors.length, 0)}, hours ${listing.hours.length}, provider credits ${listing.attributions.length}, website listed false, phone listed ${Boolean(listing.phone)}`,
+      `Place Details ${placeId}: photos ${listing.photos.length}, author credits ${credits.length}, author avatars ${credits.filter((a) => a.photoUri).length}, author profiles ${credits.filter((a) => a.uri).length}, photo source links ${listing.photos.filter((p) => p.googleMapsUri).length}, hours ${listing.hours.length}, provider credits ${listing.attributions.length}, website listed false, phone listed ${Boolean(listing.phone)}`,
     );
   });
 

@@ -7,7 +7,7 @@ create table if not exists public.business_resource_entries (
   label text not null check (char_length(btrim(label)) between 2 and 120),
   value text not null check (char_length(btrim(value)) between 1 and 2000),
   source_kind text not null check (source_kind in ('business_owner','official_website','licensed_original')),
-  source_url text not null check (char_length(source_url) <= 2000 and source_url ~* '^https?://' and source_url !~* '^https?://([^/]*@)?([^/]*\.)?(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|ggpht\.com|facebook\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)([:/]|$)'),
+  source_url text not null check (char_length(source_url) <= 2000 and source_url ~* '^https?://' and source_url !~* '^https?://([^/]*@)?([^/]*\.)?(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|ggpht\.com|business\.site|facebook\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)([:/]|$)'),
   evidence text not null check (char_length(btrim(evidence)) between 15 and 1000),
   export_permission text not null check (export_permission in ('granted','denied')),
   independently_verified boolean not null check (independently_verified),

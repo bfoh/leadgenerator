@@ -25,7 +25,11 @@ it('isolates independent resources by organization and enforces the business bin
 });
 it('refuses Google-origin source types and URLs at the database boundary', async () => {
   await expect(as(db, OWNER, () => insert(org, 'https://maps.google.com/place/example'))).rejects.toThrow(/check constraint/i);
+  // The retired Google Business Profile host is Google content even when it looks like a website.
+  await expect(as(db, OWNER, () => insert(org, 'https://fictionalbakery.business.site/'))).rejects.toThrow(/check constraint/i);
   await expect(as(db, OWNER, () => insert(org, 'https://sample.example.org', 'google'))).rejects.toThrow(/check constraint/i);
+  // Only the host itself is refused, not a longer domain that happens to contain its name.
+  await as(db, OWNER, () => insert(org, 'https://notmybusiness.site/permission'));
 });
 it('allows a member to read but a viewer cannot create or revoke resource entries', async () => {
   const [entry] = await as(db, OWNER, () => insert());

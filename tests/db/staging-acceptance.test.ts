@@ -56,8 +56,10 @@ describe('staging acceptance for migrations 009 and 010', () => {
 
       // 6. Post-migration checks: every row must say ok.
       const after = await db.query<{ check: string; expected: string; actual: string; result: string }>(check('after-migrations.sql'));
-      expect(after.rows.length).toBeGreaterThanOrEqual(23);
-      expect(after.rows.filter((row) => row.result !== 'ok')).toEqual([]);
+      expect(after.rows.length).toBeGreaterThanOrEqual(33);
+      // This staging copy is current except for 009-011: 011 discovery is the one later migration the
+      // runbook still records as unapplied, so it is the only row that must report the gap.
+      expect(after.rows.filter((row) => row.result !== 'ok').map((row) => row.check)).toEqual(['011 discovery tables installed']);
       expect((await rows<{ n: number }>(db, 'select count(*)::int as n from public.ghana_districts'))[0].n).toBe(261);
 
       // 7–8. Create an active campaign and attach two prospects, one known only to district level.

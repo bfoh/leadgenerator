@@ -38,15 +38,17 @@ export async function googleResourceDetails(id: string): Promise<GoogleResourceL
   const p = await call(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}`, { headers: { 'X-Goog-Api-Key': serverEnv.placesKey(), 'X-Goog-FieldMask': RESOURCE_DETAIL_FIELDS } }, AbortSignal.timeout(10_000)) as PlaceJson & {
     regularOpeningHours?: { weekdayDescriptions?: string[] }; googleMapsLinks?: { directionsUri?: string };
     attributions?: { provider?: string; providerUri?: string }[];
-    photos?: { name?: string; widthPx?: number; heightPx?: number; authorAttributions?: { displayName?: string; uri?: string }[] }[];
+    photos?: { name?: string; widthPx?: number; heightPx?: number; googleMapsUri?: string; authorAttributions?: { displayName?: string; uri?: string; photoUri?: string }[] }[];
   };
   return { id: p.id ?? id, name: p.displayName?.text ?? 'Unnamed place', address: p.formattedAddress ?? null,
     phone: p.nationalPhoneNumber ?? null, website: httpLink(p.websiteUri), mapsUri: httpLink(p.googleMapsUri), directionsUri: httpLink(p.googleMapsLinks?.directionsUri),
     status: p.businessStatus ?? null, hours: p.regularOpeningHours?.weekdayDescriptions ?? [],
     attributions: (p.attributions ?? []).map((a) => ({ provider: a.provider ?? '', uri: httpLink(a.providerUri) })),
+    // Google requires the photo's author credit (avatar, name, profile link) and a direct link to the
+    // source photo on Google Maps; `name` is a display-only reference and is never stored.
     photos: (p.photos ?? []).slice(0, 6).filter((a) => a.name?.startsWith(`places/${id}/photos/`)).map((a) => ({
-      name: a.name!, width: a.widthPx ?? 0, height: a.heightPx ?? 0,
-      authors: (a.authorAttributions ?? []).map((v) => ({ name: v.displayName ?? 'Photo contributor', uri: httpLink(v.uri) })),
+      name: a.name!, width: a.widthPx ?? 0, height: a.heightPx ?? 0, googleMapsUri: httpLink(a.googleMapsUri),
+      authors: (a.authorAttributions ?? []).map((v) => ({ name: v.displayName ?? 'Photo contributor', uri: httpLink(v.uri), photoUri: httpLink(v.photoUri) })),
     })), simulated: false };
 }
 
