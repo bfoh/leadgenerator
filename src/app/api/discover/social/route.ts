@@ -51,24 +51,25 @@ export async function POST(req: NextRequest) {
 
     const outcome = await searchSocialCandidates(input, {
       signal: AbortSignal.timeout(20_000),
-      onQueryAnswered:
-        metered && ctx.mode !== 'demo'
-          ? async (query) => {
-              await recordUsage(ctx, {
-                provider: 'brave_search',
-                operation: 'social_discovery_search',
-                units: 1,
-                estimatedCostUsd: status.costPerQueryUsd,
-                metadata: {
-                  platform: query.platform,
-                  query: query.query,
-                  category: input.category,
-                  region: input.region,
-                  city: input.city,
-                },
-              });
-            }
-          : undefined,
+      // Recorded in every mode: demo mode counts in server memory, so DAILY_SOCIAL_DISCOVERY_QUOTA
+      // is a real brake on a local machine too. A paid query is never invisible to the quota.
+      onQueryAnswered: metered
+        ? async (query) => {
+            await recordUsage(ctx, {
+              provider: 'brave_search',
+              operation: 'social_discovery_search',
+              units: 1,
+              estimatedCostUsd: status.costPerQueryUsd,
+              metadata: {
+                platform: query.platform,
+                query: query.query,
+                category: input.category,
+                region: input.region,
+                city: input.city,
+              },
+            });
+          }
+        : undefined,
     });
 
     return ok({
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
       simulated: outcome.simulated,
       // Stated explicitly so a client can never mistake this for a stored list.
       retained: false,
-      usage: metered && ctx.mode === 'cloud'
+      usage: metered
         ? {
             provider: 'brave_search',
             operation: 'social_discovery_search',

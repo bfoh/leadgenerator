@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { candidateDomains } from '@/lib/server/domains';
 import { guardedLookup, inspectHtml, isPrivateAddress, parsePublicUrl, checkWebsite } from '@/lib/server/safe-fetch';
 import { rateLimit, resetRateLimits } from '@/lib/server/rate-limit';
+import { enforceQuota, recordUsage } from '@/lib/server/usage';
 import { placesTextQuery } from '@/lib/server/providers/google-places';
 import { demoProvider } from '@/lib/server/providers/demo-provider';
 import { googlePlacesProvider } from '@/lib/server/providers/google-places';
@@ -91,5 +92,23 @@ describe('discovery providers', () => {
       AbortSignal.timeout(1000),
     );
     expect(region.results.map((r) => r.address)).toEqual(Array(3).fill('Fictional address, Volta Region'));
+  });
+});
+
+describe('daily quotas in demo mode', () => {
+  // A local machine has no usage table, so the brake has to be server memory. Without this the
+  // social-discovery quota would read zero forever and never stop a second paid query.
+  it('counts each recorded paid query, then refuses the next one', async () => {
+    const ctx = { mode: 'demo' as const, key: `demo:quota-${Math.random()}` };
+    const operation = 'social_discovery_search';
+
+    await expect(enforceQuota(ctx, operation, 1)).resolves.toEqual({ used: 0, limit: 1 });
+    await recordUsage(ctx, { provider: 'brave_search', operation, units: 1, estimatedCostUsd: 0.005 });
+    await expect(enforceQuota(ctx, operation, 1)).rejects.toThrow(/quota reached/);
+  });
+
+  it('treats a zero limit as switched off', async () => {
+    const ctx = { mode: 'demo' as const, key: `demo:quota-${Math.random()}` };
+    await expect(enforceQuota(ctx, 'social_discovery_search', 0)).rejects.toThrow(/disabled/);
   });
 });
