@@ -27,6 +27,12 @@ search API, and it never fetches, parses or mirrors a profile page. Instagram, F
 not license keyword lead search, so treating their pages as a bulk lead source would breach their terms.
 
 - One query per selected platform: `site:instagram.com "<category phrase>" <town> <region> Ghana`.
+- Search-market targeting: Brave's `country` parameter is a closed list of search markets, not ISO
+  3166-1, and Ghana is not in it (`country=GH` is rejected with `422`). Requests therefore send
+  `country=ALL`, and the town, region, "Ghana" and the category phrase stay in the query text, where
+  they are what actually localises the search. Unsupported codes are replaced before the request is
+  built (`BRAVE_COUNTRY_CODES` in `src/lib/server/providers/web-search.ts`). Website verification
+  shares that provider and the same validation.
 - Only profile URLs are kept. Post, reel, story, share, group and numeric `profile.php` links are
   discarded, so every result resolves to a profile rather than a page that merely mentions one.
 - Results are transient. The route sets `Cache-Control: no-store`, the browser holds them in memory

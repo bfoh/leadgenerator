@@ -93,7 +93,9 @@ export async function searchSocialCandidates(input: SocialDiscoveryRequest, opts
   const search = opts.search ?? braveSearchProvider;
   const candidates: SocialCandidate[] = [];
   for (const query of queries) {
-    const hits = await search.search(query.query, opts.signal);
+    // The country travels as a hint only: Brave's `country` list has no Ghana, so the provider
+    // replaces it with ALL and the place words stay in the query text (see buildSocialQueries).
+    const hits = await search.search(query.query, opts.signal, { country: input.country });
     for (const hit of hits) {
       const candidate = socialCandidateFromHit(hit, query.platform, input, query.query);
       if (candidate) candidates.push(candidate);
