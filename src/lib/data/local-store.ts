@@ -60,6 +60,17 @@ import {
   type StudioBrandKitApproval,
   type StudioBrandKitVersion,
 } from '@/lib/domain/studio-assets';
+import {
+  briefProblems,
+  conceptApprovalProblems,
+  currentDirectionApproval,
+  directionProblems,
+  latestBriefConfirmation,
+  type StudioCreativeBrief,
+  type StudioCreativeBriefReview,
+  type StudioCreativeDirection,
+  type StudioCreativeDirectionReview,
+} from '@/lib/domain/creative-direction';
 import type {
   Activity,
   AuditEvent,
@@ -145,6 +156,11 @@ interface DemoState {
   studioBrandKits: StudioBrandKit[];
   studioBrandKitVersions: StudioBrandKitVersion[];
   studioBrandKitApprovals: StudioBrandKitApproval[];
+  /** Added with creative direction (migration 014); filled in on load for older demo data. */
+  studioCreativeBriefs: StudioCreativeBrief[];
+  studioCreativeBriefReviews: StudioCreativeBriefReview[];
+  studioCreativeDirections: StudioCreativeDirection[];
+  studioCreativeDirectionReviews: StudioCreativeDirectionReview[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -189,6 +205,8 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   studioAssets: 'studio_assets',
   studioAssetReferences: 'studio_asset_references',
   studioBrandKits: 'studio_brand_kits',
+  studioCreativeBriefs: 'studio_creative_briefs',
+  studioCreativeDirections: 'studio_creative_directions',
 };
 /** Mirrors guard_verification_update and guard_audit_finding_update in migration 004. */
 const VERIFICATION_REVIEW_FIELDS = new Set(['reviewStatus', 'reviewNote', 'reviewedBy', 'reviewedAt']);
@@ -237,6 +255,10 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     studioBrandKits: [],
     studioBrandKitVersions: [],
     studioBrandKitApprovals: [],
+    studioCreativeBriefs: [],
+    studioCreativeBriefReviews: [],
+    studioCreativeDirections: [],
+    studioCreativeDirectionReviews: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -294,6 +316,10 @@ const INSERT_ONLY = new Set<keyof Tables>([
   'studioAssetEvents',
   'studioBrandKitVersions',
   'studioBrandKitApprovals',
+  'studioCreativeBriefs',
+  'studioCreativeBriefReviews',
+  'studioCreativeDirections',
+  'studioCreativeDirectionReviews',
 ]);
 const PROVIDER_SOURCES = new Set(['licensed_dataset', 'authorized_directory', 'enrichment_provider']);
 /** Mirrors the generated match_key / channel_key and the active-entry unique index of migration 005. */
@@ -355,6 +381,10 @@ export class LocalStore implements DataStore {
           parsed.studioBrandKits ??= [];
           parsed.studioBrandKitVersions ??= [];
           parsed.studioBrandKitApprovals ??= [];
+          parsed.studioCreativeBriefs ??= [];
+          parsed.studioCreativeBriefReviews ??= [];
+          parsed.studioCreativeDirections ??= [];
+          parsed.studioCreativeDirectionReviews ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -530,6 +560,11 @@ export class LocalStore implements DataStore {
       this.remove('studioBrandKitApprovals', (a) => kitIds.has(a.kitId));
       this.remove('studioBrandKitVersions', (v) => kitIds.has(v.kitId));
       this.remove('studioBrandKits', (k) => studioIds.has(k.projectId));
+      // Migration 014: briefs, directions and their reviews are scoped to the concept.
+      this.remove('studioCreativeBriefReviews', (r) => studioIds.has(r.projectId));
+      this.remove('studioCreativeBriefs', (r) => studioIds.has(r.projectId));
+      this.remove('studioCreativeDirectionReviews', (r) => studioIds.has(r.projectId));
+      this.remove('studioCreativeDirections', (r) => studioIds.has(r.projectId));
       this.remove('studioProjects', (p) => p.businessId === id);
       for (const sup of this.state.suppressions) {
         if (sup.businessId === id) sup.businessId = null;
@@ -1336,6 +1371,10 @@ export class LocalStore implements DataStore {
       this.remove('studioBrandKitApprovals', (a) => kits.includes(a.kitId));
       this.remove('studioBrandKitVersions', (v) => kits.includes(v.kitId));
       this.remove('studioBrandKits', (k) => k.projectId === id);
+      this.remove('studioCreativeBriefReviews', (r) => r.projectId === id);
+      this.remove('studioCreativeBriefs', (r) => r.projectId === id);
+      this.remove('studioCreativeDirectionReviews', (r) => r.projectId === id);
+      this.remove('studioCreativeDirections', (r) => r.projectId === id);
       this.remove('studioProjects', (p) => p.id === id);
     });
   async listStudioObservations(projectId?: string) {
@@ -1572,6 +1611,104 @@ export class LocalStore implements DataStore {
       this.state.studioBrandKitApprovals.push(row);
       this.persist();
       return clone(row);
+    });
+
+  // ── Creative direction (migration 014) ──
+  async creativeDirectionSchemaAvailable() {
+    return true;
+  }
+  async listStudioCreativeBriefs(projectId?: string) {
+    return clone(this.state.studioCreativeBriefs.filter((brief) => !projectId || brief.projectId === projectId).sort((a, b) => b.version - a.version));
+  }
+  async getStudioCreativeBrief(id: string) {
+    return clone(this.state.studioCreativeBriefs.find((brief) => brief.id === id) ?? null);
+  }
+  createStudioCreativeBrief: DataStore['createStudioCreativeBrief'] = (input) =>
+    this.commit(() => {
+      const project = this.state.studioProjects.find((entry) => entry.id === input.projectId);
+      if (!project) throw new StoreError('Website concept not found', 'not_found');
+      if (project.status === 'archived') throw new StoreError('This concept is archived. Restore it before writing a brief.', 'conflict');
+      const latest = Math.max(0, ...this.state.studioCreativeBriefs.filter((brief) => brief.projectId === input.projectId).map((brief) => brief.version));
+      if (input.version !== latest + 1) throw new StoreError(`The next brief version is ${latest + 1}.`, 'conflict');
+      if (input.note.length > 1000) throw new StoreError('A brief note is limited to 1,000 characters.', 'invalid');
+      const assets = this.state.studioAssets.filter((asset) => asset.projectId === input.projectId);
+      const problems = briefProblems(input.content, assets);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      return this.insert('studioCreativeBriefs', { ...input, note: input.note.trim(), createdBy: this.userId });
+    });
+  async listStudioCreativeBriefReviews(projectId?: string) {
+    return clone(this.state.studioCreativeBriefReviews.filter((review) => !projectId || review.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  createStudioCreativeBriefReview: DataStore['createStudioCreativeBriefReview'] = (input) =>
+    this.commit(() => {
+      const brief = this.state.studioCreativeBriefs.find((entry) => entry.id === input.briefId && entry.projectId === input.projectId);
+      if (!brief) throw new StoreError('Creative brief not found', 'not_found');
+      const note = input.note.trim();
+      if (!['confirm', 'reject', 'note'].includes(input.decision)) throw new StoreError('Choose a valid brief decision.', 'invalid');
+      if (input.decision !== 'note' && note.length < 3) throw new StoreError('Explain the decision in a few words.', 'invalid');
+      if (note.length > 1000) throw new StoreError('A review note is limited to 1,000 characters.', 'invalid');
+      const latest = Math.max(...this.state.studioCreativeBriefs.filter((entry) => entry.projectId === input.projectId).map((entry) => entry.version));
+      if (input.decision === 'confirm' && brief.version < latest) throw new StoreError(`Brief version ${latest} is newer. Confirm that version instead.`, 'conflict');
+      const current = latestBriefConfirmation(this.state.studioCreativeBriefReviews.filter((review) => review.projectId === input.projectId));
+      if (input.decision === 'confirm' && current) {
+        const currentBrief = this.state.studioCreativeBriefs.find((entry) => entry.id === current.briefId);
+        if (currentBrief && brief.version < currentBrief.version) throw new StoreError(`Brief version ${brief.version} is older than the confirmed version (${currentBrief.version}).`, 'invalid');
+      }
+      return this.insert('studioCreativeBriefReviews', { ...input, note, reviewerId: this.userId });
+    });
+  async listStudioCreativeDirections(projectId?: string) {
+    return clone(this.state.studioCreativeDirections.filter((direction) => !projectId || direction.projectId === projectId).sort((a, b) => b.version - a.version));
+  }
+  async getStudioCreativeDirection(id: string) {
+    return clone(this.state.studioCreativeDirections.find((direction) => direction.id === id) ?? null);
+  }
+  createStudioCreativeDirection: DataStore['createStudioCreativeDirection'] = (input) =>
+    this.commit(() => {
+      const project = this.state.studioProjects.find((entry) => entry.id === input.projectId);
+      if (!project) throw new StoreError('Website concept not found', 'not_found');
+      if (project.status === 'archived') throw new StoreError('This concept is archived. Restore it before proposing directions.', 'conflict');
+      const brief = this.state.studioCreativeBriefs.find((entry) => entry.id === input.briefId && entry.projectId === input.projectId);
+      if (!brief) throw new StoreError('The brief for this direction does not belong to the concept.', 'invalid');
+      const confirmation = latestBriefConfirmation(this.state.studioCreativeBriefReviews.filter((review) => review.projectId === input.projectId));
+      if (!confirmation || confirmation.briefId !== brief.id) throw new StoreError('Confirm the latest brief before proposing directions.', 'conflict');
+      const latest = Math.max(0, ...this.state.studioCreativeDirections.filter((direction) => direction.projectId === input.projectId).map((direction) => direction.version));
+      if (input.version !== latest + 1) throw new StoreError(`The next direction version is ${latest + 1}.`, 'conflict');
+      if (input.derivedFromId && !this.state.studioCreativeDirections.some((direction) => direction.id === input.derivedFromId && direction.projectId === input.projectId)) {
+        throw new StoreError('The direction this one derives from does not belong to the concept.', 'invalid');
+      }
+      if (!['deterministic', 'ai_assisted'].includes(input.generatedBy)) throw new StoreError('Choose how the direction was generated.', 'invalid');
+      const assets = this.state.studioAssets.filter((asset) => asset.projectId === input.projectId);
+      const problems = directionProblems(input.content, brief.content, assets);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      return this.insert('studioCreativeDirections', { ...input, note: input.note.trim().slice(0, 1000), createdBy: this.userId });
+    });
+  async listStudioCreativeDirectionReviews(projectId?: string) {
+    return clone(this.state.studioCreativeDirectionReviews.filter((review) => !projectId || review.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  createStudioCreativeDirectionReview: DataStore['createStudioCreativeDirectionReview'] = (input) =>
+    this.commit(() => {
+      const direction = this.state.studioCreativeDirections.find((entry) => entry.id === input.directionId && entry.projectId === input.projectId);
+      if (!direction) throw new StoreError('Creative direction not found', 'not_found');
+      if (!direction.content.concepts.some((concept) => concept.key === input.conceptKey)) throw new StoreError('That concept is not in this direction.', 'invalid');
+      if (!['feedback', 'request_changes', 'approve', 'reject'].includes(input.decision)) throw new StoreError('Choose a valid direction decision.', 'invalid');
+      const note = input.note.trim();
+      if (note.length < 3) throw new StoreError('Explain the decision in a few words.', 'invalid');
+      if (note.length > 1000) throw new StoreError('A review note is limited to 1,000 characters.', 'invalid');
+      if (input.decision === 'approve') {
+        const brief = this.state.studioCreativeBriefs.find((entry) => entry.id === direction.briefId);
+        const confirmation = latestBriefConfirmation(this.state.studioCreativeBriefReviews.filter((review) => review.projectId === input.projectId));
+        if (!brief || !confirmation || confirmation.briefId !== brief.id) throw new StoreError('Confirm the latest brief before approving a concept.', 'conflict');
+        const problems = conceptApprovalProblems(direction.content, input.conceptKey);
+        if (problems.length) throw new StoreError(problems[0], 'invalid');
+        const current = currentDirectionApproval(this.state.studioCreativeDirectionReviews.filter((review) => review.projectId === input.projectId));
+        if (current) {
+          const approvedDirection = this.state.studioCreativeDirections.find((entry) => entry.id === current.directionId);
+          if (approvedDirection && direction.version < approvedDirection.version) {
+            throw new StoreError(`Direction version ${direction.version} is older than the approved version (${approvedDirection.version}).`, 'invalid');
+          }
+        }
+      }
+      return this.insert('studioCreativeDirectionReviews', { ...input, note, reviewerId: this.userId });
     });
 
   // ── Settings, audit, usage ──

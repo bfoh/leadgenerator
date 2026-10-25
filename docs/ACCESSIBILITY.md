@@ -1,6 +1,6 @@
 # Accessibility Review (Phase 10)
 
-Target: **WCAG 2.1 AA** on desktop and phone, in light and dark themes. Date: 2026-10-23.
+Target: **WCAG 2.1 AA** on desktop and phone, in light and dark themes (the Studio also designs to WCAG 2.2 AA constraints: target size, focus not obscured, dragging alternatives). Date: 2026-10-25.
 
 ## 1. Automated coverage
 
@@ -10,6 +10,9 @@ Target: **WCAG 2.1 AA** on desktop and phone, in light and dark themes. Date: 20
 | axe on every prospect profile tab (overview, verification, audit, score, contacts, next steps, reports, proposals, activity), the proposal editor, the proposal print view and the meeting brief, light and dark | `tests/e2e/accessibility.spec.ts` |
 | axe on the Website Studio list and on a concept with recorded evidence (run selector, the four evidence groups, reviews, brief), light and dark | `tests/e2e/studio.spec.ts` |
 | axe on the Studio Asset vault (upload, review, permissions, references, history) and the Brand Kit (logo selection, palette, typography, direction, version history), light and dark | `tests/e2e/studio-assets.spec.ts` |
+| axe on the Creative direction tab (brief with basis badges and evidence, typography and colour specimens, three-concept comparison, direction board, advisory review, feedback/edit/approval history), light and dark | `tests/e2e/creative-direction.spec.ts` |
+| Studio colour tokens: every text pair is measured in code and adjusted to WCAG AA (4.5:1) before a concept can be approved; the support tone is held at 3:1 | `unit/creative-direction` (brief contrast and token rules) |
+| Studio motion: every concept names a reduced-motion alternative and may animate only opacity, transform or clip-path | `unit/creative-direction` (motion and direction validation) |
 | axe inside flows (Next steps after a reply, outreach dialogs, contacts) | `e2e/conversion`, `e2e/outreach`, `e2e/contacts` |
 | Keyboard: the skip link moves focus to the main content; a dialog opened from the keyboard keeps Tab inside it, closes on Escape and returns focus to its opener; tabs move with the arrow keys | `e2e/accessibility` |
 | Reduced motion: with `prefers-reduced-motion: reduce`, no animation or transition runs longer than 0.01 ms | `e2e/accessibility` |

@@ -166,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ModeBadge />
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8">
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1400px] flex-1 overflow-x-clip px-4 py-6 focus:outline-none sm:px-6 lg:px-8">
           <div className="mb-4 md:hidden">
             <ModeBadge />
           </div>

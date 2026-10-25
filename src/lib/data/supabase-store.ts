@@ -40,7 +40,13 @@ import type {
   StudioBrandKitApproval,
   StudioBrandKitVersion,
 } from '@/lib/domain/studio-assets';
-import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import type {
+  StudioCreativeBrief,
+  StudioCreativeBriefReview,
+  StudioCreativeDirection,
+  StudioCreativeDirectionReview,
+} from '@/lib/domain/creative-direction';
+import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -100,6 +106,7 @@ export class SupabaseStore implements DataStore {
   private conversion: Promise<boolean> | null = null;
   private studio: Promise<boolean> | null = null;
   private vault: Promise<boolean> | null = null;
+  private creative: Promise<boolean> | null = null;
 
   constructor(
     private readonly sb: SupabaseClient,
@@ -633,6 +640,65 @@ export class SupabaseStore implements DataStore {
     await this.requireAssetVault();
     return this.insertRow<StudioBrandKitApproval>('studio_brand_kit_approvals', input);
   };
+
+  // ── Creative direction (migration 014) ──
+  /** Whether migration 014 is applied. Probed once per store. */
+  creativeDirectionSchemaAvailable() {
+    this.creative ??= (async () => {
+      const { error } = await this.sb.from('studio_creative_briefs').select('id', { head: true, count: 'exact' }).eq('organization_id', this.organizationId).limit(1);
+      if (error && MISSING.has(error.code)) return false;
+      if (error) {
+        this.creative = null;
+        throw storeError(error);
+      }
+      return true;
+    })();
+    return this.creative;
+  }
+  private async requireCreativeDirection() {
+    if (!(await this.creativeDirectionSchemaAvailable())) throw new StoreError(CREATIVE_DIRECTION_MIGRATION_REQUIRED, 'unavailable');
+  }
+  async listStudioCreativeBriefs(projectId?: string) {
+    if (!(await this.creativeDirectionSchemaAvailable())) return [];
+    return this.all<StudioCreativeBrief>('studio_creative_briefs', (q) => (projectId ? q.eq('project_id', projectId) : q).order('version', { ascending: false }));
+  }
+  async getStudioCreativeBrief(id: string) {
+    if (!UUID.test(id) || !(await this.creativeDirectionSchemaAvailable())) return null;
+    return this.one<StudioCreativeBrief>('studio_creative_briefs', id);
+  }
+  createStudioCreativeBrief: DataStore['createStudioCreativeBrief'] = async (input) => {
+    await this.requireCreativeDirection();
+    return this.insertRow<StudioCreativeBrief>('studio_creative_briefs', input);
+  };
+  async listStudioCreativeBriefReviews(projectId?: string) {
+    if (!(await this.creativeDirectionSchemaAvailable())) return [];
+    return this.all<StudioCreativeBriefReview>('studio_creative_brief_reviews', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  createStudioCreativeBriefReview: DataStore['createStudioCreativeBriefReview'] = async (input) => {
+    await this.requireCreativeDirection();
+    return this.insertRow<StudioCreativeBriefReview>('studio_creative_brief_reviews', input);
+  };
+  async listStudioCreativeDirections(projectId?: string) {
+    if (!(await this.creativeDirectionSchemaAvailable())) return [];
+    return this.all<StudioCreativeDirection>('studio_creative_directions', (q) => (projectId ? q.eq('project_id', projectId) : q).order('version', { ascending: false }));
+  }
+  async getStudioCreativeDirection(id: string) {
+    if (!UUID.test(id) || !(await this.creativeDirectionSchemaAvailable())) return null;
+    return this.one<StudioCreativeDirection>('studio_creative_directions', id);
+  }
+  createStudioCreativeDirection: DataStore['createStudioCreativeDirection'] = async (input) => {
+    await this.requireCreativeDirection();
+    return this.insertRow<StudioCreativeDirection>('studio_creative_directions', input);
+  };
+  async listStudioCreativeDirectionReviews(projectId?: string) {
+    if (!(await this.creativeDirectionSchemaAvailable())) return [];
+    return this.all<StudioCreativeDirectionReview>('studio_creative_direction_reviews', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  createStudioCreativeDirectionReview: DataStore['createStudioCreativeDirectionReview'] = async (input) => {
+    await this.requireCreativeDirection();
+    return this.insertRow<StudioCreativeDirectionReview>('studio_creative_direction_reviews', input);
+  };
+
 
   async listInboundMessages(businessId?: string) {
     if (!(await this.messagingSchemaAvailable())) return [];

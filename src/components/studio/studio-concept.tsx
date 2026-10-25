@@ -36,6 +36,7 @@ import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { StudioAssetVault } from './asset-vault';
 import { StudioBrandKitPanel } from './brand-kit';
 import { ConceptBrief, ObservationRow, ReviewDialog, ReviewTrail } from './concept-evidence';
+import { StudioCreativeDirectionPanel } from './creative-direction';
 
 interface InspectResponse {
   facts: PageFacts | null;
@@ -190,10 +191,11 @@ export function StudioConceptView({ id }: { id: string }) {
       )}
 
       <Tabs defaultValue="evidence">
-        <TabsList label="Studio sections">
+        <TabsList label="Studio sections" className="flex-wrap">
           <TabsTrigger value="evidence" count={observations.length}>Evidence</TabsTrigger>
           <TabsTrigger value="assets" count={assets.length}>Asset vault</TabsTrigger>
           <TabsTrigger value="brand-kit">Brand Kit</TabsTrigger>
+          <TabsTrigger value="creative-direction">Creative direction</TabsTrigger>
         </TabsList>
         <TabsContent value="evidence" className="space-y-5 pt-5">
           <ConceptBrief project={project} editable={editable} siteUrl={siteUrl} />
@@ -237,6 +239,9 @@ export function StudioConceptView({ id }: { id: string }) {
         </TabsContent>
         <TabsContent value="brand-kit" className="space-y-5 pt-5">
           <StudioBrandKitPanel project={project} editable={editable} />
+        </TabsContent>
+        <TabsContent value="creative-direction" className="space-y-5 pt-5">
+          <StudioCreativeDirectionPanel project={project} editable={editable} />
         </TabsContent>
       </Tabs>
       {reviewTarget && (

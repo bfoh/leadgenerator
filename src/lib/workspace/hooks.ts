@@ -62,6 +62,14 @@ export const useAssetVaultSchema = () => useStoreQuery(['asset-vault-schema'], (
 export const useStudioAssets = (projectId?: string) => useStoreQuery(['studio-assets', projectId ?? 'all'], (s) => s.listStudioAssets(projectId));
 export const useStudioAssetEvents = (projectId?: string) => useStoreQuery(['studio-asset-events', projectId ?? 'all'], (s) => s.listStudioAssetEvents(projectId));
 export const useStudioAssetReferences = (projectId?: string) => useStoreQuery(['studio-asset-references', projectId ?? 'all'], (s) => s.listStudioAssetReferences(projectId));
+/** Whether migration 014 (creative briefs, directions, reviews) is applied. */
+export const useCreativeDirectionSchema = () => useStoreQuery(['creative-direction-schema'], (s) => s.creativeDirectionSchemaAvailable());
+/** Immutable brief versions, newest first. */
+export const useCreativeBriefs = (projectId: string) => useStoreQuery(['creative-briefs', projectId], (s) => s.listStudioCreativeBriefs(projectId));
+export const useCreativeBriefReviews = (projectId: string) => useStoreQuery(['creative-brief-reviews', projectId], (s) => s.listStudioCreativeBriefReviews(projectId));
+/** Immutable direction versions, newest first. */
+export const useCreativeDirections = (projectId: string) => useStoreQuery(['creative-directions', projectId], (s) => s.listStudioCreativeDirections(projectId));
+export const useCreativeDirectionReviews = (projectId: string) => useStoreQuery(['creative-direction-reviews', projectId], (s) => s.listStudioCreativeDirectionReviews(projectId));
 /** The kit with its immutable versions and append-only approvals, newest first. */
 export const useStudioBrandKit = (projectId: string) =>
   useStoreQuery(['studio-brand-kit', projectId], async (s) => {

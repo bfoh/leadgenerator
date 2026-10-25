@@ -9,8 +9,10 @@ Studio will not cross.
 
 Milestone status is recorded in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md). Phase 1 is
 implemented (milestone 3C.1, migration 012); phase 2 is implemented by milestone 3C.2 (migration 013);
-phases 3–6 are specified here and not built. Nothing in this document authorises a deployment, a paid
-provider call or a production migration.
+phase 3 is implemented by milestone 3C.3 (migration 014), with its architecture, typography licensing,
+token system, motion language and review framework specified in
+[CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md). Phases 4–6 are specified here and not built. Nothing in
+this document authorises a deployment, a paid provider call or a production migration.
 
 ## 1. The creative standard
 
@@ -61,9 +63,10 @@ client receives.
 3. **One concept per prospect.** A live concept is the working design for that business; an archived
    concept is history. A second concept starts only after the first is archived, so "which version did
    the client approve?" always has one answer.
-4. **History is append-only.** Analysis runs, reviews, asset events and brand-kit versions are added, not
-   edited. A correction is a new record. The approved brand kit is a pointer, so the content a version
-   contained can always be reconstructed.
+4. **History is append-only.** Analysis runs, reviews, asset events, brand-kit versions, creative briefs,
+   direction sets and their reviews are added, not edited. A correction is a new record. The approved
+   brand kit and the approved concept are pointers, so the content a person signed off can always be
+   reconstructed.
 5. **Private by default.** Every file, reference and presentation lives behind the organization's
    membership and role checks. Nothing about a prospect is public until the business approves a
    presentation and, later, a publication.
@@ -115,23 +118,34 @@ files with a licensing manifest.
 *Gate:* every asset used by later phases is approved and carries permission for the intended use. The
 approved Brand Kit names its typography licences. No restricted reference has been promoted silently.
 
-### Phase 3 — Creative Direction (milestone 3C.3, specified)
+### Phase 3 — Creative Direction (milestone 3C.3, implemented)
 
 *Input:* the approved Brand Kit, the reviewed evidence and the concept brief.
 
-*What happens:* the Creative Director Engine proposes **two or three distinct territories**, not one
-template with colour options. Each territory is an argued position: a concept statement, audience and
-business rationale, art-direction references (links and notes only, with licence status where the
-reference is not ours), a typographic pairing with roles and licences, colour logic, photography or
-illustration treatment, motion language, and the trade-offs it accepts. Our own generated imagery is
-labelled as generated; references to other designers' work are cited as research and never reproduced.
+*What happens:* the Studio builds a versioned **Creative Direction Brief** and then proposes **exactly
+three structurally different territories** — not one template with colour options. Every brief
+assertion is labelled as a verified fact, business record, approved kit claim, approved file, creative
+suggestion, Studio standard or client confirmation, with its evidence; gaps become questions. The
+engine is deterministic and offline by default. Each territory is an argued position: a one-sentence
+idea, narrative, audience and business rationale, typography with roles and licences, colour logic with
+measured contrast, composition family, photography direction, a single motion direction with a
+reduced-motion alternative, conversion path, responsive behaviour, trade-offs, risks and an advisory
+twelve-dimension review. The three concepts must differ in composition, motion, typographic pairing and
+colour ground. Typefaces come from an OFL catalogue; no font is downloaded or redistributed, and a
+client's commercial licence is a confirmation requirement rather than an assumption.
 
-*What is produced:* a direction document that a senior designer can defend in a client meeting, with the
-research behind each choice. The team selects one territory (or asks for a new one) and records why.
+*What is produced:* a brief a person confirms with a note, and an immutable direction version a senior
+designer can defend in a client meeting, including the research behind each choice. The team can compare
+the three concepts, record feedback, request changes, edit into a new version and approve one concept by
+name. Approval is a human decision; scores are advisory.
 
-*Gate:* a design lead signs the direction off against the creative standard. Typography licences are
+*Gate:* a design lead signs one concept off against the creative standard. Typography licences are
 confirmed for web embedding, including the languages the site will use. No direction relies on an
-unlicensed image or an unapproved asset.
+unlicensed image or an unapproved asset, and the latest brief must be confirmed before a direction is
+generated or approved.
+
+*Specification:* [CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md). The three flagship demonstrations are
+indexed in [CREATIVE_DEMOS.md](CREATIVE_DEMOS.md).
 
 ### Phase 4 — Bespoke Design and Build (milestone 3C.4, specified)
 
@@ -238,7 +252,7 @@ exported or published, by construction.
 
 ## 5. Data and storage architecture
 
-### 5.1 Tables (migrations 012 and 013, not applied to production)
+### 5.1 Tables (migrations 012, 013 and 014, not applied to production)
 
 | Table | Role | Mutability |
 | --- | --- | --- |
@@ -251,11 +265,23 @@ exported or published, by construction.
 | `studio_brand_kits` | One kit identity per concept | Editable, audited |
 | `studio_brand_kit_versions` | Structured, immutable Brand Kit content (palette, type, assets, voice) | Append-only |
 | `studio_brand_kit_approvals` | Names the version a person approved, and why | Append-only |
+| `studio_creative_briefs` | Numbered Creative Direction Brief with provenance and open questions | Immutable |
+| `studio_creative_brief_reviews` | A person's confirm, reject or note about a brief | Append-only |
+| `studio_creative_directions` | Immutable sets of three structurally different concepts | Immutable |
+| `studio_creative_direction_reviews` | Feedback, change request, approval and rejection, naming the concept | Append-only |
 
 The Brand Kit version content is validated in the database as well as in the service: it must be a JSON
 object with the expected sections, and every asset id it references must belong to the same concept and
 be approved. A version cannot be edited; an approval is a separate append-only row, so the content a
 person approved can always be reconstructed, and an older version cannot be approved after a newer one.
+
+Creative direction is held to the same standard. A brief's assertions must carry a known basis and the
+evidence that basis requires; a direction must cite a confirmed latest brief, an approved Brand Kit
+version, approved prototype-cleared assets of the same concept and observations of the same concept,
+and its three concepts must have distinct keys, compositions, motions, pairings and colour grounds. An
+approval is append-only and requires the latest confirmed brief; a later change request or rejection
+revokes it, and a concept may be re-approved after the changes are addressed; an older direction cannot
+be approved after a newer one.
 
 ### 5.2 Private storage
 
@@ -282,6 +308,8 @@ Uploading, annotating, approving, rejecting, revoking, replacing and deleting an
 in `studio_asset_events` and an entry on the prospect's timeline. The asset table also participates in
 the workspace audit trail, so a changed permission or licence can be traced to a person and a time.
 Exports are logged with the number of files and the manifest hash, never with the file contents.
+Creative direction logs each brief version, confirmation, proposed direction, revision and review on the
+prospect timeline, with version and concept ids rather than the full document.
 
 
 ## 6. Quality gates
@@ -292,7 +320,7 @@ A concept may not move to the next phase until the gate for the current one is m
 | --- | --- | --- |
 | 1 Brand intelligence | Evidence reviewed; unknowns listed for the business | Reviews on the run; brief written |
 | 2 Vault and Brand Kit | Every usable asset approved with permission and licence; kit version approved | Asset events; approved kit version |
-| 3 Creative direction | Direction signed off against the creative standard; type licences confirmed | Direction document with rationale |
+| 3 Creative direction | Direction signed off against the creative standard; type licences confirmed | Confirmed brief; approved concept with rationale; licence and contrast evidence |
 | 4 Design and build | Design review; accessibility; publish-permission check | Review notes; axe results; asset audit |
 | 5 Client presentation | Client approved a named version through a private link | Presentation decision record |
 | 6 Handover and publication | Every asset publishable or replaced; attribution and expiry scheduled | Publication record; manifest |
@@ -328,8 +356,15 @@ RLS in the database is authoritative. The UI mirrors it with `studio.write`, `re
 - No downloading or re-hosting of third-party images, including from Google Maps, company websites or
   social media. No scraping, crawling or harvesting beyond the single guarded homepage reading in
   phase 1.
+- No downloaded, bundled or redistributed font files. Typography is recommended from a catalogue whose
+  licences permit web embedding and self-hosting; a client's own commercial licence is a confirmation
+  requirement, not an assumption.
 - No AI-generated imitation of a living designer's work or a real brand's identity, and no generated
   logo presented as the client's existing mark.
+- No arbitrary generated CSS, HTML or animation code. The engine produces structured tokens and motion
+  specifications; a renderer implements them, with reduced motion.
+- No paid model call in creative direction by default. The optional enhancement boundary is disabled
+  until explicitly configured and authorised, and remains uncalled.
 - No publishing, exporting or presenting an asset without the specific permission for that use, a
   current licence and an approval by a named person.
 - No silent promotion of a reference into an asset; the only route is a new upload with provenance.
@@ -343,7 +378,8 @@ RLS in the database is authoritative. The UI mirrors it with `studio.write`, `re
 | --- | --- | --- |
 | 1 | `src/lib/domain/studio.ts`, `src/lib/data/studio-services.ts`, `src/components/studio/*` | 012 |
 | 2 | `src/lib/domain/studio-assets.ts`, `src/lib/data/studio-asset-services.ts`, `src/lib/data/asset-storage.ts`, `src/components/studio/asset-vault.tsx`, `brand-kit.tsx` | 013 |
-| 3–6 | Not built | — |
+| 3 | `src/lib/domain/creative-direction.ts`, `font-catalogue.ts`, `design-tokens.ts`, `src/lib/data/creative-direction-services.ts`, `src/components/studio/creative-*.tsx` | 014 |
+| 4–6 | Not built | — |
 
 The roadmap entry for each milestone records what was built, what was tested and what remains. When a
 later phase changes a rule in this document, the document changes with it: this is the specification the

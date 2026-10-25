@@ -42,6 +42,16 @@ import type {
   StudioBrandKitVersionInsert,
 } from '@/lib/domain/studio-assets';
 import type {
+  StudioCreativeBrief,
+  StudioCreativeBriefInsert,
+  StudioCreativeBriefReview,
+  StudioCreativeBriefReviewInsert,
+  StudioCreativeDirection,
+  StudioCreativeDirectionInsert,
+  StudioCreativeDirectionReview,
+  StudioCreativeDirectionReviewInsert,
+} from '@/lib/domain/creative-direction';
+import type {
   Activity,
   ActivityInsert,
   AuditEvent,
@@ -235,6 +245,24 @@ export interface DataStore {
   listStudioBrandKitApprovals(kitId: string): Promise<StudioBrandKitApproval[]>;
   createStudioBrandKitApproval(input: StudioBrandKitApprovalInsert): Promise<StudioBrandKitApproval>;
 
+  /** False when the cloud database has not had migration 014 (creative direction). */
+  creativeDirectionSchemaAvailable(): Promise<boolean>;
+  /** Immutable, numbered briefs for one concept, newest first. */
+  listStudioCreativeBriefs(projectId?: string): Promise<StudioCreativeBrief[]>;
+  getStudioCreativeBrief(id: string): Promise<StudioCreativeBrief | null>;
+  createStudioCreativeBrief(input: StudioCreativeBriefInsert): Promise<StudioCreativeBrief>;
+  /** Confirm, reject or note; append-only. */
+  listStudioCreativeBriefReviews(projectId?: string): Promise<StudioCreativeBriefReview[]>;
+  createStudioCreativeBriefReview(input: StudioCreativeBriefReviewInsert): Promise<StudioCreativeBriefReview>;
+  /** Immutable direction sets, each holding three concepts, newest first. */
+  listStudioCreativeDirections(projectId?: string): Promise<StudioCreativeDirection[]>;
+  getStudioCreativeDirection(id: string): Promise<StudioCreativeDirection | null>;
+  createStudioCreativeDirection(input: StudioCreativeDirectionInsert): Promise<StudioCreativeDirection>;
+  /** Feedback, change requests, approvals and rejections; append-only. */
+  listStudioCreativeDirectionReviews(projectId?: string): Promise<StudioCreativeDirectionReview[]>;
+  createStudioCreativeDirectionReview(input: StudioCreativeDirectionReviewInsert): Promise<StudioCreativeDirectionReview>;
+
+
   getSettings(): Promise<OrgSettings>;
   updateSettings(settings: OrgSettings, organizationName?: string): Promise<OrgSettings>;
 
@@ -281,3 +309,6 @@ export const STUDIO_MIGRATION_REQUIRED =
 
 export const ASSET_VAULT_MIGRATION_REQUIRED =
   'Apply database migration 013 (supabase/migrations/013_studio_asset_vault.sql) to use the asset vault, Brand Kit and approved exports.';
+
+export const CREATIVE_DIRECTION_MIGRATION_REQUIRED =
+  'Apply database migration 014 (supabase/migrations/014_studio_creative_direction.sql) to use the Creative Direction Brief, territories and approvals.';

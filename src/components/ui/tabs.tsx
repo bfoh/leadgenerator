@@ -8,7 +8,7 @@ export const TabsContent = T.Content;
 
 export function TabsList({ className, children, label }: { className?: string; children: React.ReactNode; label: string }) {
   return (
-    <T.List aria-label={label} className={cn('-mb-px flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]', className)}>
+    <T.List aria-label={label} className={cn('-mb-px flex w-full min-w-0 max-w-full gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]', className)}>
       {children}
     </T.List>
   );

@@ -1,0 +1,3496 @@
+{
+  "format": "dof-creative-demo/1",
+  "synthetic": true,
+  "slug": "nsroma-atelier",
+  "brief": {
+    "format": "dof-creative-brief/1",
+    "business": {
+      "name": "Nsroma Atelier",
+      "category": "Fashion and tailoring",
+      "city": "Accra",
+      "websiteUrl": "https://nsromaatelier.example",
+      "siteUrl": "https://nsromaatelier.example"
+    },
+    "brandKit": {
+      "versionId": "c100000000000000-0000-4000-8000-000000000001",
+      "version": 1,
+      "approvedAt": "2026-10-25T09:00:00.000Z",
+      "personality": [
+        "quietly confident",
+        "exacting",
+        "warm",
+        "crafted"
+      ],
+      "visualDirection": "Editorial and unhurried: a warm paper ground, one deep kente red used like a stamp, cloth photographed close and type given room to speak.",
+      "toneOfVoice": {
+        "summary": "Plain, precise and proud of the craft. Short sentences; name the cloth, the cut and the fitting.",
+        "do": [
+          "Name the cloth",
+          "Say who it is for"
+        ],
+        "dont": [
+          "Best in Ghana",
+          "Emoji in body copy"
+        ]
+      },
+      "palette": [
+        {
+          "name": "Warm paper",
+          "hex": "#F4EDE3",
+          "role": "Background"
+        },
+        {
+          "name": "Ink",
+          "hex": "#241E1A",
+          "role": "Text"
+        },
+        {
+          "name": "Kente red",
+          "hex": "#7A1F3D",
+          "role": "Accent"
+        },
+        {
+          "name": "Brass",
+          "hex": "#B98A44",
+          "role": "Support"
+        }
+      ],
+      "typography": [
+        {
+          "role": "Display",
+          "family": "Fraunces",
+          "weights": "300–700",
+          "licence": "SIL Open Font License 1.1",
+          "assetId": null
+        }
+      ],
+      "logoAssetIds": [
+        "d100000000000000-0000-4000-8000-000000000001"
+      ],
+      "photographyAssetIds": [
+        "d100000000000000-0000-4000-8000-000000000002",
+        "d100000000000000-0000-4000-8000-000000000003"
+      ]
+    },
+    "sections": {
+      "identity": {
+        "summary": "Nsroma Atelier is a Fashion and tailoring in Accra. The identity below records what the workspace holds and what the current site actually says; nothing about the trade, the address or the offer is inferred from a template.",
+        "assertions": [
+          {
+            "id": "identity.1",
+            "text": "Trading name: Nsroma Atelier.",
+            "basis": "business_record",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [
+                "business.name"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "identity.2",
+            "text": "Trade: Fashion and tailoring.",
+            "basis": "business_record",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [
+                "business.category"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "identity.3",
+            "text": "City: Accra.",
+            "basis": "business_record",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [
+                "business.city"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "identity.4",
+            "text": "Site on record: https://nsromaatelier.example.",
+            "basis": "business_record",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [
+                "studio_project.website_url"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "identity.5",
+            "text": "Trading name: Nsroma Atelier, Osu, Accra.",
+            "basis": "verified_fact",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000001"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "Read from the business’s current homepage."
+            }
+          },
+          {
+            "id": "identity.6",
+            "text": "Description: Hand-finished kente and kaba for weddings, naming ceremonies and everyday wear.",
+            "basis": "verified_fact",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000002"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "Read from the business’s current homepage."
+            }
+          },
+          {
+            "id": "identity.7",
+            "text": "Contact routes published: The homepage publishes a WhatsApp link and a tap-to-call phone link.",
+            "basis": "verified_fact",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000003"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "Read from the business’s current homepage."
+            }
+          },
+          {
+            "id": "identity.8",
+            "text": "Selling route on the site: The site offers a product listing or catalogue.",
+            "basis": "verified_fact",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000004"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "Read from the business’s current homepage."
+            }
+          }
+        ]
+      },
+      "audience": {
+        "summary": "People commissioning or buying a garment who care how it is cut, finished and worn — often for a wedding, a naming ceremony, a promotion or a considered purchase for themselves.",
+        "assertions": [
+          {
+            "id": "audience.1",
+            "text": "The primary audience is the person making this decision in Accra: someone comparing two or three local options on a phone and looking for evidence that this business can do the job.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000003",
+                "e100000000000000-0000-4000-8000-000000000004"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "audience.2",
+            "text": "Local context matters: fitting appointments, the studio address, fabric lead times and the deposit around Accra should be answered before a visitor is asked to enquire.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [
+                "business.city"
+              ],
+              "note": null
+            }
+          }
+        ]
+      },
+      "positioning": {
+        "summary": "The approved Brand Kit describes this business as quietly confident, exacting, warm, crafted. Editorial and unhurried: a warm paper ground, one deep kente red used like a stamp, cloth photographed close and type given room to speak.",
+        "assertions": [
+          {
+            "id": "positioning.1",
+            "text": "Personality: quietly confident, exacting, warm, crafted.",
+            "basis": "approved_brand_kit",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [
+                "brand_kit.personality"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "positioning.2",
+            "text": "Tone of voice: Plain, precise and proud of the craft. Short sentences; name the cloth, the cut and the fitting.",
+            "basis": "approved_brand_kit",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [
+                "brand_kit.tone_of_voice"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "positioning.3",
+            "text": "Positioning is a design argument, not a claim about the market: the direction should make the business recognisable without inventing an award, a client list or a heritage.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "objectives": {
+        "summary": "Book a fitting or start a commission through WhatsApp, with the price range and lead time answered before the first message. The site has one primary conversion; everything else supports it.",
+        "assertions": [
+          {
+            "id": "objectives.1",
+            "text": "Primary conversion supported by the current site: message on WhatsApp.",
+            "basis": "verified_fact",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000003",
+                "e100000000000000-0000-4000-8000-000000000004"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "Inferred from the contact or selling route the page publishes."
+            }
+          },
+          {
+            "id": "objectives.2",
+            "text": "Measure the direction by qualified enquiries, not by time on page: a completed message on WhatsApp with the information the business needs to reply.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000003",
+                "e100000000000000-0000-4000-8000-000000000004"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "objectives.3",
+            "text": "The primary action appears in the first viewport on mobile and again at the end of the story; no competing secondary action may look equally important.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "atmosphere": {
+        "summary": "Intimate, exacting and unhurried. The work should feel handled rather than marketed: cloth, hands, fitting, finish. The atmosphere is a creative proposal, not a description of how the business already feels; it should be tested in review and refined, not asserted in copy.",
+        "assertions": [
+          {
+            "id": "atmosphere.1",
+            "text": "Proposed emotional register: quietly confident, exacting, warm. Every section should hold that register; a playful illustration or a neon gradient would break it.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "atmosphere.2",
+            "text": "Avoid the default local-business mood: stock handshakes, generic “Welcome to Nsroma Atelier”, gold gradients and template testimonials. If the business has no testimonial yet, leave the space empty and say so.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "storytelling": {
+        "summary": "The page should read as a sequence, not a list of sections: A commission begins with a conversation → Cloth, measurement and the first cut → The fitting and the finish → A piece that is worn, not archived. Each chapter earns the next; no chapter is a grid of unsupported claims.",
+        "assertions": [
+          {
+            "id": "storytelling.1",
+            "text": "Proposed narrative arc: A commission begins with a conversation; Cloth, measurement and the first cut; The fitting and the finish; A piece that is worn, not archived.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000001",
+                "e100000000000000-0000-4000-8000-000000000002"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "storytelling.2",
+            "text": "Photography and copy must come from the business. A narrative built on stock images of another place is not this business’s story and will be rejected in review.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "artDirection": {
+        "summary": "Editorial and unhurried: a warm paper ground, one deep kente red used like a stamp, cloth photographed close and type given room to speak. The direction below extends that approved visual direction rather than replacing it.",
+        "assertions": [
+          {
+            "id": "artDirection.1",
+            "text": "Approved visual direction: Editorial and unhurried: a warm paper ground, one deep kente red used like a stamp, cloth photographed close and type given room to speak.",
+            "basis": "approved_brand_kit",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [
+                "brand_kit.visual_direction"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "artDirection.2",
+            "text": "Materials and texture: cloth, thread, paper patterns, brass fittings. One material may be exaggerated; all of them may not.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "artDirection.3",
+            "text": "External references are recorded as links and notes only, with a licence status. Nothing is downloaded, traced, recoloured or presented as the Studio’s own.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "layout": {
+        "summary": "The direction will compare at least three different composition families — not one layout with three colourways. Each must state its grid, navigation, hero idea and how it collapses at 360px.",
+        "assertions": [
+          {
+            "id": "layout.1",
+            "text": "Composition is chosen for the business, not for the component library: editorial columns, a cinematic frame, an asymmetric offset, a catalogue index, a quiet centre and a modular block system are all available.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "layout.2",
+            "text": "Avoid the default card wall: equal rounded panels with shadows and icons are not a design idea. If a card is used, it must have a reason and a different span.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "layout.3",
+            "text": "Every composition is drawn mobile-first at 360px and checked at 768px and 1440px; no essential content may appear only on a wide screen.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "typography": {
+        "summary": "Fraunces for display and Inter for text. The transitional serif display face carries the voice while the grotesque sans body face keeps reading effortless. Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale.",
+        "assertions": [
+          {
+            "id": "typography.1",
+            "text": "Approved Brand Kit type: Display — Fraunces (300–700), SIL Open Font License 1.1.",
+            "basis": "approved_brand_kit",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [
+                "brand_kit.typography"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "typography.2",
+            "text": "Licences: SIL Open Font License 1.1. Both permit web embedding and self-hosting. The Studio does not download or redistribute font files without permission.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": "SIL Open Font License 1.1, https://openfontlicense.org"
+            }
+          },
+          {
+            "id": "typography.3",
+            "text": "Language coverage is confirmed for English. If the site will publish Twi, Ewe, Ga or Dagbani, the pairing must change to a family with documented orthography coverage.",
+            "basis": "client_confirmation",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "colour": {
+        "summary": "Colour is a system with roles, not a collection of swatches: a ground, a surface, ink, secondary ink, one accent and the text that sits on it. Contrast is computed before the palette is proposed.",
+        "assertions": [
+          {
+            "id": "colour.1",
+            "text": "Approved Brand Kit palette (version 1): Warm paper #F4EDE3, Ink #241E1A, Kente red #7A1F3D, Brass #B98A44.",
+            "basis": "approved_brand_kit",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": 1,
+              "record": [
+                "brand_kit.palette"
+              ],
+              "note": null
+            }
+          },
+          {
+            "id": "colour.2",
+            "text": "Contrast checks: 14.17:1, 13.34:1, 4.59:1, 9.47:1, 3.06:1. Text pairs are adjusted until they meet WCAG 2.2 AA; a palette that fails contrast is not a direction.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "colour.3",
+            "text": "The accent is used sparingly and for one job: action, emphasis or a single material note. Multiple accents, decorative gradients and coloured cards are rejected in review.",
+            "basis": "creative_suggestion",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "photography": {
+        "summary": "Work from 2 approved files in the vault, art-directed for cloth, fit and hands.",
+        "assertions": [
+          {
+            "id": "photography.1",
+            "text": "kente-gown-fitting.jpg (Client-owned photography) — product photo, approved for private prototype use.",
+            "basis": "approved_asset",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [
+                "d100000000000000-0000-4000-8000-000000000002"
+              ],
+              "brandKitVersion": 1,
+              "record": [],
+              "note": "Client-owned photography"
+            }
+          },
+          {
+            "id": "photography.2",
+            "text": "seam-detail.jpg (Client-owned photography) — product photo, approved for private prototype use.",
+            "basis": "approved_asset",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [
+                "d100000000000000-0000-4000-8000-000000000003"
+              ],
+              "brandKitVersion": 1,
+              "record": [],
+              "note": "Client-owned photography"
+            }
+          },
+          {
+            "id": "photography.logo",
+            "text": "Approved mark: nsroma-mark.png (Client-supplied mark). The mark may appear in the prototype; it does not license the site for publication.",
+            "basis": "approved_asset",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [
+                "d100000000000000-0000-4000-8000-000000000001"
+              ],
+              "brandKitVersion": 1,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "photography.9",
+            "text": "Remote images are references, never assets: they are not fetched, cached, displayed inline or offered as “use this image”. A new upload with provenance is the only route into the vault.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "motion": {
+        "summary": "One motion idea carries the page: a reveal, a transition or a mask — never all of them at once. Motion clarifies sequence, gives feedback and then gets out of the way.",
+        "assertions": [
+          {
+            "id": "motion.1",
+            "text": "Every movement has a reduced-motion alternative that removes translation and scroll-linking while leaving the content visible and the focus order intact.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "motion.2",
+            "text": "Only opacity, transform and clip-path may be animated; durations stay under 900ms and no motion may delay the first readable frame.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "motion.3",
+            "text": "Hover is never the only route to information, and the primary action is never hidden behind an animation.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "mobile": {
+        "summary": "The phone is the first canvas, not a compressed desktop. Composition, type and imagery are drawn at 360px before they are expanded.",
+        "assertions": [
+          {
+            "id": "mobile.1",
+            "text": "Body text stays at or above 16px, tap targets at or above 44px, and no horizontal scrolling is permitted at 360px.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "mobile.2",
+            "text": "The primary action (message on WhatsApp) is reachable in the first viewport and repeated at the end; navigation uses the same labels and order at every width.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [
+                "e100000000000000-0000-4000-8000-000000000003",
+                "e100000000000000-0000-4000-8000-000000000004"
+              ],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "mobile.3",
+            "text": "Images are cropped for portrait first, with explicit dimensions to prevent layout shift; no full-bleed video is required to understand the page.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      },
+      "accessibility": {
+        "summary": "Accessibility is a constraint on the art direction, not a clean-up task after it. A concept that cannot meet WCAG 2.2 AA is not finished.",
+        "assertions": [
+          {
+            "id": "accessibility.1",
+            "text": "WCAG 2.2 AA: text contrast at least 4.5:1, large text and UI at least 3:1, visible focus, logical heading order and labels for every control.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "accessibility.2",
+            "text": "Motion respects prefers-reduced-motion; no content flashes more than three times per second; animation can be paused or is not essential.",
+            "basis": "studio_standard",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          },
+          {
+            "id": "accessibility.3",
+            "text": "The business must supply or approve alt text, captions and transcripts for its own photography, video and audio before publication.",
+            "basis": "client_confirmation",
+            "evidence": {
+              "observationIds": [],
+              "assetIds": [],
+              "brandKitVersion": null,
+              "record": [],
+              "note": null
+            }
+          }
+        ]
+      }
+    },
+    "typography": {
+      "displayFontId": "fraunces",
+      "bodyFontId": "inter",
+      "displayFamily": "Fraunces",
+      "bodyFamily": "Inter",
+      "rationale": "Fraunces for display and Inter for text. The transitional serif display face carries the voice while the grotesque sans body face keeps reading effortless. Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale.",
+      "licences": [
+        "SIL Open Font License 1.1"
+      ],
+      "languages": [
+        "English"
+      ],
+      "scale": {
+        "displayFontId": "fraunces",
+        "bodyFontId": "inter",
+        "ratioName": "perfect_fourth",
+        "ratio": 1.333,
+        "steps": [
+          {
+            "name": "display",
+            "role": "display",
+            "minRem": 2.59,
+            "maxRem": 3.763,
+            "lineHeight": 0.98,
+            "tracking": "-0.035em",
+            "weight": 500,
+            "use": "Opening statement; one per page"
+          },
+          {
+            "name": "h1",
+            "role": "heading",
+            "minRem": 2.18,
+            "maxRem": 2.743,
+            "lineHeight": 1.03,
+            "tracking": "-0.025em",
+            "weight": 600,
+            "use": "Page title"
+          },
+          {
+            "name": "h2",
+            "role": "heading",
+            "minRem": 1.834,
+            "maxRem": 2.088,
+            "lineHeight": 1.1,
+            "tracking": "-0.015em",
+            "weight": 600,
+            "use": "Section heading"
+          },
+          {
+            "name": "h3",
+            "role": "heading",
+            "minRem": 1.566,
+            "maxRem": 1.659,
+            "lineHeight": 1.22,
+            "tracking": "-0.005em",
+            "weight": 600,
+            "use": "Sub-section and card title"
+          },
+          {
+            "name": "lead",
+            "role": "lead",
+            "minRem": 1.244,
+            "maxRem": 1.357,
+            "lineHeight": 1.5,
+            "tracking": "0",
+            "weight": 400,
+            "use": "Standfirst and introduction"
+          },
+          {
+            "name": "body",
+            "role": "body",
+            "minRem": 1.0625,
+            "maxRem": 1.116,
+            "lineHeight": 1.62,
+            "tracking": "0",
+            "weight": 400,
+            "use": "Running text"
+          },
+          {
+            "name": "small",
+            "role": "small",
+            "minRem": 0.975,
+            "maxRem": 1.018,
+            "lineHeight": 1.5,
+            "tracking": "0.005em",
+            "weight": 400,
+            "use": "Captions, notes and legal text"
+          },
+          {
+            "name": "label",
+            "role": "label",
+            "minRem": 0.907,
+            "maxRem": 0.947,
+            "lineHeight": 1.3,
+            "tracking": "0.11em",
+            "weight": 600,
+            "use": "Eyebrow labels and form labels, uppercase"
+          }
+        ],
+        "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+        "scaleNote": "A perfect fourth scale (1.333) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+      },
+      "fromBrandKit": true
+    },
+    "colour": {
+      "strategy": "Hold the approved Brand Kit colours as anchors, then choose a ground and a supporting tone for the direction. Accent area stays scarce: one colour, one job.",
+      "palette": [
+        {
+          "name": "Ground",
+          "hex": "#F4EDE3",
+          "role": "background"
+        },
+        {
+          "name": "Raised surface",
+          "hex": "#F0E6D8",
+          "role": "surface"
+        },
+        {
+          "name": "Ink",
+          "hex": "#241E1A",
+          "role": "text"
+        },
+        {
+          "name": "Secondary ink",
+          "hex": "#706A64",
+          "role": "muted_text"
+        },
+        {
+          "name": "Kente red",
+          "hex": "#7A1F3D",
+          "role": "accent"
+        },
+        {
+          "name": "Text on accent",
+          "hex": "#FAF8F4",
+          "role": "accent_text"
+        },
+        {
+          "name": "Rule",
+          "hex": "#CAC4BB",
+          "role": "border"
+        },
+        {
+          "name": "Support",
+          "hex": "#AC803F",
+          "role": "support"
+        }
+      ],
+      "contrast": [
+        {
+          "foreground": "#241E1A",
+          "background": "#F4EDE3",
+          "ratio": 14.17,
+          "passesAA": true,
+          "passesAAA": true,
+          "usage": "Body text on the page ground"
+        },
+        {
+          "foreground": "#241E1A",
+          "background": "#F0E6D8",
+          "ratio": 13.34,
+          "passesAA": true,
+          "passesAAA": true,
+          "usage": "Body text on a raised surface"
+        },
+        {
+          "foreground": "#706A64",
+          "background": "#F4EDE3",
+          "ratio": 4.59,
+          "passesAA": true,
+          "passesAAA": false,
+          "usage": "Secondary text and captions"
+        },
+        {
+          "foreground": "#FAF8F4",
+          "background": "#7A1F3D",
+          "ratio": 9.47,
+          "passesAA": true,
+          "passesAAA": true,
+          "usage": "Text on an accent button"
+        },
+        {
+          "foreground": "#AC803F",
+          "background": "#F4EDE3",
+          "ratio": 3.06,
+          "passesAA": true,
+          "passesAAA": false,
+          "usage": "Support tone used for rules and large accents"
+        }
+      ],
+      "notes": "Anchored on approved Brand Kit version 1. Each direction may change the ground, the supporting tone and the proportion of accent, but not the brand accent without approval."
+    },
+    "photography": {
+      "direction": "Work from 2 approved files in the vault, art-directed for cloth, fit and hands.",
+      "assetIds": [
+        "d100000000000000-0000-4000-8000-000000000002",
+        "d100000000000000-0000-4000-8000-000000000003"
+      ],
+      "missing": [],
+      "treatment": "Natural light, cloth held and worn; detail crops of seams and finish; no catalogue-white cut-outs unless the product is the only subject."
+    },
+    "languages": [
+      "English"
+    ],
+    "missingInformation": [
+      {
+        "id": "unknown-unknown.pricing",
+        "question": "The homepage does not state prices or lead times. Ask for the range and the deposit.",
+        "why": "Price range: the current site is silent, so this can only come from the business.",
+        "blocking": true,
+        "source": "unknown_observation"
+      },
+      {
+        "id": "placeholder-content.placeholder",
+        "question": "What should replace “Placeholder testimonial” with current, true content?",
+        "why": "A testimonial still says “Client name here”.",
+        "blocking": false,
+        "source": "content"
+      },
+      {
+        "id": "languages",
+        "question": "Will the site publish Twi, Ewe, Ga, Dagbani, Hausa or another language besides English?",
+        "why": "Typography must cover the orthography the site actually publishes; ɛ and ɔ are not available in every Latin face.",
+        "blocking": false,
+        "source": "language"
+      }
+    ],
+    "confirmations": [
+      {
+        "id": "logo-use",
+        "item": "The business confirms the Studio may use its mark (nsroma-mark.png) in a private prototype.",
+        "why": "Approval in the vault covers prototype use only; publication is a separate permission.",
+        "required": true
+      },
+      {
+        "id": "photography-rights",
+        "item": "The business confirms the rights and credits for 2 approved photographs.",
+        "why": "Photographs of people, places and products need a recorded right before publication.",
+        "required": true
+      },
+      {
+        "id": "font-licence",
+        "item": "The named typefaces are licensed for web embedding and self-hosting.",
+        "why": "The kit names its typefaces; a desktop or print licence does not automatically cover the web.",
+        "required": true
+      },
+      {
+        "id": "languages",
+        "item": "The languages the site will publish are confirmed.",
+        "why": "Type choice and copy depend on whether Twi, Ewe, Ga, Dagbani or another language will appear.",
+        "required": false
+      },
+      {
+        "id": "offer",
+        "item": "The offer, price range, lead time and service area are confirmed for publication.",
+        "why": "The Studio will not invent prices, availability or delivery promises.",
+        "required": true
+      },
+      {
+        "id": "conversion",
+        "item": "The primary conversion is message on WhatsApp, and that route will be monitored.",
+        "why": "One primary action keeps the composition honest; several competing actions produce a template.",
+        "required": true
+      },
+      {
+        "id": "content",
+        "item": "The business will approve final copy, alt text and captions before publication.",
+        "why": "Accessibility and factual accuracy are the business’s responsibility as publisher.",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "verified": 9,
+      "brandKit": 5,
+      "assets": 3,
+      "suggestions": 10,
+      "confirmations": 2,
+      "standards": 16
+    }
+  },
+  "direction": {
+    "format": "dof-creative-direction/1",
+    "briefVersionId": "b100000000000000-0000-4000-8000-000000000001",
+    "briefVersion": 1,
+    "brandKitVersionId": "c100000000000000-0000-4000-8000-000000000001",
+    "brandKitVersion": 1,
+    "seed": "a100000000000000-0000-4000-8000-000000000001|b100000000000000-0000-4000-8000-000000000001|",
+    "generatedBy": "deterministic",
+    "concepts": [
+      {
+        "key": "archive",
+        "name": "The Cutting Archive",
+        "idea": "Present the business as a body of work that has been documented with care, where every object carries its date, material and maker. For Nsroma Atelier in Accra, that means the work is about cloth, cut, fitting and the finish of a garment.",
+        "narrative": "The page behaves like an archive opened on a table: a strong left column of writing, marginal notes, and photographs that interrupt the text rather than illustrate it. Nothing is hurried; the visitor is trusted to read. The opening line, “Begin with the material.”, is a creative proposal and will be replaced or approved with the business’s own wording before publication.",
+        "typography": {
+          "displayFontId": "fraunces",
+          "bodyFontId": "inter",
+          "displayFamily": "Fraunces",
+          "bodyFamily": "Inter",
+          "displayWeights": "100–900",
+          "bodyWeights": "100–900",
+          "rationale": "Fraunces for display and Inter for text. The transitional serif display face carries the voice while the grotesque sans body face keeps reading effortless. Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. The direction keeps the approved Brand Kit face and changes the supporting voice and scale.",
+          "licence": {
+            "display": "SIL Open Font License 1.1",
+            "body": "SIL Open Font License 1.1"
+          },
+          "licenceUrls": {
+            "display": "https://openfontlicense.org",
+            "body": "https://openfontlicense.org"
+          },
+          "languages": [
+            "English"
+          ],
+          "scale": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "inter",
+            "ratioName": "perfect_fourth",
+            "ratio": 1.333,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 2.59,
+                "maxRem": 3.763,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 2.18,
+                "maxRem": 2.743,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 1.834,
+                "maxRem": 2.088,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 1.566,
+                "maxRem": 1.659,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.244,
+                "maxRem": 1.357,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.975,
+                "maxRem": 1.018,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.907,
+                "maxRem": 0.947,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A perfect fourth scale (1.333) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "fallback": {
+            "display": "\"Fraunces\", Georgia, \"Times New Roman\", serif",
+            "body": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+          },
+          "fromBrandKit": true,
+          "notes": "Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. Designed for screens: tall x-height, disambiguated l/I/1, even spacing. Reliable from 14px; use 16px minimum for body copy and avoid light weights on dark grounds."
+        },
+        "colour": {
+          "strategy": "Warm paper ground, near-black ink, a single brand accent used like a stamp, and a quiet earth support. No gradients; rules and margin notes do the separating.",
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#F4EEE3",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#F0E7D8",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#241E1A",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#706A64",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#CAC4BB",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#8A6A4F",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#241E1A",
+              "background": "#F4EEE3",
+              "ratio": 14.26,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#241E1A",
+              "background": "#F0E7D8",
+              "ratio": 13.43,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#706A64",
+              "background": "#F4EEE3",
+              "ratio": 4.62,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#8A6A4F",
+              "background": "#F4EEE3",
+              "ratio": 4.27,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "notes": "The accent is the approved Brand Kit accent (#7A1F3D); the ground, support and proportion are this direction's proposal. Contrast is computed, not asserted."
+        },
+        "composition": {
+          "family": "editorial_columns",
+          "label": "Editorial columns",
+          "grid": "12 columns, 24px gutter, margins 20px mobile / 64px desktop, maximum 1320px. Text occupies columns 1–7; captions and metadata live in 8–12. The asymmetry is the composition.",
+          "navigation": "A single line of text links above a hairline rule; the current page is marked with a short accent underline, not a pill.",
+          "hero": "A headline set across seven columns, a standfirst in the margin, and one tall photograph that begins below the fold.",
+          "spacing": "Long vertical pauses between chapters, tight leading inside a chapter. Rules, not shadows, separate ideas.",
+          "imageComposition": "Portrait and square crops, deliberately unequal; captions in the margin; no rounded corners.",
+          "materials": [
+            "Hairline rules",
+            "Uncoated paper tone",
+            "Duotone photography",
+            "Marginal notes"
+          ],
+          "avoid": [
+            "Card grids",
+            "Drop shadows",
+            "Centred everything",
+            "Decorative blobs"
+          ]
+        },
+        "imagery": {
+          "direction": "Documentary details: the inside of a seam, a chisel on a bench, a page of measurements, the corner of a room. Photographs are evidence of process, not atmosphere.",
+          "treatment": "Available light, slightly warm, no heavy grade. Unequal portrait and square crops with captions in the margin. Never a full-width carousel.",
+          "assetIds": [
+            "d100000000000000-0000-4000-8000-000000000002"
+          ],
+          "logoAssetIds": [
+            "d100000000000000-0000-4000-8000-000000000001"
+          ],
+          "missing": [
+            "One photograph cannot carry a chapter structure. Commission at least two more details and one human frame."
+          ],
+          "references": [
+            {
+              "title": "Fraunces specimen and licence",
+              "url": "https://fonts.google.com/specimen/Fraunces",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source. The Studio does not redistribute the font files; the site will self-host them under the licence."
+            },
+            {
+              "title": "Inter specimen and licence",
+              "url": "https://fonts.google.com/specimen/Inter",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source, verified for web embedding and self-hosting."
+            },
+            {
+              "title": "Nsroma Atelier — current site",
+              "url": "https://nsromaatelier.example",
+              "licence": "Reference only",
+              "note": "Used for evidence about the business. Its copy, logo and photographs are not reused without permission."
+            }
+          ]
+        },
+        "motion": {
+          "direction": "editorial_transition",
+          "label": "Editorial transition",
+          "idea": "A page change behaves like turning a page: a brief wash of the ground colour, then the new content settles into place.",
+          "spec": {
+            "direction": "editorial_transition",
+            "label": "Editorial transition",
+            "idea": "A page change behaves like turning a page: a brief wash of the ground colour, then the new content settles into place.",
+            "durationMs": 520,
+            "easing": "cubic-bezier(0.65, 0, 0.35, 1)",
+            "distancePx": 8,
+            "staggerMs": 0,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "A direct swap with no wash or slide; focus moves to the new heading immediately.",
+            "performance": "One transition at a time; do not delay navigation for the animation. Prefers-reduced-motion removes it.",
+            "avoid": [
+              "Blocking route changes",
+              "Full-screen wipes on every link",
+              "Animating the scroll position"
+            ]
+          },
+          "reducedMotion": "A direct swap with no wash or slide; focus moves to the new heading immediately.",
+          "performance": [
+            "One transition at a time; do not delay navigation for the animation. Prefers-reduced-motion removes it.",
+            "No motion may run before the first readable frame or block a route change."
+          ],
+          "notes": "One motion idea only: editorial transition. Hover states follow editorial columns rules; nothing else moves."
+        },
+        "conversion": {
+          "path": [
+            "Read the opening argument",
+            "Examine two or three pieces of evidence",
+            "Understand how to commission",
+            "Send a specific enquiry"
+          ],
+          "primaryCta": "Send a commission enquiry",
+          "proofOrder": [
+            "The work, with its material and date",
+            "A named maker and a place",
+            "How the process runs, step by step",
+            "A clear price range or a starting point"
+          ],
+          "friction": [
+            "No price or lead time until the final form",
+            "A generic contact form with no context",
+            "More than one equally loud action"
+          ]
+        },
+        "responsive": {
+          "mobileFirst": "At 360px the margin column moves below the main text, captions stay attached to their image, and the display/body contrast survives the smaller scale.",
+          "breakpoints": [
+            {
+              "name": "mobile",
+              "minWidth": 360,
+              "behavior": "At 360px the margin column moves below the main text, captions stay attached to their image, and the display/body contrast survives the smaller scale."
+            },
+            {
+              "name": "large mobile",
+              "minWidth": 480,
+              "behavior": "One extra column may appear; type does not jump."
+            },
+            {
+              "name": "tablet",
+              "minWidth": 768,
+              "behavior": "Two-column editorial layouts begin; navigation may expand."
+            },
+            {
+              "name": "laptop",
+              "minWidth": 1024,
+              "behavior": "The full grid appears; imagery may bleed."
+            },
+            {
+              "name": "desktop",
+              "minWidth": 1280,
+              "behavior": "Maximum measure is capped; whitespace grows, not font size."
+            },
+            {
+              "name": "wide",
+              "minWidth": 1440,
+              "behavior": "Composition holds; no new content is revealed only at this width."
+            }
+          ],
+          "navigation": "A single line of text links above a hairline rule; the current page is marked with a short accent underline, not a pill. On mobile the same labels and order remain; the primary action is never hidden in the drawer.",
+          "typography": "Fluid perfect fourth scale: 2.59rem display at 360px rising to 3.763rem at 1440px; body stays at or above 1.0625rem.",
+          "imagery": "Portrait crops first. Available light, slightly warm, no heavy grade. Unequal portrait and square crops with captions in the margin. Never a full-width carousel.",
+          "constraints": [
+            "No horizontal scrolling at 360px.",
+            "Tap targets at least 44px and body text at least 16px.",
+            "The primary action appears in the first viewport and at the end of the sequence."
+          ]
+        },
+        "story": {
+          "headline": "Begin with the material.",
+          "premise": "A business is worth trusting because its work has been looked at closely.",
+          "arc": [
+            "A clear opening claim",
+            "The evidence of process",
+            "The people and the place",
+            "How to begin"
+          ],
+          "chapters": [
+            {
+              "name": "The claim",
+              "intent": "Say what the business does, for whom, where."
+            },
+            {
+              "name": "The evidence",
+              "intent": "Show two or three pieces with material notes."
+            },
+            {
+              "name": "The process",
+              "intent": "Explain the steps and what the client must bring."
+            },
+            {
+              "name": "The invitation",
+              "intent": "One specific way to start."
+            }
+          ]
+        },
+        "rationale": {
+          "audience": "People commissioning or buying a garment who care how it is cut, finished and worn — often for a wedding, a naming ceremony, a promotion or a considered purchase for themselves. The Cutting Archive answers that by a business is worth trusting because its work has been looked at closely.",
+          "business": "For Nsroma Atelier in Accra, the direction puts cloth, cut, fitting and the finish of a garment at the centre rather than treating the website as a container for services. It accepts the trade-offs below in exchange for a specific point of view.",
+          "evidence": {
+            "observationIds": [
+              "e100000000000000-0000-4000-8000-000000000001",
+              "e100000000000000-0000-4000-8000-000000000002",
+              "e100000000000000-0000-4000-8000-000000000003",
+              "e100000000000000-0000-4000-8000-000000000004"
+            ],
+            "observationLabels": [
+              "Trading name: Nsroma Atelier, Osu, Accra.",
+              "Description: Hand-finished kente and kaba for weddings, naming ceremonies and everyday wear.",
+              "Contact routes published: The homepage publishes a WhatsApp link and a tap-to-call phone link.",
+              "Selling route on the site: The site offers a product listing or catalogue."
+            ],
+            "brandKitVersion": 1,
+            "notes": [
+              "Brand Kit version 1, approved by a named reviewer.",
+              "The concept is a creative proposal, not a claim about the business."
+            ]
+          }
+        },
+        "tradeoffs": [
+          "Needs real photography and real copy; it exposes thin content",
+          "Slower to scan than a card grid",
+          "Fewer opportunities for promotion",
+          "The approved Brand Kit face is fixed; variation comes from the supporting face and the scale."
+        ],
+        "risks": [
+          "Reads as austere if the copy is cold",
+          "Weak on mobile if the margin notes become a second column"
+        ],
+        "tokens": {
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#F4EEE3",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#F0E7D8",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#241E1A",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#706A64",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#CAC4BB",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#8A6A4F",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#241E1A",
+              "background": "#F4EEE3",
+              "ratio": 14.26,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#241E1A",
+              "background": "#F0E7D8",
+              "ratio": 13.43,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#706A64",
+              "background": "#F4EEE3",
+              "ratio": 4.62,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#8A6A4F",
+              "background": "#F4EEE3",
+              "ratio": 4.27,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "type": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "inter",
+            "ratioName": "perfect_fourth",
+            "ratio": 1.333,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 2.59,
+                "maxRem": 3.763,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 2.18,
+                "maxRem": 2.743,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 1.834,
+                "maxRem": 2.088,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 1.566,
+                "maxRem": 1.659,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.244,
+                "maxRem": 1.357,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.975,
+                "maxRem": 1.018,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.907,
+                "maxRem": 0.947,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A perfect fourth scale (1.333) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "spacing": {
+            "unitPx": 4,
+            "steps": [
+              {
+                "name": "3xs",
+                "px": 4,
+                "rem": 0.25
+              },
+              {
+                "name": "2xs",
+                "px": 8,
+                "rem": 0.5
+              },
+              {
+                "name": "xs",
+                "px": 12,
+                "rem": 0.75
+              },
+              {
+                "name": "sm",
+                "px": 16,
+                "rem": 1
+              },
+              {
+                "name": "md",
+                "px": 24,
+                "rem": 1.5
+              },
+              {
+                "name": "lg",
+                "px": 32,
+                "rem": 2
+              },
+              {
+                "name": "xl",
+                "px": 48,
+                "rem": 3
+              },
+              {
+                "name": "2xl",
+                "px": 64,
+                "rem": 4
+              },
+              {
+                "name": "3xl",
+                "px": 96,
+                "rem": 6
+              },
+              {
+                "name": "4xl",
+                "px": 128,
+                "rem": 8
+              },
+              {
+                "name": "5xl",
+                "px": 160,
+                "rem": 10
+              }
+            ],
+            "sectionRhythm": "Alternate one generous section pause with two tight ones: 96–160px between chapters on desktop, 48–72px on mobile, and never the same gap everywhere."
+          },
+          "grid": {
+            "columns": 12,
+            "gutterPx": 24,
+            "marginPx": {
+              "mobile": 20,
+              "desktop": 64
+            },
+            "maxWidthPx": 1320,
+            "notes": "Text occupies columns 1–7; captions and metadata live in 8–12. The asymmetry is the composition."
+          },
+          "motion": {
+            "direction": "editorial_transition",
+            "label": "Editorial transition",
+            "idea": "A page change behaves like turning a page: a brief wash of the ground colour, then the new content settles into place.",
+            "durationMs": 520,
+            "easing": "cubic-bezier(0.65, 0, 0.35, 1)",
+            "distancePx": 8,
+            "staggerMs": 0,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "A direct swap with no wash or slide; focus moves to the new heading immediately.",
+            "performance": "One transition at a time; do not delay navigation for the animation. Prefers-reduced-motion removes it.",
+            "avoid": [
+              "Blocking route changes",
+              "Full-screen wipes on every link",
+              "Animating the scroll position"
+            ]
+          },
+          "radius": {
+            "basePx": 0,
+            "note": "Square by default: radius competes with the grid and dates faster than composition."
+          },
+          "border": {
+            "widthPx": 1,
+            "note": "One rule weight throughout; hierarchy comes from spacing, not from a family of borders."
+          }
+        },
+        "quality": {
+          "dimensions": [
+            {
+              "key": "originality",
+              "label": "Originality",
+              "score": 91,
+              "note": "The set uses 3 compositions, 3 motion directions and 3 distinct pairings. Originality is judged against other businesses, not against a trend."
+            },
+            {
+              "key": "brandAppropriateness",
+              "label": "Brand appropriateness",
+              "score": 92,
+              "note": "Measured against the approved Brand Kit's 4 personality traits and its accent. A person must still judge whether the tone is right."
+            },
+            {
+              "key": "typography",
+              "label": "Typography",
+              "score": 92,
+              "note": "Fraunces / Inter. SIL Open Font License 1.1; SIL Open Font License 1.1."
+            },
+            {
+              "key": "composition",
+              "label": "Composition",
+              "score": 89,
+              "note": "Editorial columns: 12 columns, 24px gutter, 1320px maximum."
+            },
+            {
+              "key": "colourSophistication",
+              "label": "Colour sophistication",
+              "score": 92,
+              "note": "5 of 5 measured pairs meet AA. One accent, one support and a computed ground; no decorative gradient is specified."
+            },
+            {
+              "key": "assetConsistency",
+              "label": "Asset consistency",
+              "score": 89,
+              "note": "1 approved prototype asset; no remote file is fetched or rendered."
+            },
+            {
+              "key": "cinematicStorytelling",
+              "label": "Cinematic storytelling",
+              "score": 88,
+              "note": "4 chapters, each with a stated intent. The sequence is designed; motion is not a substitute for it."
+            },
+            {
+              "key": "motionAppropriateness",
+              "label": "Motion appropriateness",
+              "score": 94,
+              "note": "Editorial transition, 520ms, opacity/transform; reduced-motion alternative recorded."
+            },
+            {
+              "key": "mobileDesign",
+              "label": "Mobile design",
+              "score": 90,
+              "note": "At 360px the margin column moves below the main text, captions stay attached to their image, and the display/body contrast survives the smaller scale."
+            },
+            {
+              "key": "accessibility",
+              "label": "Accessibility",
+              "score": 91,
+              "note": "5 of 5 contrast pairs pass AA; reduced-motion and a 16px body minimum are recorded. Keyboard order and alt text remain review tasks."
+            },
+            {
+              "key": "performance",
+              "label": "Performance",
+              "score": 88,
+              "note": "Estimated webfont payload 120KB for two families. The direction uses no autoplay video and only compositor-friendly motion."
+            },
+            {
+              "key": "businessRelevance",
+              "label": "Business relevance",
+              "score": 96,
+              "note": "4-step path to “Send a commission enquiry”, with 4 verified observations cited."
+            }
+          ],
+          "overall": 91,
+          "advisory": "Advisory only. These scores are deterministic heuristics for a design review; they are not an objective measure of quality and not a guarantee of awards or commercial results. A named person approves the direction."
+        }
+      },
+      {
+        "key": "index",
+        "name": "The Pattern Index",
+        "idea": "Treat the whole business as a precise catalogue: numbered entries, tabular facts, and a typographic system that behaves like a well-set index. For Nsroma Atelier in Accra, that means the work is about cloth, cut, fitting and the finish of a garment.",
+        "narrative": "The homepage starts with a definition and the first three entries, not a hero image. Each entry carries its material, price band and availability in a fixed metadata column. The visitor can see the range immediately and trust that the list is complete. The opening line, “Everything we make, in order.”, is a creative proposal and will be replaced or approved with the business’s own wording before publication.",
+        "typography": {
+          "displayFontId": "fraunces",
+          "bodyFontId": "public-sans",
+          "displayFamily": "Fraunces",
+          "bodyFamily": "Public Sans",
+          "displayWeights": "100–900",
+          "bodyWeights": "100–900",
+          "rationale": "Fraunces for display and Public Sans for text. The transitional serif display face carries the voice while the grotesque sans body face keeps reading effortless. Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. The direction keeps the approved Brand Kit face and changes the supporting voice and scale.",
+          "licence": {
+            "display": "SIL Open Font License 1.1",
+            "body": "SIL Open Font License 1.1"
+          },
+          "licenceUrls": {
+            "display": "https://openfontlicense.org",
+            "body": "https://openfontlicense.org"
+          },
+          "languages": [
+            "English"
+          ],
+          "scale": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "public-sans",
+            "ratioName": "major_third",
+            "ratio": 1.25,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 2.122,
+                "maxRem": 2.836,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 1.856,
+                "maxRem": 2.219,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 1.624,
+                "maxRem": 1.795,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 1.436,
+                "maxRem": 1.502,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.201,
+                "maxRem": 1.284,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.994,
+                "maxRem": 1.028,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.94,
+                "maxRem": 0.972,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A major third scale (1.25) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "fallback": {
+            "display": "\"Fraunces\", Georgia, \"Times New Roman\", serif",
+            "body": "\"Public Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+          },
+          "fromBrandKit": true,
+          "notes": "Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. A neutral, highly legible face built for public services: strong counters and clear numerals. Works at 16px with a 1.5 line height; tabular figures help pricing."
+        },
+        "colour": {
+          "strategy": "Paper white, black ink and one accent used only for counts, rules and active filters. The catalogue is colourless by design; the products and cloth carry the colour.",
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#FAF7F0",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#F6F1E5",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#1B1B1B",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#706F6C",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#CDCBC5",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#7A1F3D",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#1B1B1B",
+              "background": "#FAF7F0",
+              "ratio": 16.1,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#1B1B1B",
+              "background": "#F6F1E5",
+              "ratio": 15.28,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#706F6C",
+              "background": "#FAF7F0",
+              "ratio": 4.7,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#7A1F3D",
+              "background": "#FAF7F0",
+              "ratio": 9.39,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "notes": "The accent is the approved Brand Kit accent (#7A1F3D); the ground, support and proportion are this direction's proposal. Contrast is computed, not asserted."
+        },
+        "composition": {
+          "family": "catalogue_index",
+          "label": "Catalogue index",
+          "grid": "12 columns, 16px gutter, margins 16px mobile / 48px desktop, maximum 1360px. A dense 12-column grid with a fixed metadata column; rows align across the page.",
+          "navigation": "A compact index bar with numbered sections and a search-like filter for collections; sticky but shallow.",
+          "hero": "A title, a one-line definition and the first three entries visible immediately — the index starts above the fold.",
+          "spacing": "Tight rows, generous section breaks, and a visible count so the visitor knows how much there is.",
+          "imageComposition": "Uniform crops in a strict ratio, with one oversized plate per section to break the rhythm.",
+          "materials": [
+            "Tabular figures",
+            "Numbered entries",
+            "Fine rules",
+            "Paper-white ground"
+          ],
+          "avoid": [
+            "Hero video",
+            "Oversized decorative type",
+            "Pill buttons",
+            "Uneven product crops"
+          ]
+        },
+        "imagery": {
+          "direction": "Uniform product or piece photography in a strict ratio, with one oversized plate per section to reward scrolling. The photograph must show the actual thing, at the actual scale.",
+          "treatment": "Consistent crop, neutral ground, no collage. One plate per section may run full width; all others align to the metadata rows.",
+          "assetIds": [
+            "d100000000000000-0000-4000-8000-000000000003"
+          ],
+          "logoAssetIds": [
+            "d100000000000000-0000-4000-8000-000000000001"
+          ],
+          "missing": [
+            "One photograph cannot carry a chapter structure. Commission at least two more details and one human frame."
+          ],
+          "references": [
+            {
+              "title": "Fraunces specimen and licence",
+              "url": "https://fonts.google.com/specimen/Fraunces",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source. The Studio does not redistribute the font files; the site will self-host them under the licence."
+            },
+            {
+              "title": "Public Sans specimen and licence",
+              "url": "https://fonts.google.com/specimen/Public+Sans",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source, verified for web embedding and self-hosting."
+            },
+            {
+              "title": "Nsroma Atelier — current site",
+              "url": "https://nsromaatelier.example",
+              "licence": "Reference only",
+              "note": "Used for evidence about the business. Its copy, logo and photographs are not reused without permission."
+            }
+          ]
+        },
+        "motion": {
+          "direction": "hover_choreography",
+          "label": "Hover choreography",
+          "idea": "A link or plate responds with a measured shift and a rule that draws in — feedback, not decoration.",
+          "spec": {
+            "direction": "hover_choreography",
+            "label": "Hover choreography",
+            "idea": "A link or plate responds with a measured shift and a rule that draws in — feedback, not decoration.",
+            "durationMs": 220,
+            "easing": "cubic-bezier(0.2, 0, 0, 1)",
+            "distancePx": 4,
+            "staggerMs": 0,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "Hover states change colour and underline only; no movement.",
+            "performance": "Pointer devices only; never hide essential content behind hover; keep a visible focus state for keyboards.",
+            "avoid": [
+              "Hover-only information",
+              "Cursor-following blobs",
+              "Scale on large images",
+              "Animations that trap the pointer"
+            ]
+          },
+          "reducedMotion": "Hover states change colour and underline only; no movement.",
+          "performance": [
+            "Pointer devices only; never hide essential content behind hover; keep a visible focus state for keyboards.",
+            "No motion may run before the first readable frame or block a route change."
+          ],
+          "notes": "One motion idea only: hover choreography. Hover states follow catalogue index rules; nothing else moves."
+        },
+        "conversion": {
+          "path": [
+            "Read what the business offers",
+            "Scan or filter the entries",
+            "Open one entry",
+            "Enquire or order"
+          ],
+          "primaryCta": "Enquire about this piece",
+          "proofOrder": [
+            "A complete, numbered range",
+            "Material, size and price band per entry",
+            "Availability and lead time",
+            "A direct route from the entry"
+          ],
+          "friction": [
+            "A gallery with no prices or sizes",
+            "Inconsistent product crops",
+            "A filter that hides most of the range"
+          ]
+        },
+        "responsive": {
+          "mobileFirst": "At 360px each entry becomes a two-line row with its metadata beneath the title; filters become a horizontal scroller and no entry is hidden.",
+          "breakpoints": [
+            {
+              "name": "mobile",
+              "minWidth": 360,
+              "behavior": "At 360px each entry becomes a two-line row with its metadata beneath the title; filters become a horizontal scroller and no entry is hidden."
+            },
+            {
+              "name": "large mobile",
+              "minWidth": 480,
+              "behavior": "One extra column may appear; type does not jump."
+            },
+            {
+              "name": "tablet",
+              "minWidth": 768,
+              "behavior": "Two-column editorial layouts begin; navigation may expand."
+            },
+            {
+              "name": "laptop",
+              "minWidth": 1024,
+              "behavior": "The full grid appears; imagery may bleed."
+            },
+            {
+              "name": "desktop",
+              "minWidth": 1280,
+              "behavior": "Maximum measure is capped; whitespace grows, not font size."
+            },
+            {
+              "name": "wide",
+              "minWidth": 1440,
+              "behavior": "Composition holds; no new content is revealed only at this width."
+            }
+          ],
+          "navigation": "A compact index bar with numbered sections and a search-like filter for collections; sticky but shallow. On mobile the same labels and order remain; the primary action is never hidden in the drawer.",
+          "typography": "Fluid major third scale: 2.122rem display at 360px rising to 2.836rem at 1440px; body stays at or above 1.0625rem.",
+          "imagery": "Portrait crops first. Consistent crop, neutral ground, no collage. One plate per section may run full width; all others align to the metadata rows.",
+          "constraints": [
+            "No horizontal scrolling at 360px.",
+            "Tap targets at least 44px and body text at least 16px.",
+            "The primary action appears in the first viewport and at the end of the sequence."
+          ]
+        },
+        "story": {
+          "headline": "Everything we make, in order.",
+          "premise": "Confidence is a complete list, honestly described.",
+          "arc": [
+            "The definition",
+            "The range",
+            "The detail",
+            "The order"
+          ],
+          "chapters": [
+            {
+              "name": "Definition",
+              "intent": "Say what the business makes or sells in one line."
+            },
+            {
+              "name": "Range",
+              "intent": "Show the index with counts and categories."
+            },
+            {
+              "name": "Detail",
+              "intent": "Let one entry carry material, size and price."
+            },
+            {
+              "name": "Order",
+              "intent": "Make enquiry or purchase direct and specific."
+            }
+          ]
+        },
+        "rationale": {
+          "audience": "People commissioning or buying a garment who care how it is cut, finished and worn — often for a wedding, a naming ceremony, a promotion or a considered purchase for themselves. The Pattern Index answers that by confidence is a complete list, honestly described.",
+          "business": "For Nsroma Atelier in Accra, the direction puts cloth, cut, fitting and the finish of a garment at the centre rather than treating the website as a container for services. It accepts the trade-offs below in exchange for a specific point of view.",
+          "evidence": {
+            "observationIds": [
+              "e100000000000000-0000-4000-8000-000000000001",
+              "e100000000000000-0000-4000-8000-000000000002",
+              "e100000000000000-0000-4000-8000-000000000003",
+              "e100000000000000-0000-4000-8000-000000000004"
+            ],
+            "observationLabels": [
+              "Trading name: Nsroma Atelier, Osu, Accra.",
+              "Description: Hand-finished kente and kaba for weddings, naming ceremonies and everyday wear.",
+              "Contact routes published: The homepage publishes a WhatsApp link and a tap-to-call phone link.",
+              "Selling route on the site: The site offers a product listing or catalogue."
+            ],
+            "brandKitVersion": 1,
+            "notes": [
+              "Brand Kit version 1, approved by a named reviewer.",
+              "The concept is a creative proposal, not a claim about the business."
+            ]
+          }
+        },
+        "tradeoffs": [
+          "Needs a genuinely complete catalogue",
+          "Less emotional than a cinematic direction",
+          "Product photography must be consistent",
+          "The approved Brand Kit face is fixed; variation comes from the supporting face and the scale."
+        ],
+        "risks": [
+          "Reads as a spreadsheet if typography is weak",
+          "A small range can look thin"
+        ],
+        "tokens": {
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#FAF7F0",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#F6F1E5",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#1B1B1B",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#706F6C",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#CDCBC5",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#7A1F3D",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#1B1B1B",
+              "background": "#FAF7F0",
+              "ratio": 16.1,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#1B1B1B",
+              "background": "#F6F1E5",
+              "ratio": 15.28,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#706F6C",
+              "background": "#FAF7F0",
+              "ratio": 4.7,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#7A1F3D",
+              "background": "#FAF7F0",
+              "ratio": 9.39,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "type": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "public-sans",
+            "ratioName": "major_third",
+            "ratio": 1.25,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 2.122,
+                "maxRem": 2.836,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 1.856,
+                "maxRem": 2.219,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 1.624,
+                "maxRem": 1.795,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 1.436,
+                "maxRem": 1.502,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.201,
+                "maxRem": 1.284,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.994,
+                "maxRem": 1.028,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.94,
+                "maxRem": 0.972,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A major third scale (1.25) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "spacing": {
+            "unitPx": 4,
+            "steps": [
+              {
+                "name": "3xs",
+                "px": 4,
+                "rem": 0.25
+              },
+              {
+                "name": "2xs",
+                "px": 8,
+                "rem": 0.5
+              },
+              {
+                "name": "xs",
+                "px": 12,
+                "rem": 0.75
+              },
+              {
+                "name": "sm",
+                "px": 16,
+                "rem": 1
+              },
+              {
+                "name": "md",
+                "px": 24,
+                "rem": 1.5
+              },
+              {
+                "name": "lg",
+                "px": 32,
+                "rem": 2
+              },
+              {
+                "name": "xl",
+                "px": 48,
+                "rem": 3
+              },
+              {
+                "name": "2xl",
+                "px": 64,
+                "rem": 4
+              },
+              {
+                "name": "3xl",
+                "px": 96,
+                "rem": 6
+              },
+              {
+                "name": "4xl",
+                "px": 128,
+                "rem": 8
+              },
+              {
+                "name": "5xl",
+                "px": 160,
+                "rem": 10
+              }
+            ],
+            "sectionRhythm": "Alternate one generous section pause with two tight ones: 96–160px between chapters on desktop, 48–72px on mobile, and never the same gap everywhere."
+          },
+          "grid": {
+            "columns": 12,
+            "gutterPx": 16,
+            "marginPx": {
+              "mobile": 16,
+              "desktop": 48
+            },
+            "maxWidthPx": 1360,
+            "notes": "A dense 12-column grid with a fixed metadata column; rows align across the page."
+          },
+          "motion": {
+            "direction": "hover_choreography",
+            "label": "Hover choreography",
+            "idea": "A link or plate responds with a measured shift and a rule that draws in — feedback, not decoration.",
+            "durationMs": 220,
+            "easing": "cubic-bezier(0.2, 0, 0, 1)",
+            "distancePx": 4,
+            "staggerMs": 0,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "Hover states change colour and underline only; no movement.",
+            "performance": "Pointer devices only; never hide essential content behind hover; keep a visible focus state for keyboards.",
+            "avoid": [
+              "Hover-only information",
+              "Cursor-following blobs",
+              "Scale on large images",
+              "Animations that trap the pointer"
+            ]
+          },
+          "radius": {
+            "basePx": 0,
+            "note": "Square by default: radius competes with the grid and dates faster than composition."
+          },
+          "border": {
+            "widthPx": 1,
+            "note": "One rule weight throughout; hierarchy comes from spacing, not from a family of borders."
+          }
+        },
+        "quality": {
+          "dimensions": [
+            {
+              "key": "originality",
+              "label": "Originality",
+              "score": 91,
+              "note": "The set uses 3 compositions, 3 motion directions and 3 distinct pairings. Originality is judged against other businesses, not against a trend."
+            },
+            {
+              "key": "brandAppropriateness",
+              "label": "Brand appropriateness",
+              "score": 92,
+              "note": "Measured against the approved Brand Kit's 4 personality traits and its accent. A person must still judge whether the tone is right."
+            },
+            {
+              "key": "typography",
+              "label": "Typography",
+              "score": 92,
+              "note": "Fraunces / Public Sans. SIL Open Font License 1.1; SIL Open Font License 1.1."
+            },
+            {
+              "key": "composition",
+              "label": "Composition",
+              "score": 89,
+              "note": "Catalogue index: 12 columns, 16px gutter, 1360px maximum."
+            },
+            {
+              "key": "colourSophistication",
+              "label": "Colour sophistication",
+              "score": 92,
+              "note": "5 of 5 measured pairs meet AA. One accent, one support and a computed ground; no decorative gradient is specified."
+            },
+            {
+              "key": "assetConsistency",
+              "label": "Asset consistency",
+              "score": 89,
+              "note": "1 approved prototype asset; no remote file is fetched or rendered."
+            },
+            {
+              "key": "cinematicStorytelling",
+              "label": "Cinematic storytelling",
+              "score": 89,
+              "note": "4 chapters, each with a stated intent. The sequence is designed; motion is not a substitute for it."
+            },
+            {
+              "key": "motionAppropriateness",
+              "label": "Motion appropriateness",
+              "score": 94,
+              "note": "Hover choreography, 220ms, opacity/transform; reduced-motion alternative recorded."
+            },
+            {
+              "key": "mobileDesign",
+              "label": "Mobile design",
+              "score": 90,
+              "note": "At 360px each entry becomes a two-line row with its metadata beneath the title; filters become a horizontal scroller and no entry is hidden."
+            },
+            {
+              "key": "accessibility",
+              "label": "Accessibility",
+              "score": 91,
+              "note": "5 of 5 contrast pairs pass AA; reduced-motion and a 16px body minimum are recorded. Keyboard order and alt text remain review tasks."
+            },
+            {
+              "key": "performance",
+              "label": "Performance",
+              "score": 88,
+              "note": "Estimated webfont payload 116KB for two families. The direction uses no autoplay video and only compositor-friendly motion."
+            },
+            {
+              "key": "businessRelevance",
+              "label": "Business relevance",
+              "score": 96,
+              "note": "4-step path to “Enquire about this piece”, with 4 verified observations cited."
+            }
+          ],
+          "overall": 91,
+          "advisory": "Advisory only. These scores are deterministic heuristics for a design review; they are not an objective measure of quality and not a guarantee of awards or commercial results. A named person approves the direction."
+        }
+      },
+      {
+        "key": "arrival",
+        "name": "The Evening Cut",
+        "idea": "Design the first ten seconds as an arrival: one place, one horizon, one line of type, and enough quiet for the visitor to want to step inside. For Nsroma Atelier in Accra, that means the work is about cloth, cut, fitting and the finish of a garment.",
+        "narrative": "A full-bleed frame holds the opening. Type enters like a title card and then recedes. The page unfolds in scenes, each one a different hour of the same place, with the practical details arriving only after the atmosphere has earned attention. The opening line, “Arrive slowly.”, is a creative proposal and will be replaced or approved with the business’s own wording before publication.",
+        "typography": {
+          "displayFontId": "fraunces",
+          "bodyFontId": "work-sans",
+          "displayFamily": "Fraunces",
+          "bodyFamily": "Work Sans",
+          "displayWeights": "100–900",
+          "bodyWeights": "100–900",
+          "rationale": "Fraunces for display and Work Sans for text. The transitional serif display face carries the voice while the grotesque sans body face keeps reading effortless. Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. The direction keeps the approved Brand Kit face and changes the supporting voice and scale.",
+          "licence": {
+            "display": "SIL Open Font License 1.1",
+            "body": "SIL Open Font License 1.1"
+          },
+          "licenceUrls": {
+            "display": "https://openfontlicense.org",
+            "body": "https://openfontlicense.org"
+          },
+          "languages": [
+            "English"
+          ],
+          "scale": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "work-sans",
+            "ratioName": "golden",
+            "ratio": 1.618,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 4.722,
+                "maxRem": 8.827,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 3.538,
+                "maxRem": 5.199,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 2.651,
+                "maxRem": 3.292,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 2.034,
+                "maxRem": 2.24,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.384,
+                "maxRem": 1.599,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.92,
+                "maxRem": 0.989,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.815,
+                "maxRem": 0.876,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A golden scale (1.618) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "fallback": {
+            "display": "\"Fraunces\", Georgia, \"Times New Roman\", serif",
+            "body": "\"Work Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+          },
+          "fromBrandKit": true,
+          "notes": "Soft, high-contrast serifs with a small x-height at light weights; keep display sizes large, avoid long body copy below 18px, and use the optical-size axis rather than a synthetic scale. Slightly narrow with a generous x-height; comfortable at 15–17px. The lighter weights are display-only. Numerals are proportional by default."
+        },
+        "colour": {
+          "strategy": "A dark, warm ground with bone-white type and one brass accent. The accent belongs to light and action, not to decoration. Contrast is checked against the dark ground, not assumed.",
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#171A17",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#222622",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#F4EFE6",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#A09E97",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#434540",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#C9A227",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#F4EFE6",
+              "background": "#171A17",
+              "ratio": 15.32,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#F4EFE6",
+              "background": "#222622",
+              "ratio": 13.4,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#A09E97",
+              "background": "#171A17",
+              "ratio": 6.55,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#C9A227",
+              "background": "#171A17",
+              "ratio": 7.25,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "notes": "The accent is the approved Brand Kit accent (#7A1F3D); the ground, support and proportion are this direction's proposal. Contrast is computed, not asserted."
+        },
+        "composition": {
+          "family": "cinematic_full_bleed",
+          "label": "Cinematic full bleed",
+          "grid": "6 columns, 16px gutter, margins 16px mobile / 40px desktop, maximum 1600px. A shallow six-column overlay grid over full-width media; text is placed, never poured.",
+          "navigation": "A transparent bar over the first frame that becomes solid after the first scroll; the menu opens as a full-screen sequence, not a dropdown.",
+          "hero": "Full-viewport image with one short line of type, a quiet scroll cue and no buttons competing with the photograph.",
+          "spacing": "Scenes rather than sections: each image-led block earns a viewport, with quieter typographic interludes between.",
+          "imageComposition": "Full-bleed, wide crops with a consistent grade; occasional inset detail at 4:5 to slow the sequence.",
+          "materials": [
+            "Film grain",
+            "Deep shadow",
+            "One warm highlight",
+            "Letterboxed stills"
+          ],
+          "avoid": [
+            "Busy overlays",
+            "Multiple competing calls to action",
+            "Stock-photo montage",
+            "Autoplay with sound"
+          ]
+        },
+        "imagery": {
+          "direction": "Three frames of the same place at different hours, plus one human detail: a hand pouring, a door left open, linen in low light. The image is the first argument.",
+          "treatment": "Wide, cinematic crops with a consistent warm grade; one inset detail. Explicit width and height, art-directed mobile crop, no autoplay sound.",
+          "assetIds": [],
+          "logoAssetIds": [
+            "d100000000000000-0000-4000-8000-000000000001"
+          ],
+          "missing": [
+            "Commission a short set at the hour guests actually arrive: one wide establishing frame, two details, one human moment."
+          ],
+          "references": [
+            {
+              "title": "Fraunces specimen and licence",
+              "url": "https://fonts.google.com/specimen/Fraunces",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source. The Studio does not redistribute the font files; the site will self-host them under the licence."
+            },
+            {
+              "title": "Work Sans specimen and licence",
+              "url": "https://fonts.google.com/specimen/Work+Sans",
+              "licence": "SIL Open Font License 1.1",
+              "note": "Typeface source, verified for web embedding and self-hosting."
+            },
+            {
+              "title": "Nsroma Atelier — current site",
+              "url": "https://nsromaatelier.example",
+              "licence": "Reference only",
+              "note": "Used for evidence about the business. Its copy, logo and photographs are not reused without permission."
+            }
+          ]
+        },
+        "motion": {
+          "direction": "cinematic_sequence",
+          "label": "Cinematic sequence",
+          "idea": "A short, scroll-linked sequence of two or three frames that cross-fade with a slow scale, like a title sequence.",
+          "spec": {
+            "direction": "cinematic_sequence",
+            "label": "Cinematic sequence",
+            "idea": "A short, scroll-linked sequence of two or three frames that cross-fade with a slow scale, like a title sequence.",
+            "durationMs": 900,
+            "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+            "distancePx": 24,
+            "staggerMs": 120,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "The frames become a static, stacked gallery with captions; no scroll-linked motion.",
+            "performance": "Cap at three frames, preload the first, lazy-load the rest; never animate video decoding or filters.",
+            "avoid": [
+              "Autoplay with sound",
+              "Scroll hijacking",
+              "More than three frames",
+              "Parallax on text"
+            ]
+          },
+          "reducedMotion": "The frames become a static, stacked gallery with captions; no scroll-linked motion.",
+          "performance": [
+            "Cap at three frames, preload the first, lazy-load the rest; never animate video decoding or filters.",
+            "No motion may run before the first readable frame or block a route change."
+          ],
+          "notes": "One motion idea only: cinematic sequence. Hover states follow cinematic full bleed rules; nothing else moves."
+        },
+        "conversion": {
+          "path": [
+            "Feel the place",
+            "See the room or the table",
+            "Understand the price and terms",
+            "Reserve"
+          ],
+          "primaryCta": "Check availability",
+          "proofOrder": [
+            "The place at its best hour",
+            "A room or table described honestly",
+            "Price, dates and cancellation terms",
+            "A direct booking route"
+          ],
+          "friction": [
+            "A booking form before the price",
+            "Stock photography of another hotel",
+            "Autoplay video that delays the first frame"
+          ]
+        },
+        "responsive": {
+          "mobileFirst": "At 360px the opening frame becomes a portrait crop with the headline in the lower third; text never sits on a busy area without a measured scrim.",
+          "breakpoints": [
+            {
+              "name": "mobile",
+              "minWidth": 360,
+              "behavior": "At 360px the opening frame becomes a portrait crop with the headline in the lower third; text never sits on a busy area without a measured scrim."
+            },
+            {
+              "name": "large mobile",
+              "minWidth": 480,
+              "behavior": "One extra column may appear; type does not jump."
+            },
+            {
+              "name": "tablet",
+              "minWidth": 768,
+              "behavior": "Two-column editorial layouts begin; navigation may expand."
+            },
+            {
+              "name": "laptop",
+              "minWidth": 1024,
+              "behavior": "The full grid appears; imagery may bleed."
+            },
+            {
+              "name": "desktop",
+              "minWidth": 1280,
+              "behavior": "Maximum measure is capped; whitespace grows, not font size."
+            },
+            {
+              "name": "wide",
+              "minWidth": 1440,
+              "behavior": "Composition holds; no new content is revealed only at this width."
+            }
+          ],
+          "navigation": "A transparent bar over the first frame that becomes solid after the first scroll; the menu opens as a full-screen sequence, not a dropdown. On mobile the same labels and order remain; the primary action is never hidden in the drawer.",
+          "typography": "Fluid golden scale: 4.722rem display at 360px rising to 8.827rem at 1440px; body stays at or above 1.0625rem.",
+          "imagery": "Portrait crops first. Wide, cinematic crops with a consistent warm grade; one inset detail. Explicit width and height, art-directed mobile crop, no autoplay sound.",
+          "constraints": [
+            "No horizontal scrolling at 360px.",
+            "Tap targets at least 44px and body text at least 16px.",
+            "The primary action appears in the first viewport and at the end of the sequence."
+          ]
+        },
+        "story": {
+          "headline": "Arrive slowly.",
+          "premise": "Hospitality is sold by the quality of an imagined arrival.",
+          "arc": [
+            "The first frame",
+            "The room or the table",
+            "The people and the day",
+            "The reason to return"
+          ],
+          "chapters": [
+            {
+              "name": "Arrival",
+              "intent": "One place, one line, one horizon."
+            },
+            {
+              "name": "The room",
+              "intent": "What it is actually like to stay or eat here."
+            },
+            {
+              "name": "The day",
+              "intent": "What surrounds the place and how a day passes."
+            },
+            {
+              "name": "The return",
+              "intent": "Booking terms and a reason to come back."
+            }
+          ]
+        },
+        "rationale": {
+          "audience": "People commissioning or buying a garment who care how it is cut, finished and worn — often for a wedding, a naming ceremony, a promotion or a considered purchase for themselves. The Evening Cut answers that by hospitality is sold by the quality of an imagined arrival.",
+          "business": "For Nsroma Atelier in Accra, the direction puts cloth, cut, fitting and the finish of a garment at the centre rather than treating the website as a container for services. It accepts the trade-offs below in exchange for a specific point of view.",
+          "evidence": {
+            "observationIds": [
+              "e100000000000000-0000-4000-8000-000000000001",
+              "e100000000000000-0000-4000-8000-000000000002",
+              "e100000000000000-0000-4000-8000-000000000003",
+              "e100000000000000-0000-4000-8000-000000000004"
+            ],
+            "observationLabels": [
+              "Trading name: Nsroma Atelier, Osu, Accra.",
+              "Description: Hand-finished kente and kaba for weddings, naming ceremonies and everyday wear.",
+              "Contact routes published: The homepage publishes a WhatsApp link and a tap-to-call phone link.",
+              "Selling route on the site: The site offers a product listing or catalogue."
+            ],
+            "brandKitVersion": 1,
+            "notes": [
+              "Brand Kit version 1, approved by a named reviewer.",
+              "The concept is a creative proposal, not a claim about the business."
+            ]
+          }
+        },
+        "tradeoffs": [
+          "Depends on excellent photography",
+          "Longer to load if the first frame is unoptimised",
+          "Less room for a dense information architecture",
+          "The approved Brand Kit face is fixed; variation comes from the supporting face and the scale.",
+          "Cannot be built as drawn until the photography is commissioned."
+        ],
+        "risks": [
+          "Atmosphere can hide missing practical information",
+          "Dark palettes fail contrast without testing"
+        ],
+        "tokens": {
+          "palette": [
+            {
+              "name": "Ground",
+              "hex": "#171A17",
+              "role": "background"
+            },
+            {
+              "name": "Raised surface",
+              "hex": "#222622",
+              "role": "surface"
+            },
+            {
+              "name": "Ink",
+              "hex": "#F4EFE6",
+              "role": "text"
+            },
+            {
+              "name": "Secondary ink",
+              "hex": "#A09E97",
+              "role": "muted_text"
+            },
+            {
+              "name": "Kente red",
+              "hex": "#7A1F3D",
+              "role": "accent"
+            },
+            {
+              "name": "Text on accent",
+              "hex": "#FAF8F4",
+              "role": "accent_text"
+            },
+            {
+              "name": "Rule",
+              "hex": "#434540",
+              "role": "border"
+            },
+            {
+              "name": "Support",
+              "hex": "#C9A227",
+              "role": "support"
+            }
+          ],
+          "contrast": [
+            {
+              "foreground": "#F4EFE6",
+              "background": "#171A17",
+              "ratio": 15.32,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on the page ground"
+            },
+            {
+              "foreground": "#F4EFE6",
+              "background": "#222622",
+              "ratio": 13.4,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Body text on a raised surface"
+            },
+            {
+              "foreground": "#A09E97",
+              "background": "#171A17",
+              "ratio": 6.55,
+              "passesAA": true,
+              "passesAAA": false,
+              "usage": "Secondary text and captions"
+            },
+            {
+              "foreground": "#FAF8F4",
+              "background": "#7A1F3D",
+              "ratio": 9.47,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Text on an accent button"
+            },
+            {
+              "foreground": "#C9A227",
+              "background": "#171A17",
+              "ratio": 7.25,
+              "passesAA": true,
+              "passesAAA": true,
+              "usage": "Support tone used for rules and large accents"
+            }
+          ],
+          "type": {
+            "displayFontId": "fraunces",
+            "bodyFontId": "work-sans",
+            "ratioName": "golden",
+            "ratio": 1.618,
+            "steps": [
+              {
+                "name": "display",
+                "role": "display",
+                "minRem": 4.722,
+                "maxRem": 8.827,
+                "lineHeight": 0.98,
+                "tracking": "-0.035em",
+                "weight": 500,
+                "use": "Opening statement; one per page"
+              },
+              {
+                "name": "h1",
+                "role": "heading",
+                "minRem": 3.538,
+                "maxRem": 5.199,
+                "lineHeight": 1.03,
+                "tracking": "-0.025em",
+                "weight": 600,
+                "use": "Page title"
+              },
+              {
+                "name": "h2",
+                "role": "heading",
+                "minRem": 2.651,
+                "maxRem": 3.292,
+                "lineHeight": 1.1,
+                "tracking": "-0.015em",
+                "weight": 600,
+                "use": "Section heading"
+              },
+              {
+                "name": "h3",
+                "role": "heading",
+                "minRem": 2.034,
+                "maxRem": 2.24,
+                "lineHeight": 1.22,
+                "tracking": "-0.005em",
+                "weight": 600,
+                "use": "Sub-section and card title"
+              },
+              {
+                "name": "lead",
+                "role": "lead",
+                "minRem": 1.384,
+                "maxRem": 1.599,
+                "lineHeight": 1.5,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Standfirst and introduction"
+              },
+              {
+                "name": "body",
+                "role": "body",
+                "minRem": 1.0625,
+                "maxRem": 1.116,
+                "lineHeight": 1.62,
+                "tracking": "0",
+                "weight": 400,
+                "use": "Running text"
+              },
+              {
+                "name": "small",
+                "role": "small",
+                "minRem": 0.92,
+                "maxRem": 0.989,
+                "lineHeight": 1.5,
+                "tracking": "0.005em",
+                "weight": 400,
+                "use": "Captions, notes and legal text"
+              },
+              {
+                "name": "label",
+                "role": "label",
+                "minRem": 0.815,
+                "maxRem": 0.876,
+                "lineHeight": 1.3,
+                "tracking": "0.11em",
+                "weight": 600,
+                "use": "Eyebrow labels and form labels, uppercase"
+              }
+            ],
+            "bodyMeasure": "58–72 characters in running text; 40–52 on mobile",
+            "scaleNote": "A golden scale (1.618) from a 17px body. Sizes are fluid between 360px and 1440px, so the display does not become a poster on a phone."
+          },
+          "spacing": {
+            "unitPx": 4,
+            "steps": [
+              {
+                "name": "3xs",
+                "px": 4,
+                "rem": 0.25
+              },
+              {
+                "name": "2xs",
+                "px": 8,
+                "rem": 0.5
+              },
+              {
+                "name": "xs",
+                "px": 12,
+                "rem": 0.75
+              },
+              {
+                "name": "sm",
+                "px": 16,
+                "rem": 1
+              },
+              {
+                "name": "md",
+                "px": 24,
+                "rem": 1.5
+              },
+              {
+                "name": "lg",
+                "px": 32,
+                "rem": 2
+              },
+              {
+                "name": "xl",
+                "px": 48,
+                "rem": 3
+              },
+              {
+                "name": "2xl",
+                "px": 64,
+                "rem": 4
+              },
+              {
+                "name": "3xl",
+                "px": 96,
+                "rem": 6
+              },
+              {
+                "name": "4xl",
+                "px": 128,
+                "rem": 8
+              },
+              {
+                "name": "5xl",
+                "px": 160,
+                "rem": 10
+              }
+            ],
+            "sectionRhythm": "Alternate one generous section pause with two tight ones: 96–160px between chapters on desktop, 48–72px on mobile, and never the same gap everywhere."
+          },
+          "grid": {
+            "columns": 6,
+            "gutterPx": 16,
+            "marginPx": {
+              "mobile": 16,
+              "desktop": 40
+            },
+            "maxWidthPx": 1600,
+            "notes": "A shallow six-column overlay grid over full-width media; text is placed, never poured."
+          },
+          "motion": {
+            "direction": "cinematic_sequence",
+            "label": "Cinematic sequence",
+            "idea": "A short, scroll-linked sequence of two or three frames that cross-fade with a slow scale, like a title sequence.",
+            "durationMs": 900,
+            "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+            "distancePx": 24,
+            "staggerMs": 120,
+            "properties": [
+              "opacity",
+              "transform"
+            ],
+            "reducedMotion": "The frames become a static, stacked gallery with captions; no scroll-linked motion.",
+            "performance": "Cap at three frames, preload the first, lazy-load the rest; never animate video decoding or filters.",
+            "avoid": [
+              "Autoplay with sound",
+              "Scroll hijacking",
+              "More than three frames",
+              "Parallax on text"
+            ]
+          },
+          "radius": {
+            "basePx": 0,
+            "note": "Square by default: radius competes with the grid and dates faster than composition."
+          },
+          "border": {
+            "widthPx": 1,
+            "note": "One rule weight throughout; hierarchy comes from spacing, not from a family of borders."
+          }
+        },
+        "quality": {
+          "dimensions": [
+            {
+              "key": "originality",
+              "label": "Originality",
+              "score": 91,
+              "note": "The set uses 3 compositions, 3 motion directions and 3 distinct pairings. Originality is judged against other businesses, not against a trend."
+            },
+            {
+              "key": "brandAppropriateness",
+              "label": "Brand appropriateness",
+              "score": 92,
+              "note": "Measured against the approved Brand Kit's 4 personality traits and its accent. A person must still judge whether the tone is right."
+            },
+            {
+              "key": "typography",
+              "label": "Typography",
+              "score": 92,
+              "note": "Fraunces / Work Sans. SIL Open Font License 1.1; SIL Open Font License 1.1."
+            },
+            {
+              "key": "composition",
+              "label": "Composition",
+              "score": 86,
+              "note": "Cinematic full bleed: 6 columns, 16px gutter, 1600px maximum."
+            },
+            {
+              "key": "colourSophistication",
+              "label": "Colour sophistication",
+              "score": 92,
+              "note": "5 of 5 measured pairs meet AA. One accent, one support and a computed ground; no decorative gradient is specified."
+            },
+            {
+              "key": "assetConsistency",
+              "label": "Asset consistency",
+              "score": 84,
+              "note": "No approved photography is cited; the direction describes the commission instead of borrowing an image."
+            },
+            {
+              "key": "cinematicStorytelling",
+              "label": "Cinematic storytelling",
+              "score": 88,
+              "note": "4 chapters, each with a stated intent. The sequence is designed; motion is not a substitute for it."
+            },
+            {
+              "key": "motionAppropriateness",
+              "label": "Motion appropriateness",
+              "score": 91,
+              "note": "Cinematic sequence, 900ms, opacity/transform; reduced-motion alternative recorded."
+            },
+            {
+              "key": "mobileDesign",
+              "label": "Mobile design",
+              "score": 90,
+              "note": "At 360px the opening frame becomes a portrait crop with the headline in the lower third; text never sits on a busy area without a measured scrim."
+            },
+            {
+              "key": "accessibility",
+              "label": "Accessibility",
+              "score": 91,
+              "note": "5 of 5 contrast pairs pass AA; reduced-motion and a 16px body minimum are recorded. Keyboard order and alt text remain review tasks."
+            },
+            {
+              "key": "performance",
+              "label": "Performance",
+              "score": 88,
+              "note": "Estimated webfont payload 118KB for two families. The direction uses no autoplay video and only compositor-friendly motion."
+            },
+            {
+              "key": "businessRelevance",
+              "label": "Business relevance",
+              "score": 96,
+              "note": "4-step path to “Check availability”, with 4 verified observations cited."
+            }
+          ],
+          "overall": 90,
+          "advisory": "Advisory only. These scores are deterministic heuristics for a design review; they are not an objective measure of quality and not a guarantee of awards or commercial results. A named person approves the direction."
+        }
+      }
+    ],
+    "comparison": [
+      {
+        "dimension": "Creative idea",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "The Cutting Archive: A business is worth trusting because its work has been looked at closely."
+          },
+          {
+            "conceptKey": "index",
+            "value": "The Pattern Index: Confidence is a complete list, honestly described."
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "The Evening Cut: Hospitality is sold by the quality of an imagined arrival."
+          }
+        ]
+      },
+      {
+        "dimension": "Typography",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "Fraunces / Inter — perfect fourth"
+          },
+          {
+            "conceptKey": "index",
+            "value": "Fraunces / Public Sans — major third"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "Fraunces / Work Sans — golden"
+          }
+        ]
+      },
+      {
+        "dimension": "Colour",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "#F4EEE3 ground, #7A1F3D accent"
+          },
+          {
+            "conceptKey": "index",
+            "value": "#FAF7F0 ground, #7A1F3D accent"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "#171A17 ground, #7A1F3D accent"
+          }
+        ]
+      },
+      {
+        "dimension": "Composition",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "Editorial columns"
+          },
+          {
+            "conceptKey": "index",
+            "value": "Catalogue index"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "Cinematic full bleed"
+          }
+        ]
+      },
+      {
+        "dimension": "Imagery",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "Documentary details: the inside of a seam, a chisel on a bench, a page of measurements, the corner of a room"
+          },
+          {
+            "conceptKey": "index",
+            "value": "Uniform product or piece photography in a strict ratio, with one oversized plate per section to reward scrolling"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "Three frames of the same place at different hours, plus one human detail: a hand pouring, a door left open, linen in low light"
+          }
+        ]
+      },
+      {
+        "dimension": "Motion",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "Editorial transition (520ms)"
+          },
+          {
+            "conceptKey": "index",
+            "value": "Hover choreography (220ms)"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "Cinematic sequence (900ms)"
+          }
+        ]
+      },
+      {
+        "dimension": "Conversion",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "Send a commission enquiry — 4 steps"
+          },
+          {
+            "conceptKey": "index",
+            "value": "Enquire about this piece — 4 steps"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "Check availability — 4 steps"
+          }
+        ]
+      },
+      {
+        "dimension": "Responsive",
+        "values": [
+          {
+            "conceptKey": "archive",
+            "value": "At 360px the margin column moves below the main text, captions stay attached to their image, and the display/body contrast survives the smaller scale"
+          },
+          {
+            "conceptKey": "index",
+            "value": "At 360px each entry becomes a two-line row with its metadata beneath the title; filters become a horizontal scroller and no entry is hidden"
+          },
+          {
+            "conceptKey": "arrival",
+            "value": "At 360px the opening frame becomes a portrait crop with the headline in the lower third; text never sits on a busy area without a measured scrim"
+          }
+        ]
+      }
+    ],
+    "recommendation": {
+      "conceptKey": "archive",
+      "why": "The Cutting Archive scores highest on the advisory review (91/100), largely on business relevance and motion appropriateness. That is a starting point for the review, not a decision.",
+      "advisory": "Advisory only. These scores are deterministic heuristics for a design review; they are not an objective measure of quality and not a guarantee of awards or commercial results. A named person approves the direction."
+    },
+    "limitations": [
+      "Generated by the deterministic Studio engine: no paid model, network request or external design service was used.",
+      "Typefaces are recommendations from the licensed catalogue. No font file is downloaded or redistributed by the Studio.",
+      "Only approved Brand Kit assets with prototype permission are cited. Missing photography is recorded as a commission, never filled with stock or copied files.",
+      "Quality scores are advisory heuristics. A design lead approves a concept against the creative standard in docs/WEBSITE_STUDIO.md.",
+      "These are direction studies for the Studio interface, not a built website; page construction belongs to phase 4."
+    ]
+  }
+}

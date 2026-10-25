@@ -42,6 +42,19 @@ manifest. Migration 013 is **not applied** to production. The authoritative Stud
 all six phases from brand intelligence to secure client presentations, is
 [docs/WEBSITE_STUDIO.md](docs/WEBSITE_STUDIO.md).
 
+**Creative Director (milestone 3C.3):** a confirmed, versioned Creative Direction Brief built from the
+approved Brand Kit and reviewed evidence, then three structurally different territories — different
+composition, typography, colour system, imagery, motion and conversion path, not one layout with
+colour options. The engine is deterministic and offline: a curated SIL OFL type catalogue (no font is
+downloaded), WCAG-checked colour tokens, fluid type scales, six composition families, seven motion
+specifications with reduced-motion alternatives, trade-offs and a twelve-dimension review that is
+always labelled advisory. A person compares, gives feedback, edits into a new version and approves one
+concept by name; approval is append-only and revoked by a later change request. Migration 014 is
+**not applied** to production. Architecture, licensing and review are specified in
+[docs/CREATIVE_DIRECTION.md](docs/CREATIVE_DIRECTION.md); three fully generated flagship demonstrations
+are indexed in [docs/CREATIVE_DEMOS.md](docs/CREATIVE_DEMOS.md) and can be regenerated with
+`npm run demo:creative`.
+
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + RLS + Auth) · TanStack Query · Zod · Recharts · Anthropic Claude (optional) · Google Places API (New) (optional)
 
 ## Quick start (demo mode)
@@ -72,6 +85,7 @@ Copy `.env.example` to `.env.local` (gitignored) and fill in only what you use. 
 | `DEMO_SERVER_TOOLS` | server | `true` only on a private demo deployment. |
 | `SIMULATE_EXTERNAL_TOOLS` | server | Test only (set by the Playwright suite): simulated search, DNS and website checks. Ignored when Supabase is configured. |
 | `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` | server | Optional scheduled automation worker (cloud mode, migration 003). Without them, jobs run while the Automation Center is open. The service-role key is also needed for messaging (dispatch, webhooks, unsubscribe). |
+| `CREATIVE_DIRECTOR_AI` | server | Optional **future** Creative Director enhancement boundary. Leave unset: no provider is implemented, no call is made, and the deterministic engine remains authoritative. |
 | `MESSAGING_*`, `APP_URL`, `RESEND_*`, `WHATSAPP_*` | server | Optional sandbox messaging (cloud mode, migration 006): only the agency's own `MESSAGING_TEST_RECIPIENTS` can receive messages. See `.env.example` and runbook §12. |
 
 **Google Places key:** enable *Places API (New)* and billing; restrict the key to that API with an IP-address (or no) application restriction — not website referrers, because the key is used only server-side. See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
