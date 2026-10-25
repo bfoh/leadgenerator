@@ -8,6 +8,7 @@ Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` 
 | --- | --- | --- | --- |
 | Google Places API (New) — Text Search | Transient discovery preview | **Place ID only.** Names, addresses, phone numbers, ratings, website fields: display only. | Requires `GOOGLE_PLACES_API_KEY` (server only). Show "Google Maps" attribution. A missing `websiteUri` is **not** evidence that no website exists. No email field exists. |
 | Brave Search API | Independent website discovery during verification | Result URL and title the researcher selects as evidence, with timestamp | Requires `BRAVE_SEARCH_API_KEY`. Subject to Brave's API terms; results may not be resold. |
+| Brave Search API — social profile discovery | Transient preview of public Instagram, Facebook and TikTok profiles | **Nothing.** Titles, snippets, handles and links stay in browser memory for the session | Off by default (`SOCIAL_DISCOVERY_ENABLED`). Never calls a platform API or fetches a profile page. A profile is not independent evidence, so saving still needs a separate source of record. |
 | Manual research (researcher browsing) | Verification evidence, business identity | Yes — researcher-entered facts with source URL and date | The app generates search links; the researcher opens them in their own browser. |
 | Direct business submission / referral | Identity, contact, permission | Yes | Record lawful basis and evidence of permission. |
 | Website technical check (`/api/verify/website`) | Status code, redirect chain, HTTPS, response time, `<title>`, viewport meta | Yes, as a verification snapshot | One user-initiated GET per check; no crawling. |
@@ -18,6 +19,30 @@ Every provider is implemented behind `DiscoveryProvider` or `WebSearchProvider` 
 ## Autonomous discovery sources (milestone 3B)
 
 None is integrated. The only connector is the offline synthetic provider (`DISCOVERY_SYNTHETIC_PROVIDER=true`), which creates clearly labelled fake records and never calls the network. The source declarations record the licence evidence for Overture Places, OSM, Foursquare, Yellow Pages Ghana, the Registrar-General, HERE/TomTom and licensed B2B providers. Overture is the strongest licensing candidate (CDLA-Permissive-2.0/Apache-2.0, no ODbL share-alike) but its Ghana coverage is unmeasured and no importer exists. A real provider is activated only after the owner's written approval and the checklist in [AUTONOMOUS_DISCOVERY](AUTONOMOUS_DISCOVERY.md) §7.
+
+## Social profile discovery (Instagram, Facebook, TikTok)
+
+Discovery searches a public web index (Brave) for profile links. It does not call a platform's own
+search API, and it never fetches, parses or mirrors a profile page. Instagram, Facebook and TikTok do
+not license keyword lead search, so treating their pages as a bulk lead source would breach their terms.
+
+- One query per selected platform: `site:instagram.com "<category phrase>" <town> <region> Ghana`.
+- Only profile URLs are kept. Post, reel, story, share, group and numeric `profile.php` links are
+  discarded, so every result resolves to a profile rather than a page that merely mentions one.
+- Results are transient. The route sets `Cache-Control: no-store`, the browser holds them in memory
+  for the session, and no table, cache or local storage records a title, snippet, handle or link.
+- Each hit is scored for a human reviewer. "Likely official" needs a category match *and* town or
+  region evidence; country-level evidence alone is never enough, because a same-name profile
+  elsewhere in Ghana is the usual failure. A profile that plainly names another town is marked as a
+  different business and cannot be reviewed.
+- Profiles sharing a display name on one platform are flagged as possible duplicates. The same handle
+  on two platforms is corroboration, not a duplicate.
+- Saving goes through the existing candidate form, which requires an independent source of record. A
+  social profile is not independent evidence and is never itself stored.
+- Off by default: `SOCIAL_DISCOVERY_ENABLED=false` with `DAILY_SOCIAL_DISCOVERY_QUOTA=20`. Each query
+  is metered against `BRAVE_COST_PER_SEARCH_USD` and the Brave budget in Automation Center → Controls.
+  Demo and browser tests use a labelled fictional world (`SIMULATE_EXTERNAL_TOOLS=true`): no network,
+  no provider account, no cost.
 
 ## Google Maps Platform rules applied
 

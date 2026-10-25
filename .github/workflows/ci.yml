@@ -21,6 +21,8 @@ env:
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ''
   GOOGLE_PLACES_API_KEY: ''
   BRAVE_SEARCH_API_KEY: ''
+  # Social discovery stays off in CI; the browser suite uses the simulated world instead.
+  SOCIAL_DISCOVERY_ENABLED: 'false'
   ANTHROPIC_API_KEY: ''
   SUPABASE_SERVICE_ROLE_KEY: ''
   CRON_SECRET: ''

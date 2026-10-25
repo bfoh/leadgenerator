@@ -25,6 +25,16 @@ export interface ServerStatus {
   discovery: ProviderInfo[];
   /** Autonomous discovery connector state (absent on older servers). */
   autonomousDiscovery?: { syntheticEnabled: boolean };
+  /** Social profile discovery through a public web index (absent on older servers). */
+  socialDiscovery?: {
+    simulated: boolean;
+    enabled: boolean;
+    liveEnabled: boolean;
+    searchConfigured: boolean;
+    costPerQueryUsd: number;
+    quota: number;
+    maxQueries: number;
+  };
   quotas: { discovery: number; aiReports: number; websiteChecks: number; webSearch: number };
   automation?: { backgroundWorker: boolean; outboundSending: boolean };
   /** Website verification tools (absent on servers older than phase 3). */

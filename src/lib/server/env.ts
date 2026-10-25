@@ -32,6 +32,14 @@ export const serverEnv = {
   discovery: {
     synthetic: () => process.env.DISCOVERY_SYNTHETIC_PROVIDER === 'true',
   },
+  /**
+   * Social profile discovery through a public web index. Off by default: turning it on is a
+   * commercial and platform-terms decision, and each search costs one paid query per platform.
+   */
+  socialDiscovery: {
+    enabled: () => process.env.SOCIAL_DISCOVERY_ENABLED === 'true',
+    quota: () => num('DAILY_SOCIAL_DISCOVERY_QUOTA', 20),
+  },
   quota: {
     discovery: () => num('DAILY_DISCOVERY_QUOTA', 50),
     aiReports: () => num('DAILY_AI_REPORT_QUOTA', 20),

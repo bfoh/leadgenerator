@@ -6,6 +6,7 @@ import { describeProvider } from '@/lib/server/providers/discovery';
 import { discoveryProviders } from '@/lib/server/providers/registry';
 import { contactProviderStatus } from '@/lib/server/providers/contact-data';
 import { braveSearchProvider } from '@/lib/server/providers/web-search';
+import { socialDiscoveryStatus } from '@/lib/server/providers/social-discovery';
 import { researchToolStatus } from '@/lib/server/research-tools';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
@@ -22,6 +23,8 @@ export async function GET() {
     discovery: discoveryProviders().map(describeProvider),
     // Autonomous discovery: the only connector is synthetic, and it is off unless explicitly enabled.
     autonomousDiscovery: { syntheticEnabled: serverEnv.discovery.synthetic() },
+    // Social profile discovery through a public web index; off unless a workspace enables it.
+    socialDiscovery: socialDiscoveryStatus(),
     // Messages to businesses are not possible in this version (only sandbox test recipients, see
     // /api/messaging/status); the flag is reported, never configurable here.
     automation: { backgroundWorker: isBackgroundWorkerConfigured(), outboundSending: false },
