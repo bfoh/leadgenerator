@@ -23,6 +23,24 @@ test('website checks refuse private network targets', async ({ request, baseURL 
   expect((await res.json()).error).toMatch(/private/i);
 });
 
+test('the Studio reading goes through the same guards as website verification', async ({ request, baseURL }) => {
+  const origin = new URL(baseURL!).origin;
+  const crossOrigin = await request.post('/api/studio/inspect', { data: { url: 'example.com' }, headers: { Origin: 'https://attacker.example' } });
+  expect(crossOrigin.status()).toBe(403);
+  const internal = await request.post('/api/studio/inspect', { data: { url: 'http://169.254.169.254/latest/meta-data' }, headers: { Origin: origin } });
+  expect(internal.status()).toBe(400);
+  expect((await internal.json()).error).toMatch(/private/i);
+  // A page it can read returns structural facts only — never the page's own text.
+  const readable = await request.post('/api/studio/inspect', { data: { url: 'https://e2estudiobakery.com' }, headers: { Origin: origin } });
+  expect(readable.ok()).toBe(true);
+  const body = await readable.json();
+  expect(body.simulated).toBe(true);
+  expect(Object.keys(body.facts).sort()).toEqual(
+    expect.arrayContaining(['title', 'h1', 'description', 'hasViewport', 'wordCount', 'logoCandidates', 'imageCandidates', 'navLinks']),
+  );
+  expect(JSON.stringify(body)).not.toMatch(/<!doctype html|<body/i);
+});
+
 test('security headers are set', async ({ request }) => {
   const res = await request.get('/login');
   const h = res.headers();

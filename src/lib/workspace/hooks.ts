@@ -51,6 +51,12 @@ export const useConversionSchema = () => useStoreQuery(['conversion-schema'], (s
 export const useReplyClassifications = (inboundIds?: readonly string[], enabled = true) =>
   useStoreQuery(['reply-classifications', inboundIds ? inboundIds.join(',') : 'all'], (s) => s.listReplyClassifications(inboundIds), enabled);
 export const useChangeRequests = (businessId?: string, enabled = true) => useStoreQuery(['change-requests', businessId ?? 'all'], (s) => s.listChangeRequests(businessId), enabled);
+/** Whether migration 012 (website concepts, brand evidence, reviews) is applied. */
+export const useStudioSchema = () => useStoreQuery(['studio-schema'], (s) => s.studioSchemaAvailable());
+export const useStudioProjects = (businessId?: string) => useStoreQuery(['studio-projects', businessId ?? 'all'], (s) => s.listStudioProjects(businessId));
+export const useStudioProject = (id: string) => useStoreQuery(['studio-project', id], (s) => s.getStudioProject(id));
+export const useStudioObservations = (projectId?: string) => useStoreQuery(['studio-observations', projectId ?? 'all'], (s) => s.listStudioObservations(projectId));
+export const useStudioReviews = (projectId?: string) => useStoreQuery(['studio-reviews', projectId ?? 'all'], (s) => s.listStudioReviews(projectId));
 export const useAuditTrail = (tables: string[], enabled = true) => useStoreQuery(['audit-trail', tables.join(',')], (s) => s.listAuditTrail(tables), enabled);
 
 // Session and server configuration do not change when records do.

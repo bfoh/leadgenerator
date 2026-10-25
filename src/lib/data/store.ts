@@ -26,6 +26,7 @@ import type {
 } from '@/lib/domain/messaging';
 import type { ClassificationInsert, ReplyClassification } from '@/lib/domain/replies';
 import type { OrgSettings } from '@/lib/domain/settings';
+import type { StudioObservation, StudioObservationInsert, StudioProject, StudioProjectInsert, StudioProjectPatch, StudioReview, StudioReviewInsert } from '@/lib/domain/studio';
 import type {
   Activity,
   ActivityInsert,
@@ -179,6 +180,23 @@ export interface DataStore {
   updateMilestone(id: string, patch: Partial<MilestoneInsert>): Promise<ProjectMilestone>;
   deleteMilestone(id: string): Promise<void>;
 
+  /** False when the cloud database has not had migration 012 (Studio concepts and their evidence). */
+  studioSchemaAvailable(): Promise<boolean>;
+  listStudioProjects(businessId?: string): Promise<StudioProject[]>;
+  getStudioProject(id: string): Promise<StudioProject | null>;
+  /** One live (non-archived) concept per business; an archived one does not block a new concept. */
+  createStudioProject(input: StudioProjectInsert): Promise<StudioProject>;
+  /** The concept itself is editable; its evidence is not. */
+  updateStudioProject(id: string, patch: StudioProjectPatch): Promise<StudioProject>;
+  /** Owners/admins. Removes the concept with its evidence and reviews. */
+  deleteStudioProject(id: string): Promise<void>;
+  /** Append-only evidence, newest run first. */
+  listStudioObservations(projectId?: string): Promise<StudioObservation[]>;
+  createStudioObservations(input: StudioObservationInsert[]): Promise<StudioObservation[]>;
+  /** Append-only decisions, newest first. */
+  listStudioReviews(projectId?: string): Promise<StudioReview[]>;
+  createStudioReview(input: StudioReviewInsert): Promise<StudioReview>;
+
   getSettings(): Promise<OrgSettings>;
   updateSettings(settings: OrgSettings, organizationName?: string): Promise<OrgSettings>;
 
@@ -219,3 +237,6 @@ export const CONVERSION_MIGRATION_REQUIRED =
 
 export const CONTACTS_MIGRATION_REQUIRED =
   'Apply database migration 005 (supabase/migrations/005_contact_intelligence.sql) to use contact points, consent records and the suppression list.';
+
+export const STUDIO_MIGRATION_REQUIRED =
+  'Apply database migration 012 (supabase/migrations/012_studio_brand_intelligence.sql) to use website concepts and their evidence.';

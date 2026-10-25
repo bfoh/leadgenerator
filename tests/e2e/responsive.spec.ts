@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const PATHS = ['/', '/discover', '/prospects', '/verification', '/reports', '/proposals', '/automation', '/automation?tab=jobs', '/automation?tab=controls', '/pipeline', '/projects', '/library', '/analytics', '/settings', '/settings?tab=packages', '/privacy'];
+const PATHS = ['/', '/discover', '/prospects', '/verification', '/reports', '/proposals', '/automation', '/automation?tab=jobs', '/automation?tab=controls', '/pipeline', '/projects', '/studio', '/library', '/analytics', '/settings', '/settings?tab=packages', '/privacy'];
 
 for (const path of PATHS) {
   test(`${path} fits a phone screen`, async ({ page }) => {

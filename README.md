@@ -20,6 +20,15 @@ deterministic **offline synthetic** provider exists; it is disabled unless
 person promotes them, and contact details are never copied. **No real provider is integrated or
 activated.** See [docs/AUTONOMOUS_DISCOVERY.md](docs/AUTONOMOUS_DISCOVERY.md).
 
+**Website Studio (milestone 3C.1):** a prospect becomes one website concept whose brief and evidence
+stay together. One guarded reading of that business's own homepage (robots.txt respected, private
+addresses refused) becomes verified facts, unknowns, placeholders and our own creative suggestions —
+kept strictly apart, appended only, and reviewed by a person. Logos, photographs and third-party hosts
+stay restricted references; a site that cannot be read is recorded as unavailable, with the reason, and
+no evidence is invented. Demo mode and cloud mode share `src/lib/data/studio-services.ts`, so the same
+rules apply in both. Migration 012 is **not applied** to production. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §9.
+
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + RLS + Auth) · TanStack Query · Zod · Recharts · Anthropic Claude (optional) · Google Places API (New) (optional)
 
 ## Quick start (demo mode)
@@ -88,6 +97,7 @@ Full procedures: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 | Next steps | Per prospect: replies and what they mean, a follow-up plan added as tasks (never sends), a printable meeting brief built only from evidence-backed records, and open change requests. |
 | Pipeline | 12-stage kanban and table. Outreach stages require recorded permission with a lawful basis; opt-outs block contact. Tasks, meetings, lost reasons. |
 | Projects | Accepted proposal → project with milestones, deliverables, invoice and maintenance status. |
+| Website concepts (Studio) | A prospect becomes one website concept, built from evidence about the site that business has today. One reading of their homepage, through the same guarded fetch as verification (robots.txt respected, private addresses refused, 8 s timeout, 512 KB cap), becomes four things kept strictly apart: verified facts (each citing the page it came from), unknowns (the page is silent — ask the business), placeholders (template, parked or stale content) and our own creative suggestions, which are never attributed to the page. Evidence is append-only: a person confirms, rejects (with a reason) or notes an entry, and every analysis run is kept and numbered, with the latest shown. Logos, photographs and third-party hosts stay restricted references — nothing is downloaded or republished. A site that cannot be read is recorded as unavailable, with the reason, instead of invented evidence. Concepts are archived rather than lost, one live concept per prospect, and deletion removes the concept and its evidence only. |
 | Solution library | 22 website archetypes with tailored design briefs. Digne Suits & More appears only as an internal creative reference, never as a client. |
 | Analytics | Pipeline progression, score bands, all 30 industry groups (records, open, qualified at 50+, won, proposal win rate, conversion, average score), with each group drilling down to the exact stored category labels and those labels linking to the filtered prospect list; verification outcomes over time, estimated API cost, proposals, replies by what they mean (flagged under 10 replies), lost reasons; table views and CSV. Records and labels outside the catalogue are kept in a separate bucket so totals reconcile. |
 | Settings | Agency profile and proposal branding, proposal defaults and taxes, scoring, grouped focus and custom categories, packages, add-on price list, team, integrations, data import/export/reset. |

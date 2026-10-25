@@ -20,6 +20,7 @@ const PAGES = [
   ['/automation?tab=controls', 'Automation Center'],
   ['/pipeline', 'Sales pipeline'],
   ['/projects', 'Projects'],
+  ['/studio', 'Website concepts'],
   ['/library', 'Website solution library'],
   ['/analytics', 'Analytics'],
   ['/settings', 'Settings'],

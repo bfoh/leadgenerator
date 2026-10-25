@@ -163,6 +163,7 @@ export const ACTIVITY_TYPES = [
   'proposal',
   'permission',
   'project',
+  'studio',
   'system',
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
@@ -178,6 +179,7 @@ export const ACTIVITY_LABELS = labels<ActivityType>({
   proposal: 'Proposal',
   permission: 'Permission',
   project: 'Project',
+  studio: 'Website concept',
   system: 'System',
 });
 /** Activity types a user may log by hand. Contact types require permission. */

@@ -11,6 +11,7 @@ export type Capability =
   | 'reports.write'
   | 'proposals.write'
   | 'projects.write'
+  | 'studio.write'
   | 'discovery.run'
   | 'settings.manage'
   | 'members.manage'
@@ -36,6 +37,9 @@ const MATRIX: Record<Capability, readonly Role[]> = {
   'reports.write': ['owner', 'admin', 'researcher', 'sales'],
   'proposals.write': ['owner', 'admin', 'sales'],
   'projects.write': ['owner', 'admin', 'sales', 'developer'],
+  // Lead-to-website Studio (migration 012): the concept and its evidence are written by the people
+  // who research and sell; deleting a concept is a records.delete action.
+  'studio.write': ['owner', 'admin', 'researcher', 'sales'],
   'discovery.run': ['owner', 'admin', 'researcher', 'sales'],
   'settings.manage': ['owner', 'admin'],
   'members.manage': ['owner', 'admin'],

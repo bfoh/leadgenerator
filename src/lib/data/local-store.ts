@@ -36,6 +36,13 @@ import { REPLY_INTENTS, type ReplyClassification } from '@/lib/domain/replies';
 import { readReport } from '@/lib/domain/report';
 import { scoreFields } from '@/lib/domain/rescore';
 import { DEFAULT_SETTINGS, resolveSettings, type OrgSettings } from '@/lib/domain/settings';
+import {
+  studioObservationProblems,
+  studioReviewProblems,
+  type StudioObservation,
+  type StudioProject,
+  type StudioReview,
+} from '@/lib/domain/studio';
 import type {
   Activity,
   AuditEvent,
@@ -110,6 +117,10 @@ interface DemoState {
   /** Added with responses and conversion (phase 9; filled in on load for older demo data). */
   replyClassifications: ReplyClassification[];
   changeRequests: ChangeRequest[];
+  /** Added with the website Studio (filled in on load for older demo data). */
+  studioProjects: StudioProject[];
+  studioObservations: StudioObservation[];
+  studioReviews: StudioReview[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -131,6 +142,7 @@ const AUDITED: (keyof Tables)[] = [
   'outreachMessages',
   'messagePolicies',
   'changeRequests',
+  'studioProjects',
 ];
 const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   businesses: 'businesses',
@@ -146,6 +158,7 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   outreachMessages: 'outreach_messages',
   messagePolicies: 'message_policies',
   changeRequests: 'proposal_change_requests',
+  studioProjects: 'studio_projects',
 };
 /** Mirrors guard_verification_update and guard_audit_finding_update in migration 004. */
 const VERIFICATION_REVIEW_FIELDS = new Set(['reviewStatus', 'reviewNote', 'reviewedBy', 'reviewedAt']);
@@ -185,6 +198,9 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     inboundMessages: [],
     replyClassifications: [],
     changeRequests: [],
+    studioProjects: [],
+    studioObservations: [],
+    studioReviews: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -230,7 +246,7 @@ const WORKER_MOVES = [
   ...['sent>delivered', 'sent>read', 'sent>failed', 'sent>bounced', 'sent>complained', 'delivered>read', 'delivered>bounced', 'delivered>complained', 'read>complained'],
   ...['delivery_unknown>sent', 'delivery_unknown>delivered', 'delivery_unknown>read', 'delivery_unknown>failed', 'delivery_unknown>bounced', 'delivery_unknown>complained'],
 ];
-const INSERT_ONLY = new Set<keyof Tables>(['activities', 'consentRecords', 'suppressions', 'eligibilityDecisions', 'inboundMessages', 'replyClassifications']);
+const INSERT_ONLY = new Set<keyof Tables>(['activities', 'consentRecords', 'suppressions', 'eligibilityDecisions', 'inboundMessages', 'replyClassifications', 'studioObservations', 'studioReviews']);
 const PROVIDER_SOURCES = new Set(['licensed_dataset', 'authorized_directory', 'enrichment_provider']);
 /** Mirrors the generated match_key / channel_key and the active-entry unique index of migration 005. */
 const suppressionMatch = (s: Pick<Suppression, 'kind' | 'valueHash' | 'businessId' | 'id' | 'channel'>) => `${s.kind}|${s.valueHash ?? s.businessId ?? s.id}|${s.channel ?? '*'}`;
@@ -282,6 +298,9 @@ export class LocalStore implements DataStore {
           parsed.inboundMessages ??= [];
           parsed.replyClassifications ??= [];
           parsed.changeRequests ??= [];
+          parsed.studioProjects ??= [];
+          parsed.studioObservations ??= [];
+          parsed.studioReviews ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -445,6 +464,11 @@ export class LocalStore implements DataStore {
       for (const d of this.state.eligibilityDecisions) if (d.businessId === id) d.businessId = null;
       this.remove('contactPoints', (p) => p.businessId === id);
       this.remove('consentRecords', (c) => c.businessId === id);
+      // Migration 012: a concept and its evidence live and die with the prospect they were built for.
+      const studioIds = new Set(this.state.studioProjects.filter((p) => p.businessId === id).map((p) => p.id));
+      this.remove('studioObservations', (o) => studioIds.has(o.projectId));
+      this.remove('studioReviews', (r) => studioIds.has(r.projectId));
+      this.remove('studioProjects', (p) => p.businessId === id);
       for (const sup of this.state.suppressions) {
         if (sup.businessId === id) sup.businessId = null;
         if (sup.consentRecordId && consentIds.has(sup.consentRecordId)) sup.consentRecordId = null;
@@ -1182,6 +1206,104 @@ export class LocalStore implements DataStore {
   createMilestone: DataStore['createMilestone'] = (input) => this.commit(() => this.insert('milestones', input));
   updateMilestone: DataStore['updateMilestone'] = (id, patch) => this.commit(() => this.update('milestones', id, patch));
   deleteMilestone: DataStore['deleteMilestone'] = (id) => this.commit(() => this.remove('milestones', (m) => m.id === id));
+
+  // ── Website Studio (migration 012) ──
+  async studioSchemaAvailable() {
+    return true;
+  }
+  async listStudioProjects(businessId?: string) {
+    return clone(this.state.studioProjects.filter((p) => !businessId || p.businessId === businessId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+  }
+  async getStudioProject(id: string) {
+    return clone(this.state.studioProjects.find((p) => p.id === id) ?? null);
+  }
+  createStudioProject: DataStore['createStudioProject'] = (input) =>
+    this.commit(() => {
+      const name = input.name.trim();
+      if (!name || name.length > 200) throw new StoreError('Give the concept a name of 1–200 characters.', 'invalid');
+      if (input.websiteUrl && !/^https?:\/\//i.test(input.websiteUrl)) throw new StoreError('The website address must start with http:// or https://.', 'invalid');
+      if ((input.brief ?? '').length > 5000) throw new StoreError('The brief is limited to 5,000 characters.', 'invalid');
+      // Mirrors studio_projects_business_uidx.
+      const live = this.state.studioProjects.find((p) => p.businessId === input.businessId && p.status !== 'archived');
+      if (live) throw new StoreError('This prospect already has a live website concept. Archive it before starting another.', 'conflict');
+      if (!this.state.businesses.some((b) => b.id === input.businessId)) throw new StoreError('Prospect not found', 'not_found');
+      const intelligenceStatus = input.intelligenceStatus ?? 'not_started';
+      return this.insert('studioProjects', {
+        businessId: input.businessId,
+        name,
+        status: input.status ?? 'draft',
+        websiteUrl: input.websiteUrl ?? null,
+        brief: input.brief ?? '',
+        intelligenceStatus,
+        // Mirrors studio_project_analysis_stamped.
+        intelligenceAt: intelligenceStatus === 'not_started' ? (input.intelligenceAt ?? null) : (input.intelligenceAt ?? this.now()),
+        intelligenceNote: input.intelligenceNote ?? null,
+        createdBy: this.userId,
+      });
+    });
+  updateStudioProject: DataStore['updateStudioProject'] = (id, patch) =>
+    this.commit(() => {
+      const before = this.state.studioProjects.find((p) => p.id === id);
+      if (!before) throw new StoreError('Website concept not found', 'not_found');
+      if (patch.name !== undefined) {
+        const name = patch.name.trim();
+        if (!name || name.length > 200) throw new StoreError('Give the concept a name of 1–200 characters.', 'invalid');
+        patch = { ...patch, name };
+      }
+      if (patch.websiteUrl && !/^https?:\/\//i.test(patch.websiteUrl)) throw new StoreError('The website address must start with http:// or https://.', 'invalid');
+      if (patch.brief !== undefined && patch.brief.length > 5000) throw new StoreError('The brief is limited to 5,000 characters.', 'invalid');
+      if ((patch.status ?? before.status) !== 'archived') {
+        const live = this.state.studioProjects.find((p) => p.id !== id && p.businessId === before.businessId && p.status !== 'archived');
+        if (live) throw new StoreError('This prospect already has a live website concept. Archive it before restoring another.', 'conflict');
+      }
+      const intelligenceStatus = patch.intelligenceStatus ?? before.intelligenceStatus;
+      const intelligenceAt = patch.intelligenceAt !== undefined ? patch.intelligenceAt : before.intelligenceAt;
+      // Mirrors studio_project_analysis_stamped.
+      if (intelligenceStatus !== 'not_started' && !intelligenceAt) return this.update('studioProjects', id, { ...patch, intelligenceAt: this.now() });
+      return this.update('studioProjects', id, patch);
+    });
+  deleteStudioProject: DataStore['deleteStudioProject'] = (id) =>
+    this.commit(() => {
+      if (!this.state.studioProjects.some((p) => p.id === id)) throw new StoreError('Website concept not found', 'not_found');
+      this.remove('studioReviews', (r) => r.projectId === id);
+      this.remove('studioObservations', (o) => o.projectId === id);
+      this.remove('studioProjects', (p) => p.id === id);
+    });
+  async listStudioObservations(projectId?: string) {
+    return clone(
+      this.state.studioObservations
+        .filter((o) => !projectId || o.projectId === projectId)
+        .sort((a, b) => b.runNumber - a.runNumber || a.key.localeCompare(b.key)),
+    );
+  }
+  createStudioObservations: DataStore['createStudioObservations'] = (input) =>
+    this.commit(() => {
+      if (!input.length) return [];
+      const projectId = input[0].projectId;
+      if (!this.state.studioProjects.some((p) => p.id === projectId)) throw new StoreError('Website concept not found', 'not_found');
+      if (input.some((o) => o.projectId !== projectId)) throw new StoreError('Evidence is written for one concept at a time.', 'invalid');
+      const seen = new Set(this.state.studioObservations.filter((o) => o.projectId === projectId).map((o) => `${o.runNumber}|${o.key}`));
+      for (const observation of input) {
+        const duplicate = seen.has(`${observation.runNumber}|${observation.key}`) ? ['This evidence was already recorded for this analysis.'] : [];
+        const problems = [...studioObservationProblems(observation), ...duplicate];
+        if (problems.length) throw new StoreError(problems[0], 'invalid');
+        seen.add(`${observation.runNumber}|${observation.key}`);
+      }
+      return input.map((observation) => this.insert('studioObservations', { ...observation, createdBy: this.userId }));
+    });
+  async listStudioReviews(projectId?: string) {
+    return clone(this.state.studioReviews.filter((r) => !projectId || r.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  createStudioReview: DataStore['createStudioReview'] = (input) =>
+    this.commit(() => {
+      if (!this.state.studioProjects.some((p) => p.id === input.projectId)) throw new StoreError('Website concept not found', 'not_found');
+      const problems = studioReviewProblems(input);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      if (input.observationId && !this.state.studioObservations.some((o) => o.id === input.observationId && o.projectId === input.projectId)) {
+        throw new StoreError('That evidence does not belong to this concept.', 'invalid');
+      }
+      return this.insert('studioReviews', { ...input, observationId: input.observationId ?? null, note: input.note.trim(), reviewerId: this.userId });
+    });
 
   // ── Settings, audit, usage ──
   async getSettings() {

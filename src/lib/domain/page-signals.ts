@@ -4,6 +4,28 @@
 
 import { classifyUrl, hostOf, phoneKey, registrableDomain } from './web-research';
 
+export const PAGE_LINK_CATEGORIES = ['home', 'about', 'products', 'services', 'gallery', 'booking', 'journal', 'contact', 'other'] as const;
+export type PageLinkCategory = (typeof PAGE_LINK_CATEGORIES)[number];
+
+export interface PageNavLink {
+  url: string;
+  label: string;
+  category: PageLinkCategory;
+}
+
+/** A logo or icon file the page references. Held as a reference only; never downloaded. */
+export interface PageLogo {
+  url: string;
+  alt: string | null;
+  role: 'logo' | 'icon';
+}
+
+/** A photograph the page references, for a studio's imagery plan. Reference only. */
+export interface PageImage {
+  url: string;
+  alt: string | null;
+}
+
 export interface PageFacts {
   title: string | null;
   description: string | null;
@@ -18,6 +40,20 @@ export interface PageFacts {
   schemaLocality: string | null;
   socialLinks: { platform: string; url: string }[];
   outboundSites: string[];
+  /** Declared icon file (rel="icon" or apple-touch-icon). */
+  favicon: string | null;
+  /** Declared browser/theme colour. */
+  themeColor: string | null;
+  /** Typefaces referenced by @font-face, font-family or a web-font stylesheet. */
+  fonts: string[];
+  /** Hex colours declared in the page, most frequent first. */
+  colors: string[];
+  /** Same-site links with their visible labels, de-duplicated by URL. */
+  navLinks: PageNavLink[];
+  /** Logo and icon files referenced by the page, for reference only. */
+  logoCandidates: PageLogo[];
+  /** Photographs referenced by the page, for an imagery plan. Reference only. */
+  imageCandidates: PageImage[];
   hasTelLink: boolean;
   hasMailtoLink: boolean;
   hasWhatsAppLink: boolean;
@@ -113,6 +149,73 @@ const COMMERCE = /\b(add to (cart|bag)|checkout|view cart|buy now)\b|paystack|hu
 const PARKED = /domain (is |may be )?for sale|buy this domain|this domain (has been|is) registered|parked (free|domain|by)|sedoparking|parkingcrew|bodis\.com|afternic|hugedomains|dan\.com\/buy|domain parking/i;
 const PLACEHOLDER = /\b(coming soon|under construction|launching soon|site is under maintenance|website is under maintenance)\b|welcome to nginx|apache2 (ubuntu|debian) default page|\bit works!|default web site page|index of \//i;
 
+// Generic families never tell us anything about a brand.
+const GENERIC_FONTS = new Set([
+  'sans-serif',
+  'serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'inherit',
+  'initial',
+  'unset',
+  'ui-sans-serif',
+  'ui-serif',
+  'ui-monospace',
+  '-apple-system',
+  'blinkmacsystemfont',
+  'segoe ui',
+]);
+
+function tagAttr(tag: string, name: string): string | null {
+  const m = new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i').exec(tag);
+  return m ? decode(m[1]).trim() : null;
+}
+
+/** Absolute http(s) URL, truncated; anything else (data:, mailto:, javascript:, relative junk) is dropped. */
+function absoluteAsset(href: string | null, pageUrl: string): string | null {
+  if (!href || /^(data|javascript|mailto|tel|blob):/i.test(href.trim())) return null;
+  try {
+    const url = new URL(href.trim(), pageUrl);
+    return /^https?:$/.test(url.protocol) ? url.href.slice(0, 300) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Structural guess at what a same-site link is for, from its path and visible label only. */
+export function linkCategory(pathname: string, label: string): PageLinkCategory {
+  const path = pathname.toLowerCase().replace(/\/+$/, '');
+  if (!path) return 'home';
+  const s = `${path} ${label.toLowerCase()}`;
+  if (/(^|\/)(book|booking|appointments?|reserve|reservations?)(\/|$)/.test(path) || /\b(book|booking|appointment|reserve|reservations?)\b/.test(label.toLowerCase())) return 'booking';
+  if (/about|our story|who we are|our team|the brand/.test(s)) return 'about';
+  if (/shop|products?|catalog|collections?|menu|price/.test(s)) return 'products';
+  if (/services?|what we do|treatments?/.test(s)) return 'services';
+  if (/gallery|lookbook|portfolio|our work/.test(s)) return 'gallery';
+  if (/contact|get in touch|reach us|visit us|find us/.test(s)) return 'contact';
+  if (/blog|journal|news|stories|press/.test(s)) return 'journal';
+  return 'other';
+}
+
+function anchorTags(html: string): { href: string; label: string }[] {
+  const out: { href: string; label: string }[] = [];
+  const re = /<a\b([^>]*)>([\s\S]{0,600}?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) && out.length < 400) {
+    const href = tagAttr(m[1], 'href');
+    if (!href) continue;
+    const label = decode(m[2].replace(/<[^>]+>/g, ' '))
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 60);
+    out.push({ href, label });
+  }
+  return out;
+}
+
+
 export function extractPageFacts(html: string, pageUrl: string): PageFacts {
   const host = hostOf(pageUrl);
   const ownSite = host ? registrableDomain(host) : null;
@@ -134,6 +237,7 @@ export function extractPageFacts(html: string, pageUrl: string): PageFacts {
 
   const socialLinks: PageFacts['socialLinks'] = [];
   const outbound = new Set<string>();
+
   for (const url of [...absolute, ...ld.sameAs]) {
     if (!/^https?:/i.test(url)) continue;
     const c = classifyUrl(url);
@@ -145,6 +249,100 @@ export function extractPageFacts(html: string, pageUrl: string): PageFacts {
       if (site !== ownSite && outbound.size < 10) outbound.add(site);
     }
   }
+
+  // Brand signals the page already publishes. Files are referenced, never fetched here.
+  const navLinks: PageNavLink[] = [];
+  const seenPaths = new Set<string>();
+  for (const anchor of anchorTags(html)) {
+    if (navLinks.length >= 12) break;
+    const url = absoluteAsset(anchor.href, pageUrl);
+    if (!url) continue;
+    const host = hostOf(url);
+    if (!host || !ownSite || registrableDomain(host) !== ownSite) continue;
+    const bare = url.split('#')[0];
+    let path = '';
+    try {
+      path = new URL(bare).pathname;
+    } catch {
+      continue;
+    }
+    const key = path.replace(/\/+$/, '') || '/';
+    if (seenPaths.has(key)) continue;
+    seenPaths.add(key);
+    navLinks.push({ url: bare.slice(0, 200), label: anchor.label || key, category: linkCategory(path, anchor.label) });
+  }
+
+  let favicon: string | null = null;
+  let appleIcon: string | null = null;
+  for (const tag of head.match(/<link\b[^>]*>/gi) ?? []) {
+    const rel = (tagAttr(tag, 'rel') ?? '').toLowerCase();
+    if (!rel.includes('icon')) continue;
+    const href = absoluteAsset(tagAttr(tag, 'href'), pageUrl);
+    if (!href) continue;
+    if (rel.includes('apple-touch')) appleIcon ??= href;
+    else if (/\.svg(\?|$)/i.test(href)) favicon = href;
+    else favicon ??= href;
+  }
+  favicon = favicon ?? appleIcon;
+
+  const logoCandidates: PageLogo[] = [];
+  const imageCandidates: PageImage[] = [];
+  const seenAssets = new Set<string>();
+  const addImage = (url: string, alt: string | null) => {
+    if (imageCandidates.length >= 8 || seenAssets.has(url)) return;
+    seenAssets.add(url);
+    imageCandidates.push({ url, alt: clean(alt, 120) });
+  };
+  const ogImage = absoluteAsset(meta(head, 'property', 'og:image'), pageUrl);
+  if (ogImage) addImage(ogImage, meta(head, 'property', 'og:image:alt'));
+  for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+    if (logoCandidates.length >= 4 && imageCandidates.length >= 8) break;
+    const src = absoluteAsset(tagAttr(tag, 'src') ?? tagAttr(tag, 'data-src'), pageUrl);
+    if (!src) continue;
+    const alt = clean(tagAttr(tag, 'alt'), 120);
+    const hint = `${alt ?? ''} ${tagAttr(tag, 'class') ?? ''} ${tagAttr(tag, 'id') ?? ''}`;
+    if (!seenAssets.has(src) && logoCandidates.length < 4 && /\b(logo|wordmark|brand ?mark)\b/i.test(hint)) {
+      seenAssets.add(src);
+      logoCandidates.push({ url: src, alt, role: 'logo' });
+    } else if (!seenAssets.has(src) && logoCandidates.length < 4 && /\b(icon|monogram|emblem|crest)\b/i.test(hint)) {
+      seenAssets.add(src);
+      logoCandidates.push({ url: src, alt, role: 'icon' });
+    } else addImage(src, alt);
+  }
+
+  const declaredTheme = clean(meta(head, 'name', 'theme-color'), 20);
+  const themeColor = declaredTheme && /^#[0-9a-f]{3,8}$/i.test(declaredTheme) ? declaredTheme.toUpperCase() : null;
+
+  const fonts: string[] = [];
+  const addFont = (raw: string) => {
+    const name = raw.replace(/["']/g, '').split(',')[0]?.trim().slice(0, 40) ?? '';
+    if (name.length < 2 || /[(;]|--/.test(name)) return;
+    if (GENERIC_FONTS.has(name.toLowerCase())) return;
+    if (fonts.length < 4 && !fonts.some((f) => f.toLowerCase() === name.toLowerCase())) fonts.push(name);
+  };
+  for (const match of head.matchAll(/font-family\s*:\s*([^;}]+)/gi)) addFont(match[1]);
+  for (const match of head.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'\s>]+)/gi)) {
+    for (const param of decode(match[1]).split('&')) {
+      if (!param.startsWith('family=')) continue;
+      for (const family of param.slice(7).split('|')) addFont(family.split(':')[0]);
+    }
+  }
+
+  const colourCounts = new Map<string, number>();
+  const addColour = (hex: string) => {
+    const h = hex.toLowerCase();
+    const full = h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h;
+    if (!/^#[0-9a-f]{6}$/.test(full)) return;
+    const upper = full.toUpperCase();
+    colourCounts.set(upper, (colourCounts.get(upper) ?? 0) + 1);
+  };
+  if (themeColor) addColour(themeColor);
+  const styleText = `${[...head.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((s) => s[1]).join(' ')} ${[...head.matchAll(/\sstyle=["']([^"']*)["']/gi)].map((s) => s[1]).join(' ')}`;
+  for (const hex of styleText.match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi) ?? []) addColour(hex);
+  const colors = [...colourCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([hex]) => hex);
 
   const phones = new Set<string>();
   for (const p of [...ld.phones, ...links.filter((l) => /^tel:/i.test(l)).map((l) => l.slice(4)), ...(text.match(/(\+?233|0)[\s-]?[235]\d[\s-]?\d{3}[\s-]?\d{4}/g) ?? [])]) {
@@ -175,6 +373,13 @@ export function extractPageFacts(html: string, pageUrl: string): PageFacts {
     schemaLocality: ld.locality,
     socialLinks,
     outboundSites: [...outbound],
+    favicon,
+    themeColor,
+    fonts,
+    colors,
+    navLinks,
+    logoCandidates,
+    imageCandidates,
     hasTelLink: links.some((l) => /^tel:/i.test(l)),
     hasMailtoLink: links.some((l) => /^mailto:/i.test(l)),
     hasWhatsAppLink: absolute.some((l) => /^https?:\/\/(wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)/i.test(l)),

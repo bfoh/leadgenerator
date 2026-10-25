@@ -31,7 +31,8 @@ import type {
 } from '@/lib/domain/types';
 import type { EligibilityDecision, InboundInsert, InboundMessage, MessageEventPatch, MessagePolicy, MessageStatus, MessageTemplate, OutreachMessage } from '@/lib/domain/messaging';
 import type { ReplyClassification } from '@/lib/domain/replies';
-import { CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import type { StudioObservation, StudioProject, StudioReview } from '@/lib/domain/studio';
+import { CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -89,6 +90,7 @@ export class SupabaseStore implements DataStore {
   private messaging: Promise<boolean> | null = null;
   private sending: Promise<boolean> | null = null;
   private conversion: Promise<boolean> | null = null;
+  private studio: Promise<boolean> | null = null;
 
   constructor(
     private readonly sb: SupabaseClient,
@@ -457,6 +459,72 @@ export class SupabaseStore implements DataStore {
     return this.insert<ChangeRequest>('proposal_change_requests', input);
   };
   updateChangeRequest: DataStore['updateChangeRequest'] = (id, patch) => this.patch<ChangeRequest>('proposal_change_requests', id, patch);
+
+  /** Whether migration 012 is applied. Probed once per store. */
+  studioSchemaAvailable() {
+    this.studio ??= (async () => {
+      const { error } = await this.sb.from('studio_projects').select('id', { head: true, count: 'exact' }).eq('organization_id', this.organizationId).limit(1);
+      if (error && MISSING.has(error.code)) return false;
+      if (error) {
+        this.studio = null;
+        throw storeError(error);
+      }
+      return true;
+    })();
+    return this.studio;
+  }
+  private async requireStudioSchema() {
+    if (!(await this.studioSchemaAvailable())) throw new StoreError(STUDIO_MIGRATION_REQUIRED, 'unavailable');
+  }
+  async listStudioProjects(businessId?: string) {
+    if (!(await this.studioSchemaAvailable())) return [];
+    return this.all<StudioProject>('studio_projects', (q) => (businessId ? q.eq('business_id', businessId) : q).order('updated_at', { ascending: false }));
+  }
+  async getStudioProject(id: string) {
+    if (!UUID.test(id) || !(await this.studioSchemaAvailable())) return null;
+    return this.one<StudioProject>('studio_projects', id);
+  }
+  // studio_projects_business_uidx enforces one live concept per business; the run marker is stamped
+  // by studio_project_analysis_stamped when an analysis has actually run.
+  createStudioProject: DataStore['createStudioProject'] = async (input) => {
+    await this.requireStudioSchema();
+    return this.insert<StudioProject>('studio_projects', input);
+  };
+  updateStudioProject: DataStore['updateStudioProject'] = async (id, patch) => {
+    await this.requireStudioSchema();
+    return this.patch<StudioProject>('studio_projects', id, patch);
+  };
+  // The append-only guards in migration 012 let the database decide; a rejected delete is a 403.
+  deleteStudioProject: DataStore['deleteStudioProject'] = async (id) => {
+    await this.requireStudioSchema();
+    await this.remove('studio_projects', id);
+  };
+  async listStudioObservations(projectId?: string) {
+    if (!(await this.studioSchemaAvailable())) return [];
+    return this.all<StudioObservation>('studio_observations', (q) =>
+      (projectId ? q.eq('project_id', projectId) : q).order('run_number', { ascending: false }).order('key', { ascending: true }),
+    );
+  }
+  // Evidence is append-only: one insert per analysis, and the same key may not repeat within a run.
+  createStudioObservations: DataStore['createStudioObservations'] = async (input) => {
+    if (!input.length) return [];
+    await this.requireStudioSchema();
+    const { data, error } = await this.sb
+      .from('studio_observations')
+      .insert(input.map((row) => ({ ...toRow(row), organization_id: this.organizationId })))
+      .select('*');
+    if (error) throw storeError(error);
+    return (data ?? []).map((row) => fromRow<StudioObservation>(row));
+  };
+  async listStudioReviews(projectId?: string) {
+    if (!(await this.studioSchemaAvailable())) return [];
+    return this.all<StudioReview>('studio_reviews', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  // The reviewer is stamped from the session, and the database requires a reason unless confirming.
+  createStudioReview: DataStore['createStudioReview'] = async (input) => {
+    await this.requireStudioSchema();
+    return this.insert<StudioReview>('studio_reviews', input);
+  };
 
   async listInboundMessages(businessId?: string) {
     if (!(await this.messagingSchemaAvailable())) return [];

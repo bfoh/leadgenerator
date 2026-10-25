@@ -6,8 +6,9 @@ Target: **WCAG 2.1 AA** on desktop and phone, in light and dark themes. Date: 20
 
 | Check | Where |
 | --- | --- |
-| axe (wcag2a, wcag2aa, wcag21aa; serious and critical fail the build) on 21 top-level pages and tabs, light and dark | `tests/e2e/navigation.spec.ts` |
+| axe (wcag2a, wcag2aa, wcag21aa; serious and critical fail the build) on 22 top-level pages and tabs, light and dark | `tests/e2e/navigation.spec.ts` |
 | axe on every prospect profile tab (overview, verification, audit, score, contacts, next steps, reports, proposals, activity), the proposal editor, the proposal print view and the meeting brief, light and dark | `tests/e2e/accessibility.spec.ts` |
+| axe on the Website Studio list and on a concept with recorded evidence (run selector, the four evidence groups, reviews, brief), light and dark | `tests/e2e/studio.spec.ts` |
 | axe inside flows (Next steps after a reply, outreach dialogs, contacts) | `e2e/conversion`, `e2e/outreach`, `e2e/contacts` |
 | Keyboard: the skip link moves focus to the main content; a dialog opened from the keyboard keeps Tab inside it, closes on Escape and returns focus to its opener; tabs move with the arrow keys | `e2e/accessibility` |
 | Reduced motion: with `prefers-reduced-motion: reduce`, no animation or transition runs longer than 0.01 ms | `e2e/accessibility` |

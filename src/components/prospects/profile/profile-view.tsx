@@ -12,6 +12,7 @@ import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { AutomateResearchButton, ProspectWorkflowBadge } from '@/components/automation/prospect-automation';
 import { PermissionBadge, ScorePill, StageBadge, WebsiteStatusBadge } from '@/components/records/badges';
 import { StageControl } from '@/components/records/stage-control';
+import { StudioConceptButton } from '@/components/studio/create-concept-button';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
@@ -160,6 +161,7 @@ function Header({ business, onTab }: { business: Business; onTab: (tab: string) 
             </Button>
           )}
           <AutomateResearchButton business={business} />
+          <StudioConceptButton business={business} />
           {/* A merged duplicate stays archived; the notice below offers Undo merge instead. */}
           {!business.mergedIntoId && <StageControl business={business} />}
           {can('prospects.write') && (

@@ -110,7 +110,17 @@ The autonomous-platform design is in [AUTONOMOUS_PLATFORM_ARCHITECTURE.md](AUTON
 - **Policy:** `automation_settings` per organization: mode (default *Research only*; outreach modes rejected), pause, outbound stop (engaged and not liftable in this version), disabled agents, concurrency, budgets. Budgets are also enforced on the manual paid routes in cloud mode.
 - **Workflow state:** `businesses.workflow_state` is kept consistent with opt-outs and closing CRM stages by a trigger; every change is logged in `workflow_transitions`.
 
-## 9. Security controls
+## 9. Website Studio and brand intelligence (migration 012)
+
+A prospect becomes a website concept. The Studio records evidence about the site that business has today, so a designer starts from what the page actually shows rather than from guesses.
+
+- **Reading the page:** `POST /api/studio/inspect` uses the same guarded fetch as the Verification agent (http/https only, ports 80/443, private and link-local addresses refused at every hop, robots.txt respected, 8 s timeout, 512 KB cap) but requires only `studio.write`, not `website.verify`: a salesperson may analyse a site without being allowed to verify it. The check counts against the same daily website-check quota. It returns structural facts (`extractPageFacts`), the robots outcome, the technical check and a `simulated` flag — never the page's text.
+- **Four classifications, kept apart:** `src/lib/domain/studio.ts` turns a reading into *verified facts* (read from the page, each with its source address), *unknowns* (the page is silent: ask the business), *placeholders* (template, parked or stale content) and *creative suggestions* (ours, `sourceKind: 'system'`, never attributed to the page). A page that cannot be read produces `intelligenceStatus: unavailable` with a reason instead of invented evidence.
+- **Append-only evidence:** `studio_observations` has no update policy and an append-only trigger, so a person's decision is a new `studio_reviews` row and a correction is a new analysis run. Every run is numbered and kept; the concept shows one run at a time with the latest selected.
+- **Roles:** owners and admins manage concepts and delete them (`records.delete`); members with `studio.write` create, analyse and review; viewers read. Deleting a concept cascades to its evidence; a business deletion cascades to its concepts.
+- **Modes:** both modes go through `src/lib/data/studio-services.ts`, so demo mode refuses what cloud mode refuses (one live concept per prospect, no analysis on an archived concept, never more than 100 runs). Migration 012 is not applied to production.
+
+## 10. Security controls
 
 - Secrets only in server env vars; `server-only` imports guard server modules. The service-role key is read only by the scheduled worker route.
 - RLS on every table, composite tenant FKs, `SECURITY DEFINER` functions pinned to `search_path = ''`.
