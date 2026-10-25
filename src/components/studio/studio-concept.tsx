@@ -10,6 +10,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/field';
 import { EmptyState, Notice, PageSkeleton } from '@/components/ui/misc';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as studio from '@/lib/data/studio-services';
 import type { PageFacts } from '@/lib/domain/page-signals';
 import {
@@ -30,8 +31,10 @@ import {
 import { hostOf } from '@/lib/domain/web-research';
 import { errorMessage, formatDateTime } from '@/lib/utils';
 import { ApiError, api } from '@/lib/workspace/api';
-import { useAction, useBusinesses, useStudioObservations, useStudioProject, useStudioReviews } from '@/lib/workspace/hooks';
+import { useAction, useBusinesses, useStudioAssets, useStudioObservations, useStudioProject, useStudioReviews } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
+import { StudioAssetVault } from './asset-vault';
+import { StudioBrandKitPanel } from './brand-kit';
 import { ConceptBrief, ObservationRow, ReviewDialog, ReviewTrail } from './concept-evidence';
 
 interface InspectResponse {
@@ -58,6 +61,7 @@ export function StudioConceptView({ id }: { id: string }) {
   const { data: project, isLoading } = useStudioProject(id);
   const { data: observations = [] } = useStudioObservations(id);
   const { data: reviews = [] } = useStudioReviews(id);
+  const { data: assets = [] } = useStudioAssets(id);
   const { data: businesses = [] } = useBusinesses();
   const [run, setRun] = useState<number | null>(null);
   const [reviewTarget, setReviewTarget] = useState<{ observation: StudioObservation | null; decision: ReviewDecision } | null>(null);
@@ -185,37 +189,56 @@ export function StudioConceptView({ id }: { id: string }) {
         </Notice>
       )}
 
-      <div className="space-y-5">
-        <ConceptBrief project={project} editable={editable} siteUrl={siteUrl} />
-        {observations.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={Palette}
-              title={project.intelligenceStatus === 'unavailable' ? 'The site could not be read' : 'No evidence yet'}
-              description={project.intelligenceNote ?? 'Analyse the business’s homepage to record what it shows, what it leaves out, and what only the business can tell you.'}
-              action={
-                editable && siteUrl ? (
-                  <Button loading={busy} onClick={() => void analyseSite(project, siteUrl)}>
-                    <RefreshCw aria-hidden /> Analyse the site
-                  </Button>
-                ) : undefined
+      <Tabs defaultValue="evidence">
+        <TabsList label="Studio sections">
+          <TabsTrigger value="evidence" count={observations.length}>Evidence</TabsTrigger>
+          <TabsTrigger value="assets" count={assets.length}>Asset vault</TabsTrigger>
+          <TabsTrigger value="brand-kit">Brand Kit</TabsTrigger>
+        </TabsList>
+        <TabsContent value="evidence" className="space-y-5 pt-5">
+          <ConceptBrief project={project} editable={editable} siteUrl={siteUrl} />
+          {observations.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Palette}
+                title={project.intelligenceStatus === 'unavailable' ? 'The site could not be read' : 'No evidence yet'}
+                description={project.intelligenceNote ?? 'Analyse the business’s homepage to record what it shows, what it leaves out, and what only the business can tell you.'}
+                action={
+                  editable && siteUrl ? (
+                    <Button loading={busy} onClick={() => void analyseSite(project, siteUrl)}>
+                      <RefreshCw aria-hidden /> Analyse the site
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </Card>
+          ) : (
+            <Evidence
+              project={project}
+              observations={observations}
+              reviews={reviews}
+              run={run}
+              onRunChange={setRun}
+              editable={editable}
+              onReview={(observation, decision) =>
+                decision === 'confirm' ? void decide.run(project, observation, 'confirm', '') : setReviewTarget({ observation, decision })
               }
             />
-          </Card>
-        ) : (
-          <Evidence
+          )}
+        </TabsContent>
+        <TabsContent value="assets" className="space-y-5 pt-5">
+          <StudioAssetVault
             project={project}
-            observations={observations}
-            reviews={reviews}
-            run={run}
-            onRunChange={setRun}
             editable={editable}
-            onReview={(observation, decision) =>
-              decision === 'confirm' ? void decide.run(project, observation, 'confirm', '') : setReviewTarget({ observation, decision })
-            }
+            canDelete={can('records.delete')}
+            canExport={can('data.export')}
+            businessName={business?.name ?? project.name.replace(/ — website concept$/, '')}
           />
-        )}
-      </div>
+        </TabsContent>
+        <TabsContent value="brand-kit" className="space-y-5 pt-5">
+          <StudioBrandKitPanel project={project} editable={editable} />
+        </TabsContent>
+      </Tabs>
       {reviewTarget && (
         <ReviewDialog
           observation={reviewTarget.observation}

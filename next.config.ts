@@ -17,7 +17,10 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // Preview images and footage come from private storage through short-lived signed URLs, so the
+  // Supabase origin is allowed for media only; nothing else may load from it.
+  `img-src 'self' data: blob: ${supabaseOrigin()}`.trim(),
+  `media-src 'self' blob: ${supabaseOrigin()}`.trim(),
   "font-src 'self'",
   `connect-src 'self' ${supabaseOrigin()}`.trim(),
   "object-src 'none'",

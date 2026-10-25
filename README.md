@@ -29,6 +29,19 @@ no evidence is invented. Demo mode and cloud mode share `src/lib/data/studio-ser
 rules apply in both. Migration 012 is **not applied** to production. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §9.
 
+**Asset vault and Brand Kit (milestone 3C.2):** a concept now has a private library of the files it may
+use, each with its origin, licence, five separate permissions (inspect, store, prototype, export,
+publish) and an append-only approval history. Uploads are validated against their own bytes (PNG, JPEG,
+WebP, GIF, PDF, plain text, MP4, WOFF/WOFF2/TTF/OTF; SVG and HTML refused) before anything is stored in
+the private `studio-assets` bucket, and demo mode keeps them in this browser. Somebody else's imagery is
+recorded in a separate reference ledger and is never fetched or displayed. Approved assets feed a
+structured, versioned Brand Kit — logo variants, palette, typography with web licences, photography,
+personality, visual direction and tone of voice — approved by a person before creative direction starts.
+The Asset Pack export contains only approved, unexpired, export-authorized files plus a licensing
+manifest. Migration 013 is **not applied** to production. The authoritative Studio specification, with
+all six phases from brand intelligence to secure client presentations, is
+[docs/WEBSITE_STUDIO.md](docs/WEBSITE_STUDIO.md).
+
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + RLS + Auth) · TanStack Query · Zod · Recharts · Anthropic Claude (optional) · Google Places API (New) (optional)
 
 ## Quick start (demo mode)
@@ -98,6 +111,7 @@ Full procedures: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 | Pipeline | 12-stage kanban and table. Outreach stages require recorded permission with a lawful basis; opt-outs block contact. Tasks, meetings, lost reasons. |
 | Projects | Accepted proposal → project with milestones, deliverables, invoice and maintenance status. |
 | Website concepts (Studio) | A prospect becomes one website concept, built from evidence about the site that business has today. One reading of their homepage, through the same guarded fetch as verification (robots.txt respected, private addresses refused, 8 s timeout, 512 KB cap), becomes four things kept strictly apart: verified facts (each citing the page it came from), unknowns (the page is silent — ask the business), placeholders (template, parked or stale content) and our own creative suggestions, which are never attributed to the page. Evidence is append-only: a person confirms, rejects (with a reason) or notes an entry, and every analysis run is kept and numbered, with the latest shown. Logos, photographs and third-party hosts stay restricted references — nothing is downloaded or republished. A site that cannot be read is recorded as unavailable, with the reason, instead of invented evidence. Concepts are archived rather than lost, one live concept per prospect, and deletion removes the concept and its evidence only. |
+| Asset vault and Brand Kit | Inside a concept: upload the business's logo, photography, documents, fonts and approved video, with provenance, licence, expiry, attribution and five separate permissions (inspect, store, private prototype, export, publish). Bytes are validated before storage and kept in a private bucket (or this browser in demo mode); a file that lies about its type is refused. Candidates are approved, rejected with a reason, annotated, replaced or revoked, with an append-only history. Remote material — a Maps photo, an Instagram post, a competitor's page — is recorded in a separate ledger and never fetched or shown. Approved files feed a versioned Brand Kit (logos, palette, licensed typography, photography, personality, visual direction, tone of voice) that a person approves before creative direction begins, and an Asset Pack ZIP exports only approved, unexpired, export-authorized files with a licensing manifest. |
 | Solution library | 22 website archetypes with tailored design briefs. Digne Suits & More appears only as an internal creative reference, never as a client. |
 | Analytics | Pipeline progression, score bands, all 30 industry groups (records, open, qualified at 50+, won, proposal win rate, conversion, average score), with each group drilling down to the exact stored category labels and those labels linking to the filtered prospect list; verification outcomes over time, estimated API cost, proposals, replies by what they mean (flagged under 10 replies), lost reasons; table views and CSV. Records and labels outside the catalogue are kept in a separate bucket so totals reconcile. |
 | Settings | Agency profile and proposal branding, proposal defaults and taxes, scoring, grouped focus and custom categories, packages, add-on price list, team, integrations, data import/export/reset. |

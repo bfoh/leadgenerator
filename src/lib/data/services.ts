@@ -29,6 +29,7 @@ import { businessFormSchema, permissionFormSchema, projectFormSchema, verificati
 import { orgSettingsSchema, type OrgSettings } from '@/lib/domain/settings';
 import type { ServicePackage } from '@/lib/domain/packages';
 import type { Business, BusinessInsert, OpportunityReport, Project, Proposal, ReportGenerator, ReportUsage, TechnicalCheck, WebsiteVerification } from '@/lib/domain/types';
+import type { AssetStorage } from './asset-storage';
 import { StoreError, type DataStore } from './store';
 
 export interface ServiceContext {
@@ -36,6 +37,11 @@ export interface ServiceContext {
   settings: OrgSettings;
   userId: string;
   userLabel: string;
+  /**
+   * Where Studio asset bytes live: the private bucket in cloud mode, the browser in demo mode.
+   * Optional because most services never touch a file; the asset services refuse to run without it.
+   */
+  assets?: AssetStorage;
 }
 
 const now = () => new Date().toISOString();

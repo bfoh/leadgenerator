@@ -32,7 +32,15 @@ import type {
 import type { EligibilityDecision, InboundInsert, InboundMessage, MessageEventPatch, MessagePolicy, MessageStatus, MessageTemplate, OutreachMessage } from '@/lib/domain/messaging';
 import type { ReplyClassification } from '@/lib/domain/replies';
 import type { StudioObservation, StudioProject, StudioReview } from '@/lib/domain/studio';
-import { CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import type {
+  StudioAsset,
+  StudioAssetEvent,
+  StudioAssetReference,
+  StudioBrandKit,
+  StudioBrandKitApproval,
+  StudioBrandKitVersion,
+} from '@/lib/domain/studio-assets';
+import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -91,6 +99,7 @@ export class SupabaseStore implements DataStore {
   private sending: Promise<boolean> | null = null;
   private conversion: Promise<boolean> | null = null;
   private studio: Promise<boolean> | null = null;
+  private vault: Promise<boolean> | null = null;
 
   constructor(
     private readonly sb: SupabaseClient,
@@ -152,6 +161,17 @@ export class SupabaseStore implements DataStore {
   }
 
   private async insert<T>(table: string, values: object): Promise<T> {
+    const { data, error } = await this.sb
+      .from(table)
+      .insert({ ...toRow(values), organization_id: this.organizationId })
+      .select('*')
+      .single();
+    if (error) throw storeError(error);
+    return fromRow<T>(data);
+  }
+
+  /** Inserts a row whose actor and timestamp columns are stamped by the database. */
+  private async insertRow<T>(table: string, values: object): Promise<T> {
     const { data, error } = await this.sb
       .from(table)
       .insert({ ...toRow(values), organization_id: this.organizationId })
@@ -524,6 +544,94 @@ export class SupabaseStore implements DataStore {
   createStudioReview: DataStore['createStudioReview'] = async (input) => {
     await this.requireStudioSchema();
     return this.insert<StudioReview>('studio_reviews', input);
+  };
+
+  // ── Asset vault and Brand Kit (migration 013) ──
+  /** Whether migration 013 is applied. Probed once per store. */
+  assetVaultAvailable() {
+    this.vault ??= (async () => {
+      const { error } = await this.sb.from('studio_assets').select('id', { head: true, count: 'exact' }).eq('organization_id', this.organizationId).limit(1);
+      if (error && MISSING.has(error.code)) return false;
+      if (error) {
+        this.vault = null;
+        throw storeError(error);
+      }
+      return true;
+    })();
+    return this.vault;
+  }
+  private async requireAssetVault() {
+    if (!(await this.assetVaultAvailable())) throw new StoreError(ASSET_VAULT_MIGRATION_REQUIRED, 'unavailable');
+  }
+  async listStudioAssets(projectId?: string) {
+    if (!(await this.assetVaultAvailable())) return [];
+    return this.all<StudioAsset>('studio_assets', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  async getStudioAsset(id: string) {
+    if (!UUID.test(id) || !(await this.assetVaultAvailable())) return null;
+    return this.one<StudioAsset>('studio_assets', id);
+  }
+  createStudioAsset: DataStore['createStudioAsset'] = async (input) => {
+    await this.requireAssetVault();
+    return this.insert<StudioAsset>('studio_assets', input);
+  };
+  updateStudioAsset: DataStore['updateStudioAsset'] = async (id, patch) => {
+    await this.requireAssetVault();
+    return this.patch<StudioAsset>('studio_assets', id, patch);
+  };
+  deleteStudioAsset: DataStore['deleteStudioAsset'] = async (id) => {
+    await this.requireAssetVault();
+    await this.remove('studio_assets', id);
+  };
+  async listStudioAssetEvents(projectId?: string) {
+    if (!(await this.assetVaultAvailable())) return [];
+    return this.all<StudioAssetEvent>('studio_asset_events', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  createStudioAssetEvent: DataStore['createStudioAssetEvent'] = async (input) => {
+    await this.requireAssetVault();
+    return this.insertRow<StudioAssetEvent>('studio_asset_events', input);
+  };
+  async listStudioAssetReferences(projectId?: string) {
+    if (!(await this.assetVaultAvailable())) return [];
+    return this.all<StudioAssetReference>('studio_asset_references', (q) => (projectId ? q.eq('project_id', projectId) : q).order('created_at', { ascending: false }));
+  }
+  createStudioAssetReference: DataStore['createStudioAssetReference'] = async (input) => {
+    await this.requireAssetVault();
+    return this.insertRow<StudioAssetReference>('studio_asset_references', input);
+  };
+  updateStudioAssetReference: DataStore['updateStudioAssetReference'] = async (id, patch) => {
+    await this.requireAssetVault();
+    return this.patch<StudioAssetReference>('studio_asset_references', id, patch);
+  };
+  deleteStudioAssetReference: DataStore['deleteStudioAssetReference'] = async (id) => {
+    await this.requireAssetVault();
+    await this.remove('studio_asset_references', id);
+  };
+  async getStudioBrandKit(projectId: string) {
+    if (!UUID.test(projectId) || !(await this.assetVaultAvailable())) return null;
+    const { data, error } = await this.sb.from('studio_brand_kits').select('*').eq('organization_id', this.organizationId).eq('project_id', projectId).maybeSingle();
+    if (error) throw storeError(error);
+    return data ? fromRow<StudioBrandKit>(data) : null;
+  }
+  createStudioBrandKit: DataStore['createStudioBrandKit'] = async (projectId) => {
+    await this.requireAssetVault();
+    return this.insertRow<StudioBrandKit>('studio_brand_kits', { projectId });
+  };
+  async listStudioBrandKitVersions(kitId: string) {
+    if (!UUID.test(kitId) || !(await this.assetVaultAvailable())) return [];
+    return this.all<StudioBrandKitVersion>('studio_brand_kit_versions', (q) => q.eq('kit_id', kitId).order('version', { ascending: false }));
+  }
+  createStudioBrandKitVersion: DataStore['createStudioBrandKitVersion'] = async (input) => {
+    await this.requireAssetVault();
+    return this.insertRow<StudioBrandKitVersion>('studio_brand_kit_versions', input);
+  };
+  async listStudioBrandKitApprovals(kitId: string) {
+    if (!UUID.test(kitId) || !(await this.assetVaultAvailable())) return [];
+    return this.all<StudioBrandKitApproval>('studio_brand_kit_approvals', (q) => q.eq('kit_id', kitId).order('approved_at', { ascending: false }));
+  }
+  createStudioBrandKitApproval: DataStore['createStudioBrandKitApproval'] = async (input) => {
+    await this.requireAssetVault();
+    return this.insertRow<StudioBrandKitApproval>('studio_brand_kit_approvals', input);
   };
 
   async listInboundMessages(businessId?: string) {

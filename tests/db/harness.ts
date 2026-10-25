@@ -42,6 +42,8 @@ export async function createDatabase(
     before003?: (db: PGlite) => Promise<void>;
     before004?: (db: PGlite) => Promise<void>;
     before005?: (db: PGlite) => Promise<void>;
+    /** Extra setup before any migration, keyed by its numeric prefix (e.g. a storage schema before 013). */
+    before?: Record<string, (db: PGlite) => Promise<unknown>>;
     skip?: string[];
   } = {},
 ) {
@@ -53,6 +55,8 @@ export async function createDatabase(
     if (file.startsWith('003') && options.before003) await options.before003(db);
     if (file.startsWith('004') && options.before004) await options.before004(db);
     if (file.startsWith('005') && options.before005) await options.before005(db);
+    const hook = options.before?.[file.slice(0, 3)];
+    if (hook) await hook(db);
     await db.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
   }
   return db;

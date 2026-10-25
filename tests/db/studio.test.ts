@@ -370,7 +370,10 @@ describe('re-running, independence and rollback', () => {
       d,
       `select table_name::text from information_schema.tables where table_schema = 'public' and table_name in ('studio_projects', 'studio_observations', 'studio_reviews')
        union all select proname::text from pg_proc where pronamespace = 'public'::regnamespace and proname in ('guard_studio_observation_append_only', 'guard_studio_review_append_only')
-       union all select tgname::text from pg_trigger where tgname like 'studio_%'`,
+       -- Only migration 012's triggers: later Studio migrations keep their own triggers when this
+       -- rollback is applied on its own.
+       union all select tgname::text from pg_trigger
+         where tgname like 'studio_%' and tgrelid::regclass::text in ('studio_projects', 'studio_observations', 'studio_reviews')`,
     );
     expect(leftovers).toEqual([]);
     // Only the Studio entries go; the prospect's other history is untouched.

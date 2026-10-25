@@ -28,6 +28,20 @@ import type { ClassificationInsert, ReplyClassification } from '@/lib/domain/rep
 import type { OrgSettings } from '@/lib/domain/settings';
 import type { StudioObservation, StudioObservationInsert, StudioProject, StudioProjectInsert, StudioProjectPatch, StudioReview, StudioReviewInsert } from '@/lib/domain/studio';
 import type {
+  StudioAsset,
+  StudioAssetEvent,
+  StudioAssetEventInsert,
+  StudioAssetInsert,
+  StudioAssetPatch,
+  StudioAssetReference,
+  StudioAssetReferenceInsert,
+  StudioBrandKit,
+  StudioBrandKitApproval,
+  StudioBrandKitApprovalInsert,
+  StudioBrandKitVersion,
+  StudioBrandKitVersionInsert,
+} from '@/lib/domain/studio-assets';
+import type {
   Activity,
   ActivityInsert,
   AuditEvent,
@@ -197,6 +211,30 @@ export interface DataStore {
   listStudioReviews(projectId?: string): Promise<StudioReview[]>;
   createStudioReview(input: StudioReviewInsert): Promise<StudioReview>;
 
+  /** False when the cloud database has not had migration 013 (asset vault, Brand Kit, storage bucket). */
+  assetVaultAvailable(): Promise<boolean>;
+  listStudioAssets(projectId?: string): Promise<StudioAsset[]>;
+  getStudioAsset(id: string): Promise<StudioAsset | null>;
+  createStudioAsset(input: StudioAssetInsert): Promise<StudioAsset>;
+  updateStudioAsset(id: string, patch: StudioAssetPatch): Promise<StudioAsset>;
+  /** Owners/admins. Removes the record; the caller removes the stored file first. */
+  deleteStudioAsset(id: string): Promise<void>;
+  /** Append-only history, newest first. */
+  listStudioAssetEvents(projectId?: string): Promise<StudioAssetEvent[]>;
+  createStudioAssetEvent(input: StudioAssetEventInsert): Promise<StudioAssetEvent>;
+  /** Remote material, recorded but never imported. */
+  listStudioAssetReferences(projectId?: string): Promise<StudioAssetReference[]>;
+  createStudioAssetReference(input: StudioAssetReferenceInsert): Promise<StudioAssetReference>;
+  updateStudioAssetReference(id: string, patch: Partial<Pick<StudioAssetReference, 'status' | 'note'>>): Promise<StudioAssetReference>;
+  deleteStudioAssetReference(id: string): Promise<void>;
+  /** The kit belongs to one concept; its versions are immutable and approvals are append-only. */
+  getStudioBrandKit(projectId: string): Promise<StudioBrandKit | null>;
+  createStudioBrandKit(projectId: string): Promise<StudioBrandKit>;
+  listStudioBrandKitVersions(kitId: string): Promise<StudioBrandKitVersion[]>;
+  createStudioBrandKitVersion(input: StudioBrandKitVersionInsert): Promise<StudioBrandKitVersion>;
+  listStudioBrandKitApprovals(kitId: string): Promise<StudioBrandKitApproval[]>;
+  createStudioBrandKitApproval(input: StudioBrandKitApprovalInsert): Promise<StudioBrandKitApproval>;
+
   getSettings(): Promise<OrgSettings>;
   updateSettings(settings: OrgSettings, organizationName?: string): Promise<OrgSettings>;
 
@@ -240,3 +278,6 @@ export const CONTACTS_MIGRATION_REQUIRED =
 
 export const STUDIO_MIGRATION_REQUIRED =
   'Apply database migration 012 (supabase/migrations/012_studio_brand_intelligence.sql) to use website concepts and their evidence.';
+
+export const ASSET_VAULT_MIGRATION_REQUIRED =
+  'Apply database migration 013 (supabase/migrations/013_studio_asset_vault.sql) to use the asset vault, Brand Kit and approved exports.';

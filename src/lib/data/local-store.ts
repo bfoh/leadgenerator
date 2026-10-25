@@ -43,6 +43,23 @@ import {
   type StudioProject,
   type StudioReview,
 } from '@/lib/domain/studio';
+import {
+  ASSET_KIND_META,
+  ASSET_MIME_TYPES,
+  assetExpired,
+  brandKitProblems,
+  currentBrandKitApproval,
+  parseBrandKitContent,
+  studioAssetEventProblems,
+  studioAssetProblems,
+  studioAssetReferenceProblems,
+  type StudioAsset,
+  type StudioAssetEvent,
+  type StudioAssetReference,
+  type StudioBrandKit,
+  type StudioBrandKitApproval,
+  type StudioBrandKitVersion,
+} from '@/lib/domain/studio-assets';
 import type {
   Activity,
   AuditEvent,
@@ -121,6 +138,13 @@ interface DemoState {
   studioProjects: StudioProject[];
   studioObservations: StudioObservation[];
   studioReviews: StudioReview[];
+  /** Added with the asset vault (migration 013); filled in on load for older demo data. */
+  studioAssets: StudioAsset[];
+  studioAssetEvents: StudioAssetEvent[];
+  studioAssetReferences: StudioAssetReference[];
+  studioBrandKits: StudioBrandKit[];
+  studioBrandKitVersions: StudioBrandKitVersion[];
+  studioBrandKitApprovals: StudioBrandKitApproval[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -143,6 +167,9 @@ const AUDITED: (keyof Tables)[] = [
   'messagePolicies',
   'changeRequests',
   'studioProjects',
+  'studioAssets',
+  'studioAssetReferences',
+  'studioBrandKits',
 ];
 const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   businesses: 'businesses',
@@ -159,6 +186,9 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   messagePolicies: 'message_policies',
   changeRequests: 'proposal_change_requests',
   studioProjects: 'studio_projects',
+  studioAssets: 'studio_assets',
+  studioAssetReferences: 'studio_asset_references',
+  studioBrandKits: 'studio_brand_kits',
 };
 /** Mirrors guard_verification_update and guard_audit_finding_update in migration 004. */
 const VERIFICATION_REVIEW_FIELDS = new Set(['reviewStatus', 'reviewNote', 'reviewedBy', 'reviewedAt']);
@@ -201,6 +231,12 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     studioProjects: [],
     studioObservations: [],
     studioReviews: [],
+    studioAssets: [],
+    studioAssetEvents: [],
+    studioAssetReferences: [],
+    studioBrandKits: [],
+    studioBrandKitVersions: [],
+    studioBrandKitApprovals: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -246,7 +282,19 @@ const WORKER_MOVES = [
   ...['sent>delivered', 'sent>read', 'sent>failed', 'sent>bounced', 'sent>complained', 'delivered>read', 'delivered>bounced', 'delivered>complained', 'read>complained'],
   ...['delivery_unknown>sent', 'delivery_unknown>delivered', 'delivery_unknown>read', 'delivery_unknown>failed', 'delivery_unknown>bounced', 'delivery_unknown>complained'],
 ];
-const INSERT_ONLY = new Set<keyof Tables>(['activities', 'consentRecords', 'suppressions', 'eligibilityDecisions', 'inboundMessages', 'replyClassifications', 'studioObservations', 'studioReviews']);
+const INSERT_ONLY = new Set<keyof Tables>([
+  'activities',
+  'consentRecords',
+  'suppressions',
+  'eligibilityDecisions',
+  'inboundMessages',
+  'replyClassifications',
+  'studioObservations',
+  'studioReviews',
+  'studioAssetEvents',
+  'studioBrandKitVersions',
+  'studioBrandKitApprovals',
+]);
 const PROVIDER_SOURCES = new Set(['licensed_dataset', 'authorized_directory', 'enrichment_provider']);
 /** Mirrors the generated match_key / channel_key and the active-entry unique index of migration 005. */
 const suppressionMatch = (s: Pick<Suppression, 'kind' | 'valueHash' | 'businessId' | 'id' | 'channel'>) => `${s.kind}|${s.valueHash ?? s.businessId ?? s.id}|${s.channel ?? '*'}`;
@@ -301,6 +349,12 @@ export class LocalStore implements DataStore {
           parsed.studioProjects ??= [];
           parsed.studioObservations ??= [];
           parsed.studioReviews ??= [];
+          parsed.studioAssets ??= [];
+          parsed.studioAssetEvents ??= [];
+          parsed.studioAssetReferences ??= [];
+          parsed.studioBrandKits ??= [];
+          parsed.studioBrandKitVersions ??= [];
+          parsed.studioBrandKitApprovals ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -468,6 +522,14 @@ export class LocalStore implements DataStore {
       const studioIds = new Set(this.state.studioProjects.filter((p) => p.businessId === id).map((p) => p.id));
       this.remove('studioObservations', (o) => studioIds.has(o.projectId));
       this.remove('studioReviews', (r) => studioIds.has(r.projectId));
+      // Migration 013: the vault, its history and the Brand Kit live and die with the concept.
+      this.remove('studioAssetEvents', (e) => studioIds.has(e.projectId));
+      this.remove('studioAssets', (a) => studioIds.has(a.projectId));
+      this.remove('studioAssetReferences', (r) => studioIds.has(r.projectId));
+      const kitIds = new Set(this.state.studioBrandKits.filter((k) => studioIds.has(k.projectId)).map((k) => k.id));
+      this.remove('studioBrandKitApprovals', (a) => kitIds.has(a.kitId));
+      this.remove('studioBrandKitVersions', (v) => kitIds.has(v.kitId));
+      this.remove('studioBrandKits', (k) => studioIds.has(k.projectId));
       this.remove('studioProjects', (p) => p.businessId === id);
       for (const sup of this.state.suppressions) {
         if (sup.businessId === id) sup.businessId = null;
@@ -1267,6 +1329,13 @@ export class LocalStore implements DataStore {
       if (!this.state.studioProjects.some((p) => p.id === id)) throw new StoreError('Website concept not found', 'not_found');
       this.remove('studioReviews', (r) => r.projectId === id);
       this.remove('studioObservations', (o) => o.projectId === id);
+      this.remove('studioAssetEvents', (e) => e.projectId === id);
+      this.remove('studioAssets', (a) => a.projectId === id);
+      this.remove('studioAssetReferences', (r) => r.projectId === id);
+      const kits = this.state.studioBrandKits.filter((k) => k.projectId === id).map((k) => k.id);
+      this.remove('studioBrandKitApprovals', (a) => kits.includes(a.kitId));
+      this.remove('studioBrandKitVersions', (v) => kits.includes(v.kitId));
+      this.remove('studioBrandKits', (k) => k.projectId === id);
       this.remove('studioProjects', (p) => p.id === id);
     });
   async listStudioObservations(projectId?: string) {
@@ -1303,6 +1372,206 @@ export class LocalStore implements DataStore {
         throw new StoreError('That evidence does not belong to this concept.', 'invalid');
       }
       return this.insert('studioReviews', { ...input, observationId: input.observationId ?? null, note: input.note.trim(), reviewerId: this.userId });
+    });
+
+  // ── Asset vault and Brand Kit (migration 013) ──
+  async assetVaultAvailable() {
+    return true;
+  }
+  async listStudioAssets(projectId?: string) {
+    return clone(this.state.studioAssets.filter((a) => !projectId || a.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  async getStudioAsset(id: string) {
+    return clone(this.state.studioAssets.find((a) => a.id === id) ?? null);
+  }
+  createStudioAsset: DataStore['createStudioAsset'] = (input) =>
+    this.commit(() => {
+      const project = this.state.studioProjects.find((p) => p.id === input.projectId);
+      if (!project) throw new StoreError('Website concept not found', 'not_found');
+      if (project.status === 'archived') throw new StoreError('This concept is archived. Restore it before adding an asset.', 'conflict');
+      const mimeMeta = ASSET_MIME_TYPES.find((t) => t.mimeType === input.mimeType);
+      if (!mimeMeta || !ASSET_KIND_META[input.kind]?.fileClasses.includes(mimeMeta.fileClass)) {
+        throw new StoreError(`A ${ASSET_KIND_META[input.kind]?.label.toLowerCase() ?? 'file'} cannot be a ${mimeMeta?.label ?? 'file of that type'}.`, 'invalid');
+      }
+      const at = this.now();
+      const row: StudioAsset = {
+        ...input,
+        id: input.id ?? uuid(),
+        organizationId: DEMO_ORG_ID,
+        status: input.status ?? 'candidate',
+        width: input.width ?? null,
+        height: input.height ?? null,
+        supplier: input.supplier ?? null,
+        sourceUrl: input.sourceUrl ?? null,
+        licenceName: input.licenceName ?? null,
+        licenceReference: input.licenceReference ?? null,
+        licenceExpiresOn: input.licenceExpiresOn ?? null,
+        attributionRequired: input.attributionRequired ?? false,
+        attributionText: input.attributionText ?? null,
+        note: input.note ?? '',
+        reviewNote: null,
+        approvedBy: null,
+        approvedAt: null,
+        rejectedBy: null,
+        rejectedAt: null,
+        rejectedReason: null,
+        revokedBy: null,
+        revokedAt: null,
+        revokedReason: null,
+        supersedesId: input.supersedesId ?? null,
+        createdBy: this.userId,
+        createdAt: at,
+        updatedAt: at,
+      };
+      const problems = studioAssetProblems(row, DEMO_ORG_ID);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      if (row.status !== 'candidate') throw new StoreError('A new asset starts as a candidate; approve it once its permission is recorded.', 'invalid');
+      if (this.state.studioAssets.some((a) => a.projectId === row.projectId && a.storagePath === row.storagePath)) {
+        throw new StoreError('That file is already in this concept’s vault.', 'conflict');
+      }
+      if (row.supersedesId && !this.state.studioAssets.some((a) => a.id === row.supersedesId && a.projectId === row.projectId)) {
+        throw new StoreError('The asset being replaced does not belong to this concept.', 'invalid');
+      }
+      this.state.studioAssets.push(row);
+      this.audit('studioAssets', 'insert', null, row);
+      this.persist();
+      return clone(row);
+    });
+  updateStudioAsset: DataStore['updateStudioAsset'] = (id, patch) =>
+    this.commit(() => {
+      const before = this.state.studioAssets.find((a) => a.id === id);
+      if (!before) throw new StoreError('Asset not found', 'not_found');
+      const next: StudioAsset = { ...before, ...patch };
+      if (patch.status && patch.status !== before.status) {
+        if (patch.status === 'approved') {
+          if (before.status !== 'candidate') throw new StoreError('Only a candidate can be approved.', 'invalid');
+          next.approvedAt = this.now();
+          next.approvedBy = this.userId;
+        }
+        if (patch.status === 'rejected') {
+          next.rejectedAt = this.now();
+          next.rejectedBy = this.userId;
+        }
+        if (patch.status === 'revoked') {
+          next.revokedAt = this.now();
+          next.revokedBy = this.userId;
+        }
+      }
+      const problems = studioAssetProblems(next, DEMO_ORG_ID);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      if (next.status === 'approved' && !next.approvedAt) throw new StoreError('An approved asset keeps the time it was approved.', 'invalid');
+      if (next.status === 'approved' && assetExpired(next)) throw new StoreError(`The licence expired on ${next.licenceExpiresOn}.`, 'invalid');
+      if (next.status === 'rejected' && (next.rejectedReason ?? '').trim().length < 3) throw new StoreError('Explain why the asset was rejected.', 'invalid');
+      if (next.status === 'revoked' && (next.revokedReason ?? '').trim().length < 3) throw new StoreError('Explain why the permission was revoked.', 'invalid');
+      if ((next.reviewNote?.length ?? 0) > 1000) throw new StoreError('A review note is limited to 1,000 characters.', 'invalid');
+      if (next.attributionRequired && !next.attributionText) throw new StoreError('Attribution is required but its wording is missing.', 'invalid');
+      this.audit('studioAssets', 'update', before, next);
+      Object.assign(before, next, { updatedAt: this.now() });
+      this.persist();
+      return clone(before);
+    });
+  deleteStudioAsset: DataStore['deleteStudioAsset'] = (id) =>
+    this.commit(() => {
+      if (!this.state.studioAssets.some((a) => a.id === id)) throw new StoreError('Asset not found', 'not_found');
+      this.remove('studioAssetEvents', (e) => e.assetId === id);
+      this.remove('studioAssets', (a) => a.id === id);
+    });
+  async listStudioAssetEvents(projectId?: string) {
+    return clone(this.state.studioAssetEvents.filter((e) => !projectId || e.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  createStudioAssetEvent: DataStore['createStudioAssetEvent'] = (input) =>
+    this.commit(() => {
+      const problems = studioAssetEventProblems(input);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      const asset = this.state.studioAssets.find((a) => a.id === input.assetId);
+      if (!asset || asset.projectId !== input.projectId) throw new StoreError('That asset does not belong to this concept.', 'invalid');
+      return this.insert('studioAssetEvents', { ...input, note: input.note?.trim() || null, actorId: this.userId });
+    });
+
+  async listStudioAssetReferences(projectId?: string) {
+    return clone(this.state.studioAssetReferences.filter((r) => !projectId || r.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  createStudioAssetReference: DataStore['createStudioAssetReference'] = (input) =>
+    this.commit(() => {
+      const problems = studioAssetReferenceProblems(input);
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      if (!this.state.studioProjects.some((p) => p.id === input.projectId)) throw new StoreError('Website concept not found', 'not_found');
+      const address = input.address.trim();
+      if (this.state.studioAssetReferences.some((r) => r.projectId === input.projectId && r.address === address)) {
+        throw new StoreError('That address is already recorded for this concept.', 'conflict');
+      }
+      return this.insert('studioAssetReferences', {
+        ...input,
+        address,
+        label: input.label.trim(),
+        note: input.note?.trim() || null,
+        status: 'recorded',
+        recordedBy: this.userId,
+      });
+    });
+  updateStudioAssetReference: DataStore['updateStudioAssetReference'] = (id, patch) =>
+    this.commit(() => {
+      const before = this.state.studioAssetReferences.find((r) => r.id === id);
+      if (!before) throw new StoreError('Reference not found', 'not_found');
+      if (patch.status && !['recorded', 'declined'].includes(patch.status)) throw new StoreError('Choose whether the reference is recorded or declined.', 'invalid');
+      if ((patch.note?.length ?? 0) > 1000) throw new StoreError('A reference note is limited to 1,000 characters.', 'invalid');
+      const next = { ...before, ...patch };
+      this.audit('studioAssetReferences', 'update', before, next);
+      Object.assign(before, next, { updatedAt: this.now() });
+      this.persist();
+      return clone(before);
+    });
+  deleteStudioAssetReference: DataStore['deleteStudioAssetReference'] = (id) =>
+    this.commit(() => {
+      if (!this.state.studioAssetReferences.some((r) => r.id === id)) throw new StoreError('Reference not found', 'not_found');
+      this.remove('studioAssetReferences', (r) => r.id === id);
+    });
+
+  async getStudioBrandKit(projectId: string) {
+    return clone(this.state.studioBrandKits.find((k) => k.projectId === projectId) ?? null);
+  }
+  createStudioBrandKit: DataStore['createStudioBrandKit'] = (projectId) =>
+    this.commit(() => {
+      if (!this.state.studioProjects.some((p) => p.id === projectId)) throw new StoreError('Website concept not found', 'not_found');
+      if (this.state.studioBrandKits.some((k) => k.projectId === projectId)) throw new StoreError('This concept already has a Brand Kit.', 'conflict');
+      return this.insert('studioBrandKits', { projectId, createdBy: this.userId });
+    });
+  async listStudioBrandKitVersions(kitId: string) {
+    return clone(this.state.studioBrandKitVersions.filter((v) => v.kitId === kitId).sort((a, b) => b.version - a.version));
+  }
+  createStudioBrandKitVersion: DataStore['createStudioBrandKitVersion'] = (input) =>
+    this.commit(() => {
+      const kit = this.state.studioBrandKits.find((k) => k.id === input.kitId);
+      if (!kit || kit.projectId !== input.projectId) throw new StoreError('Brand Kit not found', 'not_found');
+      const latest = Math.max(0, ...this.state.studioBrandKitVersions.filter((v) => v.kitId === input.kitId).map((v) => v.version));
+      if (input.version !== latest + 1) throw new StoreError(`The next Brand Kit version is ${latest + 1}.`, 'conflict');
+      const content = parseBrandKitContent(input.content);
+      const problems = brandKitProblems(content, this.state.studioAssets.filter((a) => a.projectId === input.projectId));
+      if (problems.length) throw new StoreError(problems[0], 'invalid');
+      if (input.note.length > 1000) throw new StoreError('A version note is limited to 1,000 characters.', 'invalid');
+      return this.insert('studioBrandKitVersions', { ...input, content, note: input.note.trim(), createdBy: this.userId });
+    });
+  async listStudioBrandKitApprovals(kitId: string) {
+    return clone(this.state.studioBrandKitApprovals.filter((a) => a.kitId === kitId).sort((a, b) => b.approvedAt.localeCompare(a.approvedAt)));
+  }
+  createStudioBrandKitApproval: DataStore['createStudioBrandKitApproval'] = (input) =>
+    this.commit(() => {
+      const version = this.state.studioBrandKitVersions.find((v) => v.id === input.versionId && v.kitId === input.kitId);
+      if (!version) throw new StoreError('Brand Kit version not found', 'not_found');
+      const note = input.note.trim();
+      if (note.length < 3) throw new StoreError('Explain what was approved.', 'invalid');
+      if (this.state.studioBrandKitApprovals.some((a) => a.versionId === input.versionId)) throw new StoreError('That version is already approved.', 'conflict');
+      const current = currentBrandKitApproval(this.state.studioBrandKitApprovals.filter((a) => a.kitId === input.kitId));
+      if (current) {
+        const currentVersion = this.state.studioBrandKitVersions.find((v) => v.id === current.versionId);
+        if (currentVersion && version.version < currentVersion.version) {
+          throw new StoreError(`Version ${version.version} is older than the approved version (${currentVersion.version}).`, 'invalid');
+        }
+      }
+      const row: StudioBrandKitApproval = { ...input, note, id: uuid(), organizationId: DEMO_ORG_ID, approvedBy: this.userId, approvedAt: this.now() };
+      this.state.studioBrandKitApprovals.push(row);
+      this.persist();
+      return clone(row);
     });
 
   // ── Settings, audit, usage ──

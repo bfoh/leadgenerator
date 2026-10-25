@@ -57,6 +57,19 @@ export const useStudioProjects = (businessId?: string) => useStoreQuery(['studio
 export const useStudioProject = (id: string) => useStoreQuery(['studio-project', id], (s) => s.getStudioProject(id));
 export const useStudioObservations = (projectId?: string) => useStoreQuery(['studio-observations', projectId ?? 'all'], (s) => s.listStudioObservations(projectId));
 export const useStudioReviews = (projectId?: string) => useStoreQuery(['studio-reviews', projectId ?? 'all'], (s) => s.listStudioReviews(projectId));
+/** Whether migration 013 (asset vault, Brand Kit, private bucket) is applied. */
+export const useAssetVaultSchema = () => useStoreQuery(['asset-vault-schema'], (s) => s.assetVaultAvailable());
+export const useStudioAssets = (projectId?: string) => useStoreQuery(['studio-assets', projectId ?? 'all'], (s) => s.listStudioAssets(projectId));
+export const useStudioAssetEvents = (projectId?: string) => useStoreQuery(['studio-asset-events', projectId ?? 'all'], (s) => s.listStudioAssetEvents(projectId));
+export const useStudioAssetReferences = (projectId?: string) => useStoreQuery(['studio-asset-references', projectId ?? 'all'], (s) => s.listStudioAssetReferences(projectId));
+/** The kit with its immutable versions and append-only approvals, newest first. */
+export const useStudioBrandKit = (projectId: string) =>
+  useStoreQuery(['studio-brand-kit', projectId], async (s) => {
+    const kit = await s.getStudioBrandKit(projectId);
+    if (!kit) return null;
+    const [versions, approvals] = await Promise.all([s.listStudioBrandKitVersions(kit.id), s.listStudioBrandKitApprovals(kit.id)]);
+    return { kit, versions, approvals };
+  });
 export const useAuditTrail = (tables: string[], enabled = true) => useStoreQuery(['audit-trail', tables.join(',')], (s) => s.listAuditTrail(tables), enabled);
 
 // Session and server configuration do not change when records do.

@@ -6,6 +6,7 @@ import { createContext, useContext, useMemo } from 'react';
 import { LocalAutomationStore } from '@/lib/automation/local-store';
 import type { AutomationStore } from '@/lib/automation/store';
 import { SupabaseAutomationStore } from '@/lib/automation/supabase-store';
+import { BrowserAssetStorage, SupabaseAssetStorage, type AssetStorage } from '@/lib/data/asset-storage';
 import { LocalStore, DEMO_ORG_ID, DEMO_USER_ID } from '@/lib/data/local-store';
 import type { ServiceContext } from '@/lib/data/services';
 import type { DataStore } from '@/lib/data/store';
@@ -24,6 +25,8 @@ interface WorkspaceValue {
   workspace: Workspace;
   store: DataStore;
   automation: AutomationStore;
+  /** Where Studio asset bytes live (the browser in demo mode, the private bucket in cloud mode). */
+  assets: AssetStorage;
   settings: OrgSettings;
   ctx: ServiceContext;
   can: (capability: Capability) => boolean;
@@ -37,12 +40,13 @@ function getDemoStore() {
   return demoStore;
 }
 
-async function connect(): Promise<{ workspace: Workspace; store: DataStore; automation: AutomationStore }> {
+async function connect(): Promise<{ workspace: Workspace; store: DataStore; automation: AutomationStore; assets: AssetStorage }> {
   if (!isSupabaseConfigured()) {
     const store = getDemoStore();
     return {
       store,
       automation: new LocalAutomationStore(typeof window === 'undefined' ? null : window.localStorage),
+      assets: new BrowserAssetStorage(),
       workspace: { mode: 'demo', organizationId: DEMO_ORG_ID, organizationName: store.organizationName(), userId: DEMO_USER_ID, email: null, role: 'owner' },
     };
   }
@@ -61,6 +65,7 @@ async function connect(): Promise<{ workspace: Workspace; store: DataStore; auto
   return {
     store: new SupabaseStore(sb, row.org_id),
     automation: new SupabaseAutomationStore(sb, row.org_id),
+    assets: new SupabaseAssetStorage(sb),
     workspace: { mode: 'cloud', organizationId: row.org_id, organizationName: row.org_name, userId: user.id, email: user.email ?? null, role: row.member_role },
   };
 }
@@ -77,14 +82,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<WorkspaceValue | null>(() => {
     if (!session.data || !settings.data) return null;
-    const { workspace, store, automation } = session.data;
+    const { workspace, store, automation, assets } = session.data;
     const label = workspace.mode === 'demo' ? 'Demo user' : (workspace.email ?? 'Team member');
     return {
       workspace: { ...workspace, organizationName: store instanceof LocalStore ? store.organizationName() : workspace.organizationName },
       store,
       automation,
+      assets,
       settings: settings.data,
-      ctx: { store, settings: settings.data, userId: workspace.userId, userLabel: label },
+      ctx: { store, settings: settings.data, userId: workspace.userId, userLabel: label, assets },
       can: (capability) => can(workspace.role, capability),
     };
   }, [session.data, settings.data]);

@@ -54,8 +54,10 @@ export class ApiError extends Error {
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
+  // A FormData body sets its own multipart boundary; overriding it with JSON would break the upload.
+  const headers = init?.body instanceof FormData ? { ...init?.headers } : { 'Content-Type': 'application/json', ...init?.headers };
   try {
-    res = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers }, credentials: 'same-origin' });
+    res = await fetch(url, { ...init, headers, credentials: 'same-origin' });
   } catch (error) {
     if (init?.signal?.aborted) throw error;
     throw new ApiError('Network error. Check your connection and try again.', 0);
@@ -68,6 +70,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   get: <T>(url: string) => request<T>(url),
   post: <T>(url: string, body: unknown, signal?: AbortSignal) => request<T>(url, { method: 'POST', body: JSON.stringify(body), signal }),
+  /** Multipart uploads (Studio asset files) keep their own content type and boundary. */
+  postForm: <T>(url: string, body: FormData, signal?: AbortSignal) => request<T>(url, { method: 'POST', body, signal }),
   patch: <T>(url: string, body: unknown) => request<T>(url, { method: 'PATCH', body: JSON.stringify(body) }),
   del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
 };

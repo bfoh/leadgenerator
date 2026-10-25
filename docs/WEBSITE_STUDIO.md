@@ -1,0 +1,351 @@
+# The Lead-to-Website Studio
+
+The Studio turns one researched prospect into one bespoke website: not a template with their logo in
+the header, but an original piece of design built from evidence about the business, its assets and its
+customers. This document is the authoritative specification for that work: the creative standard every
+phase must meet, the six phases from brand intelligence to a secure client presentation, the permission
+model for other people's property, the data that carries each phase into the next, and the limits the
+Studio will not cross.
+
+Milestone status is recorded in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md). Phase 1 is
+implemented (milestone 3C.1, migration 012); phase 2 is implemented by milestone 3C.2 (migration 013);
+phases 3–6 are specified here and not built. Nothing in this document authorises a deployment, a paid
+provider call or a production migration.
+
+## 1. The creative standard
+
+The output of this Studio is a piece of design a business is proud to publish and a designer is proud
+to sign. That is a higher bar than "a website was produced", and it is the bar every phase is judged
+against.
+
+**Bespoke.** Every layout decision answers something specific about this business: its trade, its
+street, its customers, the way it already speaks. If the same structure would serve a bakery in Accra
+and a law firm in Kumasi, it is not bespoke yet.
+
+**Premium and elegant.** Restraint over decoration. Generous space, deliberate hierarchy, one strong
+idea carried through, typography treated as the primary material rather than a wrapper around
+photographs. Nothing looks assembled from a theme.
+
+**Cinematic.** Composition, pacing and motion are designed: a first frame that earns attention, a
+sequence that guides a visitor to the next step, transitions that clarify rather than perform. Motion
+is purposeful, respects `prefers-reduced-motion`, and never delays the content.
+
+**Original.** Copy, art direction, illustration, iconography and interaction are made for this business
+or licensed for it. The Studio does not imitate a named living designer's work, reproduce a competitor's
+site, or generate a logo in the style of a real brand. Reference is research, not a stencil.
+
+**Awwwards-caliber craft.** The standard is the work that wins design awards, not the average agency
+deliverable: a clear concept, confident type, considered colour, real photography, correct spacing,
+accessible contrast, fast pages, no broken state at any breakpoint. "It works" is the floor.
+
+**Professionally researched typography and art direction.** Type is chosen from licensed families with
+a documented pairing rationale — display and text roles, weights, optical sizes, language coverage for
+the languages the site will publish in, and the licence that permits web embedding. Art direction is
+written down before screens are drawn: a concept statement, a moodboard of *permitted* references, a
+colour logic, a photography treatment and a motion language. Typography and imagery are never left to a
+default UI library.
+
+**Honest about what is ours.** Evidence about the business, the team's creative decisions and the
+business's own property stay distinguishable everywhere, including in the file names and manifests the
+client receives.
+
+
+## 2. Operating principles
+
+1. **Evidence before invention.** What the business's current site shows is recorded as evidence; what
+   the site leaves out becomes a question for the business, never an assumption. The same rule applies
+   to assets: a file exists in the Studio only because someone uploaded it or the business supplied it,
+   with a recorded origin.
+2. **Permission before use.** Storing a file, inspecting it, placing it in a private prototype, exporting
+   it and publishing it are five separate permissions (section 4). The narrowest one governs.
+3. **One concept per prospect.** A live concept is the working design for that business; an archived
+   concept is history. A second concept starts only after the first is archived, so "which version did
+   the client approve?" always has one answer.
+4. **History is append-only.** Analysis runs, reviews, asset events and brand-kit versions are added, not
+   edited. A correction is a new record. The approved brand kit is a pointer, so the content a version
+   contained can always be reconstructed.
+5. **Private by default.** Every file, reference and presentation lives behind the organization's
+   membership and role checks. Nothing about a prospect is public until the business approves a
+   presentation and, later, a publication.
+6. **Human judgement is the gate.** No asset reaches a concept, and no concept reaches a client, without
+   a named person approving it. Automation may prepare, never approve.
+7. **Reversible where possible, audited always.** Archiving beats deleting; deleting requires the owner
+   or admin role; every material change is written to the prospect timeline and the audit trail.
+
+## 3. The six phases
+
+Each phase has an input, an output and a gate. A phase may not start on unapproved material from the
+phase before it, and the gate is a person, not a score.
+
+### Phase 1 — Brand Intelligence (milestone 3C.1, implemented)
+
+*Input:* one prospect and the address of the site it has today.
+
+*What happens:* the homepage is read once through the guarded fetch (robots.txt respected, private
+addresses refused, size and time limited). The reading becomes structure only: business name, contact
+and selling routes, palette and font declarations, navigation, logo and photograph *references*,
+platform signals, stale or placeholder content. Nothing is downloaded and no page text is reused.
+
+*What is produced:* numbered analysis runs. Every entry is a **verified fact** (read from the page, with
+its address), an **unknown** (the page is silent — ask the business), a **placeholder** (template,
+parked or stale content), a **creative suggestion** (ours, never attributed to the page) or a
+**restricted reference** (someone else's logo, photograph or copy). People confirm, reject with a reason,
+or note entries. A page that cannot be read is recorded as unavailable, with the reason.
+
+*Gate:* a person has reviewed the run and the open questions are known. The concept's brief has been
+written. Evidence is never edited to fit a design idea.
+
+
+### Phase 2 — Business Asset Vault and Brand Kit (milestone 3C.2, implemented)
+
+*Input:* the reviewed intelligence, the business's own files, and whatever the client is entitled to
+supply or license.
+
+*What happens:* files enter a private per-concept vault with their provenance, licence and five
+permissions. Candidates are inspected, annotated, approved, rejected, replaced or revoked. A separate
+ledger records remote references (a Google Maps listing, an Instagram post, a competitor's photograph)
+as *references only*: they are never fetched, imported or rendered. Approved assets are then selected
+into a structured, versioned Brand Kit: logo variants, colour palette, typographic system with licence
+information, photography collection, personality, visual direction and tone of voice.
+
+*What is produced:* an approved asset set, an append-only approval history, a Brand Kit version approved
+for creative work, and an exportable Asset Pack containing only export-authorized, unexpired, approved
+files with a licensing manifest.
+
+*Gate:* every asset used by later phases is approved and carries permission for the intended use. The
+approved Brand Kit names its typography licences. No restricted reference has been promoted silently.
+
+### Phase 3 — Creative Direction (milestone 3C.3, specified)
+
+*Input:* the approved Brand Kit, the reviewed evidence and the concept brief.
+
+*What happens:* the Creative Director Engine proposes **two or three distinct territories**, not one
+template with colour options. Each territory is an argued position: a concept statement, audience and
+business rationale, art-direction references (links and notes only, with licence status where the
+reference is not ours), a typographic pairing with roles and licences, colour logic, photography or
+illustration treatment, motion language, and the trade-offs it accepts. Our own generated imagery is
+labelled as generated; references to other designers' work are cited as research and never reproduced.
+
+*What is produced:* a direction document that a senior designer can defend in a client meeting, with the
+research behind each choice. The team selects one territory (or asks for a new one) and records why.
+
+*Gate:* a design lead signs the direction off against the creative standard. Typography licences are
+confirmed for web embedding, including the languages the site will use. No direction relies on an
+unlicensed image or an unapproved asset.
+
+### Phase 4 — Bespoke Design and Build (milestone 3C.4, specified)
+
+*Input:* one approved direction, the approved assets and the Brand Kit.
+
+*What happens:* the direction becomes a designed, responsive site: page structures written for this
+business, original copy, real content where it exists and clearly marked placeholders where the business
+still owes an answer, art-directed imagery from the vault, designed states (empty, loading, error), and
+motion that serves the narrative. The build is a real implementation with a component inventory, tokens
+derived from the Brand Kit, and budgets for performance and accessibility.
+
+*What is produced:* a private, versioned build per concept, with per-page design intent, the assets it
+uses (by approved asset id) and an accessibility/performance report. Screens are reviewed at mobile,
+tablet and desktop widths in light and dark where the design supports both.
+
+*Gate:* design review against the creative standard (section 6), accessibility checks with no serious
+violations, and a licence check that every published asset is approved for **publish**, not merely for
+prototype use.
+
+### Phase 5 — Review and Secure Client Presentation (milestone 3C.5, specified)
+
+*Input:* a build ready for the client, and the client's named reviewers.
+
+*What happens:* the concept is presented through a private, expiring link scoped to that client and that
+concept. The presentation carries the direction rationale and the work itself, not the internal evidence
+or the vault. Reviewers can comment on a page or a region and approve or request changes; every response
+is attached to the version it was about. New rounds create new presentation versions, so feedback is
+never orphaned by a rebuild.
+
+*What is produced:* a presentation record with its audience, expiry, view log, comments and decisions,
+and an approval that names a person and a version.
+
+*Gate:* the business has approved a specific version. Approval expires with the link, and a later
+change reopens review. No presentation is indexed by search engines, and no link survives revocation.
+
+
+### Phase 6 — Handover, Publication and Stewardship (milestone 3C.6, specified)
+
+*Input:* an approved build, an approved Asset Pack and the client's publication decision.
+
+*What happens:* the approved build is exported or published to the client's domain (or managed hosting),
+with the Asset Pack, the Brand Kit, a licence and attribution schedule, and a short operating guide.
+Analytics and consent are configured according to the client's jurisdiction and wishes. Post-launch work
+is tracked as care: checks, content updates, licence renewals and asset expiry.
+
+*What is produced:* a published site, a handover pack, a publication record naming who approved what, and
+a renewal calendar for expiring licences and assets.
+
+*Gate:* publication is a distinct, explicit action by an owner or admin, after checking every asset's
+publish permission, licence expiry and attribution requirement. A revoked or expired asset blocks
+publication until it is replaced.
+
+## 4. The asset permission model
+
+### 4.1 Five permissions, one file
+
+A single "approved" flag is not enough. An image may be fine to look at, fine to keep as research, and
+not fine to publish. Every asset therefore carries five independent permissions, each `unknown`,
+`granted`, `denied` or `not_required` (the last reserved for our own work and commissioned work whose
+rights we hold outright):
+
+| Permission | Question it answers | Honoured by |
+| --- | --- | --- |
+| `inspect` | May we open and study the file? | The vault preview and any future analysis |
+| `store` | May we keep a copy in the vault? | Upload acceptance and retention |
+| `prototype` | May we place it in a private, unapproved design? | Phase 4 builds |
+| `export` | May we include it in an Asset Pack ZIP or handover? | Phase 2 export, phase 6 handover |
+| `publish` | May it appear on the live site? | Phase 6 publication |
+
+Rules the database enforces:
+
+- `prototype`, `export` and `publish` cannot be `granted` while `store` is `denied`.
+- An asset can be `approved` only with `approved_at` set (and the service requires a named reason and
+  permission evidence). Approval requires `store` to be `granted` or `not_required`.
+- `rejected` and `revoked` require a written reason; `revoked` also records when.
+- A licence expiry date in the past blocks approval, and the export and publication filters re-check it
+  at the moment of use. An approval does not outlive the licence.
+- Attribution text is carried with the file into the pack manifest and the publication schedule.
+
+### 4.2 What never enters the vault
+
+Images found on Google Maps, a company website, a social profile or another agency's portfolio are
+**not** assets. They are recorded in the separate reference ledger with their address, what they showed
+and why they matter. The Studio does not fetch them, does not cache them, does not display them inline,
+and does not offer "use this image" from them. Using one requires the business (or the rights holder) to
+supply the file and record the permission — then it enters the vault as a new, provenance-bearing asset.
+
+The application contains no crawler, scraper, harvester or "import from URL" path. Upload is the only
+way bytes enter storage, and the upload route refuses anything that is not an allowed, validated file
+type at an allowed size.
+
+### 4.3 Provenance and licensing
+
+Every asset records its origin (`our_work`, `client_supplied`, `licensed`, `commissioned`,
+`third_party`), the rights holder, who supplied it, any source address, the licence name and reference,
+the expiry date, attribution text, and the evidence behind the permission (an email reference, a signed
+agreement, a marketplace order number). Replacing an asset creates a new row linked to the one it
+supersedes; the old file and its history remain until a person deletes it. Revoking permission marks
+the asset rather than erasing it, so anything that used it can be found and corrected.
+
+Remote references have their own lifecycle: `recorded` or `declined`. They can never be approved,
+exported or published, by construction.
+
+
+## 5. Data and storage architecture
+
+### 5.1 Tables (migrations 012 and 013, not applied to production)
+
+| Table | Role | Mutability |
+| --- | --- | --- |
+| `studio_projects` | One live website concept per prospect; brief and last analysis outcome | Editable, audited |
+| `studio_observations` | Evidence from one numbered analysis run, classified and with provenance | Append-only |
+| `studio_reviews` | A person's confirm, reject or note about evidence | Append-only |
+| `studio_assets` | One stored file: kind, status, provenance, licence, five permissions, checksum, private path | Editable, audited |
+| `studio_asset_events` | Upload, annotation, approval, rejection, revocation, replacement | Append-only |
+| `studio_asset_references` | Someone else's remote material, recorded but never imported | Editable status, never exportable |
+| `studio_brand_kits` | One kit identity per concept | Editable, audited |
+| `studio_brand_kit_versions` | Structured, immutable Brand Kit content (palette, type, assets, voice) | Append-only |
+| `studio_brand_kit_approvals` | Names the version a person approved, and why | Append-only |
+
+The Brand Kit version content is validated in the database as well as in the service: it must be a JSON
+object with the expected sections, and every asset id it references must belong to the same concept and
+be approved. A version cannot be edited; an approval is a separate append-only row, so the content a
+person approved can always be reconstructed, and an older version cannot be approved after a newer one.
+
+### 5.2 Private storage
+
+Cloud mode uses one private Supabase Storage bucket, `studio-assets`, created by migration 013 with a
+size limit and a MIME allowlist. Objects live under
+`{organization_id}/{project_id}/{asset_id}/{name-hash}.{ext}`: the first path segment is the tenant, so
+a storage policy can authorise every read, write and delete against the same membership and role rules
+as the tables. The bucket is not public; the browser receives short-lived signed URLs for previews and
+uses its authenticated session to read bytes for an approved export.
+
+Demo mode uses a browser storage adapter with the same interface (IndexedDB, falling back to memory
+when unavailable). Files never leave the browser, the metadata rules are identical, and the UI says
+plainly that demo files are local to that browser.
+
+Every upload is validated before it is stored: byte length, declared type against sniffed magic bytes,
+a MIME allowlist (PNG, JPEG, WebP, GIF, PDF, plain text, MP4, WOFF/WOFF2/TTF/OTF), image dimension
+limits, a SHA-256 checksum and a generated private path. SVG and HTML are refused: they can carry script.
+A file whose name says `.png` but whose bytes say something else is refused, and the mismatch is
+reported in words.
+
+### 5.3 What is logged
+
+Uploading, annotating, approving, rejecting, revoking, replacing and deleting an asset each write a row
+in `studio_asset_events` and an entry on the prospect's timeline. The asset table also participates in
+the workspace audit trail, so a changed permission or licence can be traced to a person and a time.
+Exports are logged with the number of files and the manifest hash, never with the file contents.
+
+
+## 6. Quality gates
+
+A concept may not move to the next phase until the gate for the current one is met and recorded.
+
+| Phase | Gate | Evidence |
+| --- | --- | --- |
+| 1 Brand intelligence | Evidence reviewed; unknowns listed for the business | Reviews on the run; brief written |
+| 2 Vault and Brand Kit | Every usable asset approved with permission and licence; kit version approved | Asset events; approved kit version |
+| 3 Creative direction | Direction signed off against the creative standard; type licences confirmed | Direction document with rationale |
+| 4 Design and build | Design review; accessibility; publish-permission check | Review notes; axe results; asset audit |
+| 5 Client presentation | Client approved a named version through a private link | Presentation decision record |
+| 6 Handover and publication | Every asset publishable or replaced; attribution and expiry scheduled | Publication record; manifest |
+
+The design review in phase 4 asks, in this order:
+
+1. **Concept** — can the idea be stated in one sentence, and does every page serve it?
+2. **Originality** — is anything here a copy of a named designer's or competitor's work?
+3. **Typography** — is the pairing argued, licensed for web and complete for the languages used?
+4. **Composition** — hierarchy, rhythm and spacing at 360 px, 768 px and 1440 px.
+5. **Art direction** — are the images approved, art-directed and credited as required?
+6. **Motion** — does it clarify, and does the site still work with motion reduced?
+7. **Accessibility** — contrast, focus, keyboard order, labels, headings, alt text, no serious axe
+   violations.
+8. **Performance** — image weight, fonts, layout stability and interaction latency within budget.
+9. **Content honesty** — placeholders visibly marked, no invented claim about the business.
+10. **Handover** — could the client's team run this site without us?
+
+## 7. Roles
+
+| Role | Studio rights |
+| --- | --- |
+| Owner, admin | Everything, including deleting concepts, assets and references |
+| Researcher, sales | Create and analyse concepts, upload and review assets, build and approve Brand Kit versions, record references, export approved packs |
+| Developer | Reads the Studio; works on builds once phase 4 exists (write access to builds is defined with that milestone) |
+| Viewer | Reads concepts, evidence, assets and kits; cannot change or export |
+
+RLS in the database is authoritative. The UI mirrors it with `studio.write`, `records.delete` and
+`data.export` capabilities and hides controls the role cannot use.
+
+## 8. Limits the Studio keeps
+
+- No downloading or re-hosting of third-party images, including from Google Maps, company websites or
+  social media. No scraping, crawling or harvesting beyond the single guarded homepage reading in
+  phase 1.
+- No AI-generated imitation of a living designer's work or a real brand's identity, and no generated
+  logo presented as the client's existing mark.
+- No publishing, exporting or presenting an asset without the specific permission for that use, a
+  current licence and an approval by a named person.
+- No silent promotion of a reference into an asset; the only route is a new upload with provenance.
+- No public client link that outlives its review, and no presentation that exposes internal evidence,
+  notes or other prospects.
+- No production migration, deployment or paid provider call as part of building these phases.
+
+## 9. Where each phase lives
+
+| Phase | Code | Migration |
+| --- | --- | --- |
+| 1 | `src/lib/domain/studio.ts`, `src/lib/data/studio-services.ts`, `src/components/studio/*` | 012 |
+| 2 | `src/lib/domain/studio-assets.ts`, `src/lib/data/studio-asset-services.ts`, `src/lib/data/asset-storage.ts`, `src/components/studio/asset-vault.tsx`, `brand-kit.tsx` | 013 |
+| 3–6 | Not built | — |
+
+The roadmap entry for each milestone records what was built, what was tested and what remains. When a
+later phase changes a rule in this document, the document changes with it: this is the specification the
+implementation is measured against, not a description written after the fact.
+

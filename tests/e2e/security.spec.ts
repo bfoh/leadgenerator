@@ -41,6 +41,19 @@ test('the Studio reading goes through the same guards as website verification', 
   expect(JSON.stringify(body)).not.toMatch(/<!doctype html|<body/i);
 });
 
+test('the asset upload route refuses other origins and keeps demo files in the browser', async ({ request, baseURL }) => {
+  const origin = new URL(baseURL!).origin;
+  const file = { name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') };
+  const metadata = JSON.stringify({ projectId: '00000000-0000-4000-8000-000000000000' });
+  const crossOrigin = await request.post('/api/studio/assets', { multipart: { file, metadata }, headers: { Origin: 'https://attacker.example' } });
+  expect(crossOrigin.status()).toBe(403);
+  // This suite runs without Supabase: the server cannot reach a browser's files, so it says so
+  // rather than pretending an upload happened.
+  const demo = await request.post('/api/studio/assets', { multipart: { file, metadata }, headers: { Origin: origin } });
+  expect(demo.status()).toBe(400);
+  expect((await demo.json()).error).toMatch(/browser/i);
+});
+
 test('security headers are set', async ({ request }) => {
   const res = await request.get('/login');
   const h = res.headers();
