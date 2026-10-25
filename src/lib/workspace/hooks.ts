@@ -54,6 +54,8 @@ export const useChangeRequests = (businessId?: string, enabled = true) => useSto
 /** Whether migration 012 (website concepts, brand evidence, reviews) is applied. */
 export const useStudioSchema = () => useStoreQuery(['studio-schema'], (s) => s.studioSchemaAvailable());
 export const useStudioProjects = (businessId?: string) => useStoreQuery(['studio-projects', businessId ?? 'all'], (s) => s.listStudioProjects(businessId));
+export const useResourceEntries = (businessId: string) => useStoreQuery(['resource-entries', businessId], (s) => s.listResourceEntries(businessId));
+export const useResourceCollectorSchema = () => useStoreQuery(['resource-schema'], (s) => s.resourceCollectorAvailable());
 export const useStudioProject = (id: string) => useStoreQuery(['studio-project', id], (s) => s.getStudioProject(id));
 export const useStudioObservations = (projectId?: string) => useStoreQuery(['studio-observations', projectId ?? 'all'], (s) => s.listStudioObservations(projectId));
 export const useStudioReviews = (projectId?: string) => useStoreQuery(['studio-reviews', projectId ?? 'all'], (s) => s.listStudioReviews(projectId));

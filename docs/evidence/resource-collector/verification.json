@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-25",
+  "baseline": "1b92744",
+  "branch": "feature/google-business-resource-collector",
+  "typecheck": "passed",
+  "eslint": "passed, zero warnings",
+  "productionBuild": "passed",
+  "unitAndDatabase": {
+    "passed": 880,
+    "files": 56,
+    "database": "Local PGlite only; network blocked"
+  },
+  "playwright": {
+    "passed": 122,
+    "desktop": 94,
+    "mobile": 28,
+    "outputDirectory": "/tmp/resource-complete-browser-results"
+  },
+  "finalScopedCorrection": {
+    "change": "Specific logo/favicon roles survive deduplication; no-website fixture omits website field with explicit provider/browser assertions",
+    "unitTestsPassed": 16,
+    "reviewedBuildBrowserTestsPassed": 5,
+    "outputDirectory": "/tmp/resource-two-scenarios-final-results"
+  },
+  "clientSecretScan": {
+    "files": 178,
+    "keyFormats": 5,
+    "configuredSecretValues": 2,
+    "matches": 0
+  },
+  "resourceResponsiveWidths": [
+    360,
+    390,
+    768
+  ],
+  "accessibility": "No serious/critical axe findings at tested collector states; not a complete WCAG certification",
+  "providerVerification": "Mocked Google and website responses, original authorized sample assets; no live Google API or production Supabase calls",
+  "permissions": "Google previews transient and excluded from vault/ZIP. Independent records and approved originals need explicit export rights; export is not publication.",
+  "migration": "016 prepared and PGlite tested; not applied to Supabase",
+  "restrictions": "No push, deployment, paid external API call, customer outreach, Quick Concept or other showcase redesign"
+}

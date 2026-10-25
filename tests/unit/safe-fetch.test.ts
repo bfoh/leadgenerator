@@ -33,7 +33,7 @@ function fakeRequest(url: URL, options: { headers: Record<string, string> }, onR
   return req;
 }
 
-const { checkWebsite, inspectWebsite } = await import('@/lib/server/safe-fetch');
+const { checkWebsite, inspectWebsite, inspectResourceWebsite, downloadResourceOriginal } = await import('@/lib/server/safe-fetch');
 
 const HOME = '<!doctype html><html><head><title>Adom Bridal House | Accra</title><meta name="viewport" content="width=device-width"></head><body><h1>Adom Bridal House</h1><p>Osu, Accra</p></body></html>';
 const html = (body = HOME) => ({ status: 200, headers: { 'content-type': 'text/html; charset=utf-8' }, body });
@@ -43,6 +43,44 @@ const requested = () => net.requests.map((r) => r.url);
 beforeEach(() => {
   net.routes.clear();
   net.requests.length = 0;
+});
+
+describe('independent Resource Collector website reads', () => {
+  it('reads authorized binary originals once, and refuses platform redirects before fetching them', async () => {
+    net.routes.set('https://adombridalhouse.com/owner.png', { status: 200, headers: { 'content-type': 'image/png' }, body: 'original-byte-fixture' });
+    const result = await downloadResourceOriginal('https://adombridalhouse.com/owner.png');
+    expect(new TextDecoder().decode(result.bytes)).toBe('original-byte-fixture');
+    expect(result.mimeType).toBe('image/png');
+    net.requests.length = 0;
+    net.routes.set('https://adombridalhouse.com/owner.png', { status: 302, headers: { location: 'https://lh3.googleusercontent.com/photo' } });
+    await expect(downloadResourceOriginal('https://adombridalhouse.com/owner.png')).rejects.toThrow(/cannot be imported/);
+    expect(requested()).toEqual(['https://adombridalhouse.com/robots.txt', 'https://adombridalhouse.com/owner.png']);
+  });
+  it('refuses HTML and robots-denied originals, rather than storing partial or substituted content', async () => {
+    net.routes.set('https://adombridalhouse.com/file.png', html('not an image'));
+    await expect(downloadResourceOriginal('https://adombridalhouse.com/file.png')).rejects.toThrow(/supported original/);
+    net.routes.set('https://adombridalhouse.com/robots.txt', robots('User-agent: *\nDisallow: /'));
+    await expect(downloadResourceOriginal('https://adombridalhouse.com/file.png')).rejects.toThrow(/does not permit/);
+  });
+  it('rejects an oversized original instead of accepting its valid-looking prefix', async () => {
+    net.routes.set('https://adombridalhouse.com/large.png', { status: 200, headers: { 'content-type': 'image/png' }, body: 'x'.repeat(8 * 1024 * 1024 + 1) });
+    await expect(downloadResourceOriginal('https://adombridalhouse.com/large.png')).rejects.toThrow(/8 MB/);
+  });
+  it('extracts branding and contact candidates from the same bounded homepage request', async () => {
+    net.routes.set('https://adombridalhouse.com/', html('<title>Adom</title><img src="/logo.png" alt="Logo"><a href="tel:+233241234567">Call</a>'));
+    const result = await inspectResourceWebsite('https://adombridalhouse.com/');
+    expect(result.facts?.title).toBe('Adom');
+    expect(result.contacts?.phones[0].normalized).toBe('+233241234567');
+    expect(requested()).toEqual(['https://adombridalhouse.com/robots.txt', 'https://adombridalhouse.com/']);
+  });
+  it('refuses Google/social targets before any network access, including redirect hops', async () => {
+    await expect(inspectResourceWebsite('https://maps.google.com/place/test')).rejects.toThrow(/independently verified/);
+    expect(requested()).toEqual([]);
+    net.routes.set('https://adombridalhouse.com/', { status: 302, headers: { location: 'https://maps.google.com/place/test' } });
+    const result = await inspectResourceWebsite('https://adombridalhouse.com/');
+    expect(result.facts).toBeNull();
+    expect(requested()).toEqual(['https://adombridalhouse.com/robots.txt', 'https://adombridalhouse.com/']);
+  });
 });
 
 describe('automated inspection honours robots.txt', () => {

@@ -42,6 +42,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="Third-party sources">
+          <p>The Resource Collector loads Google listing details and individual photo previews only on request. Google content is held in the current view, cleared after five minutes and excluded from saved resource entries, the Asset Vault and ZIP downloads. Photo requests load directly from Google’s image service and may disclose your browser’s network address to Google. Google’s <a className="underline" href="https://policies.google.com/privacy">Privacy Policy</a> applies to its services.</p>
           <p>
             Discovery uses the official Google Places API. Google results are displayed for research and are not copied into the CRM; only the Google Place ID is kept when a researcher tracks a business, and every saved fact must come from an independent source such as the business’s own website or social profile.
           </p>

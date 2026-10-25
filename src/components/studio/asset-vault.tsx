@@ -41,6 +41,7 @@ import {
   type StudioAssetReference,
 } from '@/lib/domain/studio-assets';
 import type { StudioProject } from '@/lib/domain/studio';
+import { restrictedResourceUrl } from '@/lib/domain/business-resources';
 import { errorMessage, formatDate, formatDateTime, safeHref } from '@/lib/utils';
 import { ApiError, api } from '@/lib/workspace/api';
 import { useAction, useStudioAssetEvents, useStudioAssetReferences, useStudioAssets, useStudioSchema, useAssetVaultSchema } from '@/lib/workspace/hooks';
@@ -174,12 +175,14 @@ export function StudioAssetVault({
   canDelete,
   canExport,
   businessName,
+  allowAuthorizedImport = false,
 }: {
   project: StudioProject;
   editable: boolean;
   canDelete: boolean;
   canExport: boolean;
   businessName: string;
+  allowAuthorizedImport?: boolean;
 }) {
   const schema = useAssetVaultSchema();
   const studioSchema = useStudioSchema();
@@ -325,7 +328,7 @@ export function StudioAssetVault({
       <References references={references} editable={editable} onAdd={() => setReferencing(true)} onDecline={setDeclining} />
       {events.length > 0 && <AssetHistory events={events} assets={assets} />}
 
-      {uploading && <UploadDialog project={project} ownerName={businessName} onClose={() => setUploading(false)} />}
+      {uploading && <UploadDialog project={project} ownerName={businessName} allowAuthorizedImport={allowAuthorizedImport} onClose={() => setUploading(false)} />}
       {replacing && (
         <ReplaceDialog
           asset={replacing}
@@ -801,7 +804,7 @@ function ReplaceDialog({ asset, pending, onClose, onSubmit }: { asset: StudioAss
   );
 }
 
-function UploadDialog({ project, ownerName, onClose }: { project: StudioProject; ownerName: string; onClose: () => void }) {
+function UploadDialog({ project, ownerName, allowAuthorizedImport, onClose }: { project: StudioProject; ownerName: string; allowAuthorizedImport?: boolean; onClose: () => void }) {
   const { store } = useWorkspace();
   const qc = useQueryClient();
   const [values, setValues] = useState<UploadValues>(() => initialValues(ownerName));
@@ -810,8 +813,22 @@ function UploadDialog({ project, ownerName, onClose }: { project: StudioProject;
   const [detected, setDetected] = useState<DetectedAssetFile | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [sourceVerified, setSourceVerified] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
   const upload = useAction((ctx, input: vault.AssetUploadInput) => vault.uploadStudioAsset(ctx, project, input), { success: 'Asset added' });
   const set = <K extends keyof UploadValues>(key: K, value: UploadValues[K]) => setValues((current) => ({ ...current, [key]: value }));
+
+  async function importOriginal() {
+    setImporting(true); setProblem(null); setImportNote(null);
+    try {
+      const result = await api.post<{ base64: string; fileName: string; mimeType: string; finalUrl: string; simulated: boolean }>('/api/resources/original', { projectId: project.id, sourceUrl: values.sourceUrl, ownerName: values.ownerName, permissionEvidence: values.permissionEvidence, sourceVerified, inspectAuthorized: ['granted', 'not_required'].includes(values.inspectPermission), storeAuthorized: ['granted', 'not_required'].includes(values.storePermission) });
+      const imported = Uint8Array.from(atob(result.base64), (v) => v.charCodeAt(0));
+      await choose(new File([imported], result.fileName, { type: result.mimeType }));
+      setValues((v) => ({ ...v, sourceUrl: result.finalUrl, exportPermission: 'unknown', prototypePermission: 'unknown', publishPermission: 'denied' }));
+      setImportNote(result.simulated ? 'Simulated original loaded: an authorized test PNG, not a real website download.' : 'Original loaded for review. Add it as a candidate; export and publication are separate permissions.');
+    } catch (e) { setProblem(errorMessage(e)); } finally { setImporting(false); }
+  }
 
   async function choose(next: File | null) {
     setFile(next);
@@ -834,6 +851,7 @@ function UploadDialog({ project, ownerName, onClose }: { project: StudioProject;
   function validate(): string | null {
     if (!file || !bytes || !detected) return 'Choose a file first.';
     if (values.ownerName.trim().length < 2) return 'Say who owns or supplied the rights.';
+    if (values.sourceUrl && restrictedResourceUrl(values.sourceUrl)) return 'Google and social-platform previews cannot be stored as originals. Obtain an independent authorized original.';
     if (values.permissionEvidence.trim().length < 10) return 'Record the evidence behind the permission: an email reference, agreement or order number.';
     if (values.origin === 'licensed' && !values.licenceName.trim()) return 'Name the licence this file is used under.';
     if (values.attributionRequired && !values.attributionText.trim()) return 'Write the attribution line, or turn the requirement off.';
@@ -890,7 +908,7 @@ function UploadDialog({ project, ownerName, onClose }: { project: StudioProject;
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" loading={pending || upload.pending} onClick={submit}>
+          <Button variant="primary" loading={pending || upload.pending || importing} onClick={submit}>
             Add to vault
           </Button>
         </>
@@ -898,7 +916,7 @@ function UploadDialog({ project, ownerName, onClose }: { project: StudioProject;
     >
       <form onSubmit={submit} className="space-y-4">
         {problem && <FormError message={problem} />}
-
+        {allowAuthorizedImport && <details className="rounded border border-border p-3"><summary className="cursor-pointer text-sm font-medium">Import an authorized original</summary><div className="mt-3 space-y-3"><p className="text-xs text-subtle">Independent PNG, JPEG, WebP or GIF, up to 8 MB. Google and social-platform links are refused; no sign-in bypass or platform scraping.</p><Field label="Original image URL">{(p) => <Input {...p} type="url" value={values.sourceUrl} onChange={(e) => { set('sourceUrl', e.target.value); setSourceVerified(false); }} />}</Field><Field label="Original permission evidence">{(p) => <Textarea {...p} value={values.permissionEvidence} onChange={(e) => { set('permissionEvidence', e.target.value); setSourceVerified(false); }} />}</Field><Checkbox label="I verified this independent source and the owner’s inspection and storage rights" checked={sourceVerified} onChange={(e) => setSourceVerified(e.target.checked)} /><Button loading={importing} disabled={!sourceVerified || !values.sourceUrl || values.permissionEvidence.trim().length < 15} onClick={() => void importOriginal()}>Read authorized original</Button>{importNote && <p role="status" className="text-sm text-subtle">{importNote}</p>}</div></details>}
 
         <Field label="File" hint={`PNG, JPEG, WebP, GIF, PDF, plain text, MP4, WOFF, WOFF2, TTF or OTF · up to ${formatBytes(MAX_ASSET_BYTES)}`} required>
           {(props) => <Input {...props} type="file" accept={ASSET_MIME_TYPES_LIST} onChange={(e) => void choose(e.target.files?.[0] ?? null)} />}

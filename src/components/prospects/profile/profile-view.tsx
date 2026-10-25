@@ -13,6 +13,7 @@ import { AutomateResearchButton, ProspectWorkflowBadge } from '@/components/auto
 import { PermissionBadge, ScorePill, StageBadge, WebsiteStatusBadge } from '@/components/records/badges';
 import { StageControl } from '@/components/records/stage-control';
 import { StudioConceptButton } from '@/components/studio/create-concept-button';
+import { CollectResourcesButton } from '@/components/resources/collect-resources-button';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
@@ -161,6 +162,7 @@ function Header({ business, onTab }: { business: Business; onTab: (tab: string) 
             </Button>
           )}
           <AutomateResearchButton business={business} />
+          <CollectResourcesButton businessId={business.id} />
           <StudioConceptButton business={business} />
           {/* A merged duplicate stays archived; the notice below offers Undo merge instead. */}
           {!business.mergedIntoId && <StageControl business={business} />}

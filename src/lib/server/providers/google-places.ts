@@ -1,4 +1,5 @@
 import 'server-only';
+import type { GoogleResourceListing } from '@/lib/domain/business-resources';
 
 import { countryName } from '@/lib/domain/geo';
 import { searchTermForCategory } from '@/lib/domain/categories';
@@ -21,6 +22,42 @@ const SEARCH_FIELDS = [
   'nextPageToken',
 ].join(',');
 const DETAIL_FIELDS = 'id,displayName,formattedAddress,websiteUri,googleMapsUri,businessStatus,primaryTypeDisplayName,nationalPhoneNumber';
+
+// A separate explicit resource-viewer request, never added to ordinary discovery field masks.
+export const RESOURCE_DETAIL_FIELDS = 'id,displayName,formattedAddress,nationalPhoneNumber,regularOpeningHours.weekdayDescriptions,websiteUri,googleMapsUri,googleMapsLinks,photos,attributions,businessStatus';
+export async function googleResourceSearch(query: string, country: string) {
+  const data = await call(SEARCH_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': serverEnv.placesKey(), 'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress' }, body: JSON.stringify({ textQuery: query, regionCode: country, languageCode: 'en', pageSize: 3 }) }, AbortSignal.timeout(10_000)) as { places?: PlaceJson[] };
+  return (data.places ?? []).filter((p) => p.id).slice(0, 3).map((p) => ({ id: p.id!, name: p.displayName?.text ?? 'Unnamed place', address: p.formattedAddress ?? null }));
+}
+const httpLink = (raw?: string): string | null => {
+  try { const u = new URL(raw?.startsWith('//') ? `https:${raw}` : raw ?? ''); return /^https?:$/.test(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; }
+};
+
+export async function googleResourceDetails(id: string): Promise<GoogleResourceListing> {
+  if (!/^[A-Za-z0-9_-]{10,300}$/.test(id)) throw new ProviderError('Invalid Place ID.', false);
+  const p = await call(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}`, { headers: { 'X-Goog-Api-Key': serverEnv.placesKey(), 'X-Goog-FieldMask': RESOURCE_DETAIL_FIELDS } }, AbortSignal.timeout(10_000)) as PlaceJson & {
+    regularOpeningHours?: { weekdayDescriptions?: string[] }; googleMapsLinks?: { directionsUri?: string };
+    attributions?: { provider?: string; providerUri?: string }[];
+    photos?: { name?: string; widthPx?: number; heightPx?: number; authorAttributions?: { displayName?: string; uri?: string }[] }[];
+  };
+  return { id: p.id ?? id, name: p.displayName?.text ?? 'Unnamed place', address: p.formattedAddress ?? null,
+    phone: p.nationalPhoneNumber ?? null, website: httpLink(p.websiteUri), mapsUri: httpLink(p.googleMapsUri), directionsUri: httpLink(p.googleMapsLinks?.directionsUri),
+    status: p.businessStatus ?? null, hours: p.regularOpeningHours?.weekdayDescriptions ?? [],
+    attributions: (p.attributions ?? []).map((a) => ({ provider: a.provider ?? '', uri: httpLink(a.providerUri) })),
+    photos: (p.photos ?? []).slice(0, 6).filter((a) => a.name?.startsWith(`places/${id}/photos/`)).map((a) => ({
+      name: a.name!, width: a.widthPx ?? 0, height: a.heightPx ?? 0,
+      authors: (a.authorAttributions ?? []).map((v) => ({ name: v.displayName ?? 'Photo contributor', uri: httpLink(v.uri) })),
+    })), simulated: false };
+}
+
+/** Returns Google's URL; never proxies, caches, optimizes or stores the image bytes. */
+export async function googleResourcePhoto(name: string): Promise<string> {
+  if (!/^places\/[A-Za-z0-9_-]{10,300}\/photos\/[A-Za-z0-9_-]{1,1500}$/.test(name)) throw new ProviderError('Invalid photo reference. Refresh the listing.', false);
+  const p = await call(`https://places.googleapis.com/v1/${name}/media?maxHeightPx=800&maxWidthPx=800&skipHttpRedirect=true`, { headers: { 'X-Goog-Api-Key': serverEnv.placesKey() } }, AbortSignal.timeout(10_000)) as { photoUri?: string };
+  const uri = httpLink(p.photoUri);
+  if (!uri || !/(^|\.)(googleusercontent\.com|ggpht\.com|gstatic\.com)$/.test(new URL(uri).hostname)) throw new ProviderError('The photo service returned an unavailable image. Refresh the listing.', true);
+  return uri;
+}
 
 interface PlaceJson {
   id?: string;

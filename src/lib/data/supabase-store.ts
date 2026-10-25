@@ -1,3 +1,4 @@
+import { resourceEntrySchema, type ResourceEntry } from '@/lib/domain/business-resources';
 // Cloud-mode persistence through Supabase's Data API. Row Level Security is the authorization
 // boundary; this class maps camelCase domain objects to snake_case columns and errors to StoreError
 // messages people can act on. Every query is also scoped to the store's organization, so the class
@@ -505,6 +506,22 @@ export class SupabaseStore implements DataStore {
   private async requireStudioSchema() {
     if (!(await this.studioSchemaAvailable())) throw new StoreError(STUDIO_MIGRATION_REQUIRED, 'unavailable');
   }
+  async resourceCollectorAvailable() {
+    const { error } = await this.sb.from('business_resource_entries').select('id', { head: true }).eq('organization_id', this.organizationId).limit(1);
+    if (error && MISSING.has(error.code)) return false;
+    if (error) throw storeError(error);
+    return true;
+  }
+  async listResourceEntries(businessId: string) {
+    if (!(await this.resourceCollectorAvailable())) return [];
+    return this.all<ResourceEntry>('business_resource_entries', (q) => q.eq('business_id', businessId).order('created_at'));
+  }
+  createResourceEntry: DataStore['createResourceEntry'] = async (input) => {
+    if (!(await this.resourceCollectorAvailable())) throw new StoreError('Resource entries require migration 016. Google viewing and the existing vault remain available.', 'unavailable');
+    return this.insert<ResourceEntry>('business_resource_entries', resourceEntrySchema.parse(input));
+  };
+  revokeResourceEntry: DataStore['revokeResourceEntry'] = async (id) => this.patch<ResourceEntry>('business_resource_entries', id, { revokedAt: new Date().toISOString() });
+
   async listStudioProjects(businessId?: string) {
     if (!(await this.studioSchemaAvailable())) return [];
     return this.all<StudioProject>('studio_projects', (q) => (businessId ? q.eq('business_id', businessId) : q).order('updated_at', { ascending: false }));

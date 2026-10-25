@@ -34,6 +34,7 @@ import { ApiError, api } from '@/lib/workspace/api';
 import { useAction, useBusinesses, useStudioAssets, useStudioObservations, useStudioProject, useStudioReviews } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { StudioAssetVault } from './asset-vault';
+import { CollectResourcesButton } from '@/components/resources/collect-resources-button';
 import { StudioBrandKitPanel } from './brand-kit';
 import { ConceptBrief, ObservationRow, ReviewDialog, ReviewTrail } from './concept-evidence';
 import { StudioCreativeDirectionPanel } from './creative-direction';
@@ -135,6 +136,7 @@ export function StudioConceptView({ id }: { id: string }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>
+            <div className="mt-3"><CollectResourcesButton businessId={project.businessId} /></div>
             <p className="mt-0.5 text-sm text-subtle">
               {business ? (
                 <Link href={`/prospects/${business.id}`} className="hover:text-foreground hover:underline">

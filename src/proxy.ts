@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { SUPABASE_KEY, SUPABASE_URL, isSupabaseConfigured } from '@/lib/supabase/config';
 
-const PUBLIC_PATHS = ['/login', '/auth/', '/privacy'];
+const PUBLIC_PATHS = ['/login', '/auth/', '/privacy', '/terms'];
 
 // Refreshes the Supabase session cookie and sends signed-out visitors to /login. In demo mode
 // (no Supabase configuration) every page is reachable and labeled as a demo.

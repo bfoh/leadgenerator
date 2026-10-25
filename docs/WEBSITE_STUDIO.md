@@ -1,5 +1,12 @@
 # The Lead-to-Website Studio
 
+The prospect-first [Business Resource Collector](RESOURCE_COLLECTOR.md) extends the existing vault
+for manual development as well as Studio work. It requires no Brand Kit or generated website.
+Transient, attributed Google previews are separate from the vault's remote-reference ledger and
+never enter a ZIP or generated site. Authorized original URL imports use the same candidate review,
+provenance and five-permission model as uploads. Migration 016 adds only independent resource entries;
+it has not been applied to production.
+
 The Studio turns one researched prospect into one bespoke website: not a template with their logo in
 the header, but an original piece of design built from evidence about the business, its assets and its
 customers. This document is the authoritative specification for that work: the creative standard every

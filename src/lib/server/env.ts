@@ -44,6 +44,7 @@ export const serverEnv = {
   cost: {
     placesSearch: () => num('PLACES_COST_PER_SEARCH_USD', 0.035),
     placesDetails: () => num('PLACES_COST_PER_DETAILS_USD', 0.02),
+    placesPhoto: () => num('PLACES_COST_PER_PHOTO_USD', 0.01),
     braveSearch: () => num('BRAVE_COST_PER_SEARCH_USD', 0.005),
   },
 };

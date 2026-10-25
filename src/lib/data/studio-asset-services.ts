@@ -4,6 +4,7 @@
 // can only name files the concept has approved.
 
 import { slug } from '@/lib/utils';
+import { restrictedResourceUrl } from '@/lib/domain/business-resources';
 import {
   ASSET_KIND_META,
   assetApprovalProblems,
@@ -91,6 +92,8 @@ export async function uploadStudioAsset(ctx: ServiceContext, project: StudioProj
   await requireVault(ctx);
   const files = storage(ctx);
   if (project.status === 'archived') throw new StoreError('This concept is archived. Restore it before adding an asset.', 'conflict');
+  // Apply before storage in both adapters, including cloud databases predating migration 016.
+  if (input.sourceUrl && restrictedResourceUrl(input.sourceUrl)) throw new StoreError('Google and social-platform previews cannot be stored as originals. Obtain the authorized original from the owner.', 'invalid');
 
   const check = checkAssetUpload({ fileName: input.fileName, declaredType: input.declaredType, bytes: input.bytes });
   if (!check.ok || !check.file) throw new StoreError(check.problems[0] ?? 'The file could not be validated.', 'invalid');
@@ -372,6 +375,7 @@ export interface AssetPackManifest {
   concept: { name: string; websiteUrl: string | null };
   approvedBrandKit: { version: number; approvedAt: string | null } | null;
   assets: {
+    assetId: string;
     path: string;
     fileName: string;
     kind: StudioAssetKind;
@@ -380,9 +384,11 @@ export interface AssetPackManifest {
     sha256: string;
     origin: StudioAssetOrigin;
     ownerName: string;
+    sourceUrl: string | null;
+    permissionEvidence: string;
     licence: { name: string; reference: string | null; expiresOn: string | null } | null;
     attribution: { required: boolean; text: string | null };
-    permissions: { prototype: string; export: string; publish: string };
+    permissions: { inspect: string; store: string; prototype: string; export: string; publish: string };
     approvedAt: string | null;
   }[];
   /** Files left out because they are unapproved, replaced, expired or not exportable. */
@@ -391,6 +397,8 @@ export interface AssetPackManifest {
 }
 
 export interface AssetPack {
+  /** Internal archive entries, reused by the manual website resource kit. */
+  entries: { name: string; data: Uint8Array }[];
   zip: Uint8Array;
   filename: string;
   manifest: AssetPackManifest;
@@ -404,13 +412,13 @@ const encoder = new TextEncoder();
  * Builds a pack from approved, unexpired, export-authorized files only. Rejected, restricted,
  * replaced and expired assets are counted but never read, so no excluded file can slip into the ZIP.
  */
-export async function exportStudioAssetPack(ctx: ServiceContext, project: StudioProject): Promise<AssetPack> {
+export async function exportStudioAssetPack(ctx: ServiceContext, project: StudioProject, allowEmpty = false): Promise<AssetPack> {
   await requireVault(ctx);
   const files = storage(ctx);
   const assets = await ctx.store.listStudioAssets(project.id);
   const eligible = assets.filter((asset) => assetExportProblems(asset).length === 0);
   const excluded = assets.length - eligible.length;
-  if (!eligible.length) throw new StoreError('There is nothing in this pack yet: no asset is approved with export permission and a current licence.', 'conflict');
+  if (!eligible.length && !allowEmpty) throw new StoreError('There is nothing in this pack yet: no asset is approved with export permission and a current licence.', 'conflict');
 
   const approvedKit = await approvedBrandKit(ctx, project);
   const ordered = [...eligible].sort((a, b) => a.kind.localeCompare(b.kind) || a.fileName.localeCompare(b.fileName));
@@ -423,6 +431,7 @@ export async function exportStudioAssetPack(ctx: ServiceContext, project: Studio
     const path = `assets/${String(index + 1).padStart(3, '0')}-${assetDownloadName(asset)}`;
     entries.push({ name: path, data: stored.bytes });
     manifestAssets.push({
+      assetId: asset.id,
       path,
       fileName: asset.fileName,
       kind: asset.kind,
@@ -431,9 +440,11 @@ export async function exportStudioAssetPack(ctx: ServiceContext, project: Studio
       sha256: asset.checksumSha256,
       origin: asset.origin,
       ownerName: asset.ownerName,
+      sourceUrl: asset.sourceUrl,
+      permissionEvidence: asset.permissionEvidence,
       licence: asset.licenceName ? { name: asset.licenceName, reference: asset.licenceReference, expiresOn: asset.licenceExpiresOn } : null,
       attribution: { required: asset.attributionRequired, text: asset.attributionText },
-      permissions: { prototype: asset.prototypePermission, export: asset.exportPermission, publish: asset.publishPermission },
+      permissions: { inspect: asset.inspectPermission, store: asset.storePermission, prototype: asset.prototypePermission, export: asset.exportPermission, publish: asset.publishPermission },
       approvedAt: asset.approvedAt,
     });
   }
@@ -475,6 +486,7 @@ export async function exportStudioAssetPack(ctx: ServiceContext, project: Studio
   });
 
   return {
+    entries,
     zip,
     filename: `${slug(project.name)}-asset-pack-${manifest.generatedAt.slice(0, 10)}.zip`,
     manifest,

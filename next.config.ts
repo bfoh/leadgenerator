@@ -17,9 +17,10 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  // Preview images and footage come from private storage through short-lived signed URLs, so the
-  // Supabase origin is allowed for media only; nothing else may load from it.
-  `img-src 'self' data: blob: ${supabaseOrigin()}`.trim(),
+  // Asset bytes remain private. Only the resource viewer can resolve official Google photo URLs;
+  // those images load directly (never rehosted/optimized). Header CSP survives client navigation,
+  // so these exact image-host families must be allowed on the application document as well.
+  `img-src 'self' data: blob: https://*.googleusercontent.com https://*.ggpht.com https://*.gstatic.com ${supabaseOrigin()}`.trim(),
   `media-src 'self' blob: ${supabaseOrigin()}`.trim(),
   "font-src 'self'",
   `connect-src 'self' ${supabaseOrigin()}`.trim(),

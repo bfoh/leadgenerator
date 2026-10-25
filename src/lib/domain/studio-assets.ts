@@ -10,6 +10,7 @@
 // entitled to supply the file.
 
 import type { Tone } from './constants';
+import { restrictedResourceUrl } from './business-resources';
 
 export const STORAGE_BUCKET = 'studio-assets';
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
@@ -555,6 +556,7 @@ export function studioAssetProblems(input: StudioAssetInsert, organizationId?: s
   if (owner.length < 2 || owner.length > 200) problems.push('Say who owns or supplied the rights (2–200 characters).');
   if (input.supplier != null && input.supplier.length > 200) problems.push('The supplier name is limited to 200 characters.');
   if (input.sourceUrl && (!HTTP_URL.test(input.sourceUrl) || input.sourceUrl.length > 2000)) problems.push('A source address must be a full http(s) link.');
+  if (input.sourceUrl && restrictedResourceUrl(input.sourceUrl)) problems.push('Google and social-platform previews cannot be uploaded as originals. Obtain the authorized original from its owner.');
   if (input.licenceName != null && input.licenceName.length > 200) problems.push('The licence name is limited to 200 characters.');
   if (input.licenceReference != null && input.licenceReference.length > 500) problems.push('The licence reference is limited to 500 characters.');
   if (input.licenceExpiresOn && !DATE.test(input.licenceExpiresOn)) problems.push('A licence expiry date must be written as YYYY-MM-DD.');
@@ -600,10 +602,11 @@ export function assetExpired(asset: Pick<StudioAsset, 'licenceExpiresOn'>, today
 
 /** Why this asset may not travel in an approved pack. */
 export function assetExportProblems(
-  asset: Pick<StudioAsset, 'status' | 'storePermission' | 'exportPermission' | 'licenceExpiresOn' | 'attributionRequired' | 'attributionText'>,
+  asset: Pick<StudioAsset, 'status' | 'storePermission' | 'exportPermission' | 'licenceExpiresOn' | 'attributionRequired' | 'attributionText'> & Partial<Pick<StudioAsset, 'sourceUrl'>>,
   today = todayIso(),
 ): string[] {
   const problems: string[] = [];
+  if (asset.sourceUrl && restrictedResourceUrl(asset.sourceUrl)) problems.push('Google or social-platform preview content is excluded from exports. Supply an authorized independent original.');
   if (asset.status !== 'approved') problems.push(asset.status === 'superseded' ? 'A replaced file cannot be exported.' : `Only an approved file can be exported; this one is ${ASSET_STATUS_META[asset.status].label.toLowerCase()}.`);
   if (asset.storePermission === 'denied') problems.push('We may not keep a copy, so it cannot be exported.');
   if (!['granted', 'not_required'].includes(asset.exportPermission)) problems.push('Export permission is not recorded for this file.');

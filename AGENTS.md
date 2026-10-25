@@ -8,9 +8,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Active engineering feature
+
+The owner has requested the Google-first Business Resource Collector. Read
+`docs/RESOURCE_COLLECTOR.md`; work on `feature/google-business-resource-collector`.
+Extend the existing Asset Vault, guarded website reader and Google Places provider. Do not
+rebuild Studio, implement Quick Concept, or resume other showcase redesigns. Google content
+is transient preview material, never stored as independent resources or exported in ZIPs.
+Only Place IDs may be retained. All verification uses mocked providers and local PGlite;
+no unexpected paid call, production migration, push, deployment or outreach is authorized.
+Adwoa’s creative approval remains pending independently of this engineering feature.
+
 ## Current creative work
 
-Read `docs/ACTIVE_CREATIVE_HANDOFF.md` before continuing website design. Work on
+Read `docs/ACTIVE_CREATIVE_HANDOFF.md` before continuing website design. For that design work, use
 `feature/codex-creative-excellence`; preserve existing work. Adwoa’s House is the current
 creative-review scope. The owner rejected the earlier sparse, dark, static layouts. The
 new direction must be reviewed in a real browser, including phone layouts and actual motion.

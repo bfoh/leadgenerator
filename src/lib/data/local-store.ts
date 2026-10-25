@@ -1,3 +1,4 @@
+import { resourceEntrySchema, type ResourceEntry } from '@/lib/domain/business-resources';
 // Demo-mode persistence in browser storage. Emulates the database behaviours that matter to the
 // workflow (audit trail, proposal locking and versioning, report versioning, cascades) so demo and
 // cloud mode behave the same.
@@ -164,6 +165,7 @@ interface DemoState {
   studioCreativeDirectionReviews: StudioCreativeDirectionReview[];
   /** Added with rendered prototypes (migration 015); filled in on load for older demo data. */
   studioWebsitePrototypes: StudioWebsitePrototype[];
+  resourceEntries: ResourceEntry[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -187,6 +189,7 @@ const AUDITED: (keyof Tables)[] = [
   'changeRequests',
   'studioProjects',
   'studioAssets',
+  'resourceEntries',
   'studioAssetReferences',
   'studioBrandKits',
 ];
@@ -206,6 +209,7 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   changeRequests: 'proposal_change_requests',
   studioProjects: 'studio_projects',
   studioAssets: 'studio_assets',
+  resourceEntries: 'business_resource_entries',
   studioAssetReferences: 'studio_asset_references',
   studioBrandKits: 'studio_brand_kits',
   studioCreativeBriefs: 'studio_creative_briefs',
@@ -263,6 +267,7 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     studioCreativeDirections: [],
     studioCreativeDirectionReviews: [],
     studioWebsitePrototypes: [],
+    resourceEntries: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -391,6 +396,7 @@ export class LocalStore implements DataStore {
           parsed.studioCreativeDirections ??= [];
           parsed.studioCreativeDirectionReviews ??= [];
           parsed.studioWebsitePrototypes ??= [];
+          parsed.resourceEntries ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -556,6 +562,7 @@ export class LocalStore implements DataStore {
       this.remove('consentRecords', (c) => c.businessId === id);
       // Migration 012: a concept and its evidence live and die with the prospect they were built for.
       const studioIds = new Set(this.state.studioProjects.filter((p) => p.businessId === id).map((p) => p.id));
+      this.remove('resourceEntries', (e) => e.businessId === id);
       this.remove('studioObservations', (o) => studioIds.has(o.projectId));
       this.remove('studioReviews', (r) => studioIds.has(r.projectId));
       // Migration 013: the vault, its history and the Brand Kit live and die with the concept.
@@ -1423,6 +1430,19 @@ export class LocalStore implements DataStore {
   async assetVaultAvailable() {
     return true;
   }
+  async resourceCollectorAvailable() { return true; }
+  async listResourceEntries(businessId: string) { return clone(this.state.resourceEntries.filter((e) => e.businessId === businessId)); }
+  createResourceEntry: DataStore['createResourceEntry'] = (input) => this.commit(() => {
+    const parsed = resourceEntrySchema.parse(input);
+    if (!this.state.businesses.some((b) => b.id === parsed.businessId)) throw new StoreError('Prospect not found', 'not_found');
+    return this.insert('resourceEntries', { ...parsed, createdBy: this.userId, revokedAt: null });
+  });
+  revokeResourceEntry: DataStore['revokeResourceEntry'] = (id) => this.commit(() => {
+    const existing = this.state.resourceEntries.find((e) => e.id === id);
+    if (!existing || existing.revokedAt) throw new StoreError('Active resource entry not found', 'not_found');
+    return this.update('resourceEntries', id, { revokedAt: new Date().toISOString() });
+  });
+
   async listStudioAssets(projectId?: string) {
     return clone(this.state.studioAssets.filter((a) => !projectId || a.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }

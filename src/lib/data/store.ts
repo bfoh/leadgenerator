@@ -1,3 +1,4 @@
+import type { ResourceEntry, ResourceEntryInsert } from '@/lib/domain/business-resources';
 // Persistence contract shared by demo mode (LocalStore) and cloud mode (SupabaseStore).
 // Business rules live in services.ts, not in implementations.
 
@@ -224,6 +225,10 @@ export interface DataStore {
 
   /** False when the cloud database has not had migration 013 (asset vault, Brand Kit, storage bucket). */
   assetVaultAvailable(): Promise<boolean>;
+  resourceCollectorAvailable(): Promise<boolean>;
+  listResourceEntries(businessId: string): Promise<ResourceEntry[]>;
+  createResourceEntry(input: ResourceEntryInsert): Promise<ResourceEntry>;
+  revokeResourceEntry(id: string): Promise<ResourceEntry>;
   listStudioAssets(projectId?: string): Promise<StudioAsset[]>;
   getStudioAsset(id: string): Promise<StudioAsset | null>;
   createStudioAsset(input: StudioAssetInsert): Promise<StudioAsset>;

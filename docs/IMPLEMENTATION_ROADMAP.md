@@ -1,5 +1,10 @@
 # Implementation Roadmap — Autonomous Platform
 
+**Resource Collector 2026-10-25:** implemented locally on `feature/google-business-resource-collector`.
+Google-first transient viewing, independent website discovery, authorized-original imports and a
+manual Website Resource Kit extend the existing Asset Vault. See [implementation and verification](RESOURCE_COLLECTOR.md).
+Migration 016 remains unapplied; live Google viewing is off by default. Quick Concept was not started.
+
 Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ not started · ⛔ blocked on an external dependency
 
 **Creative review 2026-10-25 — Adwoa’s House (3C.4R):** the owner rejected the earlier visual output. A dedicated local `feature/codex-creative-excellence` branch now carries original synthetic house imagery, new validated composition variants, a native scroll-linked image story, responsive editorial pages and accessible gallery/room controls. See [ACTIVE_CREATIVE_HANDOFF](ACTIVE_CREATIVE_HANDOFF.md), [creative research](CODEX_CREATIVE_RESEARCH.md) and [the review report](CODEX_ADWOA_REVIEW.md). **Owner creative approval remains pending.** Nsroma and Bantama are gated until approval. No production migration, paid API call, push or deployment is authorized by this work.

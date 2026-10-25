@@ -1,4 +1,5 @@
 import 'server-only';
+import { extractResourceOfferings, restrictedResourceUrl } from '@/lib/domain/business-resources';
 
 import { lookup as dnsLookup } from 'node:dns';
 import http from 'node:http';
@@ -26,6 +27,8 @@ interface RequestOptions {
   accept: string;
   /** Bodies are read only for these content types. */
   bodyType: RegExp;
+  binary?: boolean;
+  maxBytes?: number;
 }
 const PAGE_REQUEST: RequestOptions = { userAgent: USER_AGENT, accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5', bodyType: /html/i };
 
@@ -119,6 +122,7 @@ interface HopResult {
   location: string | null;
   contentType: string;
   body: string;
+  bytes?: Uint8Array;
 }
 
 function requestOnce(url: URL, deadline: number, opts: RequestOptions = PAGE_REQUEST): Promise<HopResult> {
@@ -144,13 +148,17 @@ function requestOnce(url: URL, deadline: number, opts: RequestOptions = PAGE_REQ
         const chunks: Buffer[] = [];
         res.on('data', (chunk: Buffer) => {
           size += chunk.length;
-          if (size > MAX_BODY) {
+          if (size > (opts.maxBytes ?? MAX_BODY)) {
+            if (opts.binary) reject(new UnsafeUrlError('The authorized original exceeds the 8 MB import limit. Upload it directly instead.'));
             res.destroy();
             return;
           }
           chunks.push(chunk);
         });
-        res.on('close', () => resolve({ status, location, contentType, body: Buffer.concat(chunks).toString('utf8') }));
+        res.on('close', () => {
+          const buffer = Buffer.concat(chunks);
+          resolve({ status, location, contentType, body: opts.binary ? '' : buffer.toString('utf8'), ...(opts.binary ? { bytes: new Uint8Array(buffer) } : {}) });
+        });
         res.on('error', reject);
       },
     );
@@ -204,11 +212,12 @@ export type RobotsOutcome = 'allowed' | 'disallowed' | 'unavailable' | 'not_chec
  * whole site is treated as disallowed. A network failure is reported as such, so the caller can
  * record why the site could not be checked without sending more requests to it.
  */
-async function fetchRobots(origin: string): Promise<{ text: string | null; status: number | null; error: unknown }> {
+async function fetchRobots(origin: string, independentOnly = false): Promise<{ text: string | null; status: number | null; error: unknown }> {
   const deadline = Date.now() + ROBOTS_TIMEOUT_MS;
   let url = parsePublicUrl(`${origin}/robots.txt`);
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (independentOnly && restrictedResourceUrl(url.href)) throw new UnsafeUrlError('Restricted platform redirect.');
       const res = await requestOnce(url, deadline, { userAgent: AGENT_USER_AGENT, accept: 'text/plain,*/*;q=0.5', bodyType: /text\/plain|^$/i });
       if (res.status >= 300 && res.status < 400 && res.location) {
         url = parsePublicUrl(new URL(res.location, url).href);
@@ -228,7 +237,7 @@ interface FetchedPage {
   robots: RobotsOutcome;
 }
 
-async function fetchPage(raw: string, automated: boolean): Promise<FetchedPage> {
+async function fetchPage(raw: string, automated: boolean, independentOnly = false): Promise<FetchedPage> {
   const checkedAt = new Date().toISOString();
   const start = Date.now();
   const redirects: TechnicalCheck['redirects'] = [];
@@ -254,8 +263,9 @@ async function fetchPage(raw: string, automated: boolean): Promise<FetchedPage> 
   let deadline = start + TIMEOUT_MS;
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (independentOnly && restrictedResourceUrl(url.href)) throw new UnsafeUrlError('Google and social platforms are not independent website sources.');
       if (automated && !robotsByOrigin.has(url.origin)) {
-        const r = await fetchRobots(url.origin);
+        const r = await fetchRobots(url.origin, independentOnly);
         if (r.error) return { check: failed(failureReason(r.error, ROBOTS_TIMEOUT_MS)), html: null, robots: 'unavailable' };
         if (r.status !== null && r.status >= 500) {
           return { check: failed(`Server error (HTTP ${r.status}) for robots.txt; the page was not requested`, r.status), html: null, robots: 'disallowed' };
@@ -322,4 +332,32 @@ export interface ContactPage {
 export async function fetchContactPage(raw: string): Promise<ContactPage> {
   const { check, html, robots } = await fetchPage(raw, true);
   return { check, robots, contacts: check?.ok && html ? extractContacts(html, check.finalUrl ?? check.url) : null };
+}
+
+/** One bounded read supplies the Resource Collector, without a second contact-page fetch. */
+export async function inspectResourceWebsite(raw: string) {
+  if (restrictedResourceUrl(parsePublicUrl(raw).href)) throw new UnsafeUrlError('Use the independently verified official website, not Google or a social platform.');
+  const { check, html, robots } = await fetchPage(raw, true, true);
+  const url = check?.finalUrl ?? parsePublicUrl(raw).href;
+  return { url, facts: check?.ok && html ? extractPageFacts(html, url) : null,
+    offerings: check?.ok && html ? extractResourceOfferings(html) : [],
+    contacts: check?.ok && html ? extractContacts(html, url) : null,
+    simulated: false, error: robots !== 'allowed' ? `Website reading unavailable: robots ${robots}.` : check?.error ?? (!html ? 'No readable HTML was returned.' : null) };
+}
+
+/** Authorized originals only. Reuses socket-time DNS checks, validates every redirect and robots. */
+export async function downloadResourceOriginal(raw: string) {
+  let url = parsePublicUrl(raw);
+  const deadline = Date.now() + 15_000;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (restrictedResourceUrl(url.href)) throw new UnsafeUrlError('Google and social-platform preview files cannot be imported.');
+    const robots = await fetchRobots(url.origin, true);
+    if (robots.error || (robots.status !== null && robots.status >= 500) || (robots.text && !robotsAllows(robots.text, `${url.pathname}${url.search}`))) throw new UnsafeUrlError('The source does not permit this automated read. Ask the owner to upload the original.');
+    const result = await requestOnce(url, deadline, { userAgent: AGENT_USER_AGENT, accept: 'image/png,image/jpeg,image/webp,image/gif', bodyType: /^image\/(png|jpeg|webp|gif)(;|$)/i, binary: true, maxBytes: 8 * 1024 * 1024 });
+    if (result.status >= 300 && result.status < 400 && result.location) { url = parsePublicUrl(new URL(result.location, url).href); continue; }
+    if (result.status !== 200 || !result.bytes?.length) throw new UnsafeUrlError('No supported original image was returned. Use PNG, JPEG, WebP or GIF, or upload the owner’s file directly.');
+    const name = url.pathname.split('/').pop() ?? 'original';
+    return { bytes: result.bytes, mimeType: result.contentType.split(';')[0], fileName: name.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 120) || 'original', finalUrl: url.href };
+  }
+  throw new UnsafeUrlError('Too many redirects. Upload the original directly.');
 }
