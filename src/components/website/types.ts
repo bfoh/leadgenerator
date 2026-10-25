@@ -65,5 +65,6 @@ export function motionAttributes(blueprint: WebsiteBlueprint, section: Blueprint
     'data-motion-media': scene.media,
   };
   if (scene.scroll !== 'none') attributes['data-motion-scroll'] = scene.scroll;
+  if (section.kind === 'sequence' && section.variant === 'scroll-story') attributes['data-motion-scroll'] = 'sticky';
   return attributes;
 }

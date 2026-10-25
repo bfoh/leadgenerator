@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-25",
+  "baseline": "aa6eec0",
+  "branch": "feature/codex-creative-excellence",
+  "typecheck": "passed",
+  "eslint": "passed, zero warnings",
+  "unitAndDatabase": {
+    "passed": 855,
+    "files": 54,
+    "database": "PGlite; network disabled; no live Supabase"
+  },
+  "playwright": {
+    "passed": 117,
+    "desktop": 91,
+    "mobile": 26,
+    "outputDirectory": "/tmp/dof-final-composited-results"
+  },
+  "productionBuild": "passed",
+  "clientSecretScan": {
+    "files": 171,
+    "keyFormats": 5,
+    "configuredSecretValues": 2,
+    "matches": 0
+  },
+  "responsiveWidths": [
+    360,
+    390,
+    768,
+    1024,
+    1440
+  ],
+  "accessibility": "No serious or critical axe WCAG 2/2.1 A/AA findings at tested states, including each home-page section; keyboard, no-JS, reduced motion and image-failure checks passed",
+  "assetIntegrity": {
+    "sourceMasters": 10,
+    "responsiveRenditions": 32,
+    "hashes": "all verified"
+  },
+  "scope": "Adwoa creative approval pending; Nsroma and Bantama not redesigned; no push/deploy/production migration/paid external API call",
+  "motionReview": "Actual final Chromium video decoded and visually inspected: all three images, forward masks, third image at full reveal and halfway reverse; timestamps in motion/frame-observations.json"
+}

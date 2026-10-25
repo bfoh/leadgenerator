@@ -20,7 +20,7 @@ async function expectInternalLinks(page: Page) {
 
 const sites = [
   { slug: 'nsroma-atelier', heading: 'Cloth remembers the hand.', nav: 'Commissions', pageHeading: 'Begin with a conversation.', path: 'commissions' },
-  { slug: 'adwoas-house', heading: 'Arrive slowly.', nav: 'Rooms', pageHeading: 'Nine rooms, described plainly.', path: 'rooms' },
+  { slug: 'adwoas-house', heading: 'Arrive slowly.', nav: 'Rooms', pageHeading: 'Room to exhale.', path: 'rooms' },
   { slug: 'bantama-design-office', heading: 'The plan is the argument.', nav: 'Work', pageHeading: 'Selected studies.', path: 'work' },
 ] as const;
 

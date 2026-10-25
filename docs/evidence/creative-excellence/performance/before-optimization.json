@@ -1,0 +1,905 @@
+{
+  "note": "Local Chromium lab samples, not field Core Web Vitals or a Lighthouse score. Interaction duration samples are not a field INP estimate. No recording, axe or test suite ran during measurement.",
+  "records": [
+    {
+      "profile": "desktop",
+      "sample": 1,
+      "lcpMs": 208,
+      "fcpMs": 208,
+      "cls": 0,
+      "initialTbtMs": 97,
+      "observedInteractionMs": 160,
+      "scrollFrameP95Ms": 16.8,
+      "scrollFrameMaxMs": 16.8,
+      "initialResourceBytes": 1800261,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.webp",
+          "bytes": 335444
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 889
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 906
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 892
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 903
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 898
+        }
+      ]
+    },
+    {
+      "profile": "desktop",
+      "sample": 2,
+      "lcpMs": 192,
+      "fcpMs": 192,
+      "cls": 0,
+      "initialTbtMs": 79,
+      "observedInteractionMs": 152,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 100,
+      "initialResourceBytes": 1800258,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.webp",
+          "bytes": 335444
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 889
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 904
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 892
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 903
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 897
+        }
+      ]
+    },
+    {
+      "profile": "desktop",
+      "sample": 3,
+      "lcpMs": 204,
+      "fcpMs": 204,
+      "cls": 0,
+      "initialTbtMs": 80,
+      "observedInteractionMs": 160,
+      "scrollFrameP95Ms": 16.8,
+      "scrollFrameMaxMs": 33.3,
+      "initialResourceBytes": 1800265,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.webp",
+          "bytes": 335444
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 889
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 907
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 893
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 904
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 899
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 1,
+      "lcpMs": 5920,
+      "fcpMs": 1396,
+      "cls": 0.000494116432521904,
+      "initialTbtMs": 734,
+      "observedInteractionMs": 192,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1073760,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.webp",
+          "bytes": 373150
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 898
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 2,
+      "lcpMs": 5916,
+      "fcpMs": 1412,
+      "cls": 0.000494116432521904,
+      "initialTbtMs": 786,
+      "observedInteractionMs": 208,
+      "scrollFrameP95Ms": 33.3,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1073760,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.webp",
+          "bytes": 373150
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 898
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 3,
+      "lcpMs": 5920,
+      "fcpMs": 1408,
+      "cls": 0.000494116432521904,
+      "initialTbtMs": 741,
+      "observedInteractionMs": 192,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1073759,
+      "fonts": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/media/5f402bd2d8eef81a-s.p.40bho2kviej2o.woff2",
+          "bytes": 58152
+        },
+        {
+          "name": "/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+          "bytes": 48432
+        },
+        {
+          "name": "/_next/static/media/9433d1a810498265-s.p.1hij5ex6k3v9q.woff2",
+          "bytes": 64500
+        },
+        {
+          "name": "/_next/static/chunks/14un71t4uo_1o.css",
+          "bytes": 11153
+        },
+        {
+          "name": "/_next/static/chunks/4543e3gdbuhzl.css",
+          "bytes": 16791
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940
+        },
+        {
+          "name": "/_next/static/chunks/23k-ji_srsogm.js",
+          "bytes": 6837
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549
+        },
+        {
+          "name": "/_next/static/chunks/3i9g788zdy07z.js",
+          "bytes": 11128
+        },
+        {
+          "name": "/_next/static/chunks/168cy7lx-swaq.js",
+          "bytes": 3338
+        },
+        {
+          "name": "/_next/static/chunks/1jsd3-8cbc9ox.js",
+          "bytes": 11159
+        },
+        {
+          "name": "/_next/static/chunks/3zt9ko_q_mgrq.js",
+          "bytes": 34774
+        },
+        {
+          "name": "/_next/static/chunks/0tvt6sb99rr86.js",
+          "bytes": 15581
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.webp",
+          "bytes": 373150
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 897
+        }
+      ]
+    }
+  ]
+}

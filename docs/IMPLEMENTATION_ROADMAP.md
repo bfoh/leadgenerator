@@ -2,6 +2,8 @@
 
 Status legend: ✅ done and verified · 🟡 built, limited verification · ⏳ not started · ⛔ blocked on an external dependency
 
+**Creative review 2026-10-25 — Adwoa’s House (3C.4R):** the owner rejected the earlier visual output. A dedicated local `feature/codex-creative-excellence` branch now carries original synthetic house imagery, new validated composition variants, a native scroll-linked image story, responsive editorial pages and accessible gallery/room controls. See [ACTIVE_CREATIVE_HANDOFF](ACTIVE_CREATIVE_HANDOFF.md), [creative research](CODEX_CREATIVE_RESEARCH.md) and [the review report](CODEX_ADWOA_REVIEW.md). **Owner creative approval remains pending.** Nsroma and Bantama are gated until approval. No production migration, paid API call, push or deployment is authorized by this work.
+
 **Update 2026-10-23:** the owner applied migrations 003–008 to production, and the read-only `supabase/checks/after-migrations.sql` passed there. Phase notes below that say a migration is not applied describe the state when that phase ended. The phases stay 🟡 until their cloud paths and live providers have run for real.
 
 **Update 2026-10-24 (Ghana-wide brief, milestone 1):**

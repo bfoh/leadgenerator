@@ -3,11 +3,13 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { tokensAsCssVariables } from '@/lib/domain/design-tokens';
 import type { BlueprintMediaSource } from '@/lib/domain/website-compositions';
-import { blueprintPage, type BlueprintAsset, type WebsiteBlueprint } from '@/lib/domain/website-blueprint';
+import type { BlueprintAsset, WebsiteBlueprint } from '@/lib/domain/website-blueprint';
+import { blueprintPage } from '@/lib/domain/website-navigation';
 import { ConceptDisclosure, PrototypeDialog, SiteFooter, SiteNavigation } from './website-shell';
 import { SectionView } from './website-sections';
 import { useWebsiteMotion } from './website-motion';
 import styles from './website.module.css';
+import cinematic from './cinematic.module.css';
 import { artDirectionFor, type PrototypeNotice, type WebsiteRenderContext } from './types';
 
 export interface WebsiteRendererProps {
@@ -51,12 +53,13 @@ export function WebsiteRenderer({ blueprint, pageSlug, media, basePath, embedded
   return (
     <div
       ref={root}
-      className={`${styles.site} ${embedded ? styles.embedded : ''} ${className}`.trim()}
+      className={`${styles.site} ${artDirection.layout.surfaceStyle ? cinematic.experience : ''} ${embedded ? styles.embedded : ''} ${className}`.trim()}
       style={vars}
       data-family={blueprint.direction.compositionFamily}
       data-nav={blueprint.navigation.style}
       data-motion-mode={blueprint.direction.motionDirection}
       data-density={artDirection.layout.density}
+      data-surface-style={artDirection.layout.surfaceStyle}
       data-media-rhythm={artDirection.layout.mediaRhythm}
       data-index-mode={artDirection.layout.indexMode}
       data-sequence-mode={artDirection.layout.sequenceMode}

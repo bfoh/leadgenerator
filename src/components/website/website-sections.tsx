@@ -1,11 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, useState, type CSSProperties } from 'react';
-import { pageHref, type BlueprintAction, type BlueprintSection, type MediaPlate } from '@/lib/domain/website-blueprint';
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
+import type { BlueprintAction, BlueprintSection, MediaPlate } from '@/lib/domain/website-blueprint';
+import { pageHref } from '@/lib/domain/website-navigation';
 import styles from './website.module.css';
+import cinematic from './cinematic.module.css';
 import { SiteAction } from './website-shell';
 import { artDirectionFor, motionAttributes, toneClass, type WebsiteRenderContext } from './types';
+
+const css = (name: string) => `${styles[name] ?? ''} ${cinematic[name] ?? ''}`.trim();
 
 function SectionShell({
   context,
@@ -21,7 +25,7 @@ function SectionShell({
   return (
     <section
       id={section.id}
-      className={`${styles.section} ${styles[toneClass(section.tone)]} ${className}`.trim()}
+      className={`${styles.section} ${styles[toneClass(section.tone)]} ${cinematic.composition} ${className}`.trim()}
       data-kind={section.kind}
       data-variant={section.variant}
       {...motionAttributes(context.blueprint, section)}
@@ -42,8 +46,8 @@ function Words({ text, className = '' }: { text: string; className?: string }) {
     <span className={className}>
       {words.map((word, index) => (
         <Fragment key={`${word}-${index}`}>
-          <span className={styles.wordMask}>
-            <span className={styles.wordInner} style={{ '--word-index': index } as CSSProperties}>{word}</span>
+          <span className={css('wordMask')}>
+            <span className={css('wordInner')} style={{ '--word-index': index } as CSSProperties}>{word}</span>
           </span>
           {index < words.length - 1 ? ' ' : null}
         </Fragment>
@@ -58,7 +62,7 @@ function Eyebrow({ children, className = '' }: { children: React.ReactNode; clas
 
 function SectionNote({ children }: { children: React.ReactNode }) {
   return (
-    <p className={styles.sectionNote}>
+    <p className={css('sectionNote')}>
       <span>Concept note</span>
       {children}
     </p>
@@ -72,6 +76,7 @@ export function ImagePlate({
   parallax = false,
   bare = false,
   sizes,
+  mobileAssetId,
 }: {
   context: WebsiteRenderContext;
   plate: MediaPlate;
@@ -79,12 +84,15 @@ export function ImagePlate({
   parallax?: boolean;
   bare?: boolean;
   sizes?: string;
+  mobileAssetId?: string;
 }) {
   const asset = context.assets.get(plate.assetId);
   const source = context.media.get(plate.assetId);
+  const mobile = mobileAssetId ? context.media.get(mobileAssetId) : undefined;
+  const [failedSource, setFailedSource] = useState<string | null>(null);
   const caption = plate.caption ?? asset?.caption ?? undefined;
-  const credit = plate.credit ?? asset?.credit ?? undefined;
-  const missing = plate.placeholder || !source;
+  const credit = plate.credit ?? (asset?.sourceKind === 'synthetic_concept' ? undefined : asset?.credit ?? undefined);
+  const missing = plate.placeholder || !source || failedSource === source.src;
   return (
     <figure
       className={`${styles.plate} ${bare ? styles.plateBare : ''}`}
@@ -92,11 +100,15 @@ export function ImagePlate({
       data-focal={plate.focal}
       data-parallax={parallax || undefined}
     >
-      <div className={styles.mediaFrame}>
+      <div className={css('mediaFrame')}>
         {!missing && source ? (
-          // The renderer deliberately uses a native image for signed and local sources alike.
-          // eslint-disable-next-line @next/next/no-img-element
+          <picture>
+          {mobile?.avifSrcSet && <source media="(max-width: 767px)" type="image/avif" srcSet={mobile.avifSrcSet} sizes="100vw" />}
+          {mobile && <source media="(max-width: 767px)" srcSet={mobile.srcSet ?? mobile.src} sizes="100vw" />}
+          {source.avifSrcSet && <source type="image/avif" srcSet={source.avifSrcSet} sizes={sizes ?? source.sizes} />}
+          {/* Native sources support both vault-signed URLs and local responsive concept images. */}
           <img
+            ref={(node) => { if (node?.complete && node.naturalWidth === 0) setFailedSource(source.src); }}
             src={source.src}
             srcSet={source.srcSet}
             sizes={sizes ?? source.sizes}
@@ -104,21 +116,23 @@ export function ImagePlate({
             width={source.width}
             height={source.height}
             loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : 'auto'}
+            fetchPriority={priority ? 'high' : 'low'}
             decoding="async"
+            onError={() => setFailedSource(source.src)}
           />
+          </picture>
         ) : (
-          <div className={styles.imagePending} role="img" aria-label={asset?.alt ?? 'Approved photography pending'}>
+          <div className={css('imagePending')} role="img" aria-label={asset?.alt ?? 'Approved photography pending'}>
             <span>Image pending</span>
             <small>Approved photography not supplied</small>
           </div>
         )}
       </div>
       {!bare && (caption || credit || plate.index) && (
-        <figcaption className={styles.caption}>
-          {plate.index && <span className={styles.plateIndex}>{plate.index}</span>}
+        <figcaption className={css('caption')}>
+          {plate.index && <span className={css('plateIndex')}>{plate.index}</span>}
           <span>{caption}</span>
-          {credit && <span className={styles.credit}>{credit}</span>}
+          {credit && <span className={css('credit')}>{credit}</span>}
         </figcaption>
       )}
     </figure>
@@ -128,7 +142,7 @@ export function ImagePlate({
 function Actions({ context, primary, secondary }: { context: WebsiteRenderContext; primary?: BlueprintAction; secondary?: BlueprintAction }) {
   if (!primary && !secondary) return null;
   return (
-    <div className={styles.actions}>
+    <div className={css('actions')}>
       {primary && <SiteAction action={primary} context={context} look="primary" />}
       {secondary && <SiteAction action={secondary} context={context} look="inline" />}
     </div>
@@ -136,34 +150,36 @@ function Actions({ context, primary, secondary }: { context: WebsiteRenderContex
 }
 
 function Hero({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'hero' }> }) {
+  const immersive = section.variant === 'immersive-arrival' || section.variant === 'split-arrival';
   return (
-    <SectionShell context={context} section={section} className={styles.hero}>
+    <SectionShell context={context} section={section} className={css('hero')}>
       {section.assetId && (
-        <div className={styles.heroMedia} aria-hidden={section.variant === 'cinematic-frame' ? true : undefined}>
+        <div className={css('heroMedia')} aria-hidden={section.variant === 'cinematic-frame' || immersive ? true : undefined}>
           <ImagePlate
             context={context}
             plate={{ assetId: section.assetId, span: 'full' }}
             priority
             parallax={context.blueprint.direction.compositionFamily === 'asymmetric_offset'}
             sizes="100vw"
+            mobileAssetId={section.mobileAssetId}
             bare
           />
         </div>
       )}
-      <div className={styles.heroInner}>
-        <div className={styles.heroCopy}>
+      <div className={css('heroInner')}>
+        <div className={css('heroCopy')}>
           <Eyebrow>{section.eyebrow}</Eyebrow>
-          <h1 className={styles.heroLines} aria-label={section.lines.join(' ')}>
+          <h1 className={css('heroLines')} aria-label={section.lines.join(' ')}>
             {section.lines.map((line, index) => (
-              <span className={styles.heroLineMask} key={`${line}-${index}`} aria-hidden="true">
-                <span className={styles.heroLineInner} style={{ '--line-index': index } as CSSProperties}>{line}</span>
+              <span className={css('heroLineMask')} key={`${line}-${index}`} aria-hidden="true">
+                <span className={css('heroLineInner')} style={{ '--line-index': index } as CSSProperties}>{line}</span>
               </span>
             ))}
           </h1>
-          <p className={styles.heroLead}>{section.lead}</p>
+          <p className={css('heroLead')}>{section.lead}</p>
           <Actions context={context} primary={section.primary} secondary={section.secondary} />
         </div>
-        <dl className={styles.heroMeta}>
+        <dl className={css('heroMeta')}>
           {section.meta.map((item) => (
             <div key={`${item.label}-${item.value}`}>
               <dt>{item.label}</dt>
@@ -176,6 +192,7 @@ function Hero({ context, section }: { context: WebsiteRenderContext; section: Ex
           </div>
         </dl>
       </div>
+      {immersive && <div className={cinematic.arrivalRail} aria-hidden="true"><span>Take your time. There is more to see.</span><span className={cinematic.scrollMark}>↓</span><span>{context.blueprint.identity.city} / Ghana</span></div>}
       {section.note && <SectionNote>{section.note}</SectionNote>}
     </SectionShell>
   );
@@ -183,30 +200,30 @@ function Hero({ context, section }: { context: WebsiteRenderContext; section: Ex
 
 function Statement({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'statement' }> }) {
   return (
-    <SectionShell context={context} section={section} className={styles.statement}>
-      <div className={styles.statementInner}>
-        <div className={styles.statementCopy}>
+    <SectionShell context={context} section={section} className={css('statement')}>
+      <div className={css('statementInner')}>
+        <div className={css('statementCopy')}>
           <Eyebrow>{section.label}</Eyebrow>
           {section.title && (
-            <h2 className={styles.statementTitle}>
+            <h2 className={css('statementTitle')}>
               <Words text={section.title} />
             </h2>
           )}
-          <div className={styles.prose}>
+          <div className={css('prose')}>
             {section.body.map((paragraph) => (
               <p key={paragraph.slice(0, 48)}>{paragraph}</p>
             ))}
           </div>
         </div>
         {section.aside && (
-          <aside className={styles.marginNote}>
+          <aside className={css('marginNote')}>
             <span>Margin note</span>
             {section.aside}
           </aside>
         )}
       </div>
       {section.assetId && (
-        <div className={styles.statementMedia}>
+        <div className={css('statementMedia')}>
           <ImagePlate context={context} plate={{ assetId: section.assetId, span: 'wide' }} />
         </div>
       )}
@@ -216,9 +233,10 @@ function Statement({ context, section }: { context: WebsiteRenderContext; sectio
 }
 
 function Sequence({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'sequence' }> }) {
+  if (section.variant === 'scroll-story') return <ScrollStory context={context} section={section} />;
   return (
-    <SectionShell context={context} section={section} className={styles.sequence}>
-      <div className={styles.sectionHead}>
+    <SectionShell context={context} section={section} className={css('sequence')}>
+      <div className={css('sectionHead')}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
           {section.title && (
@@ -227,9 +245,9 @@ function Sequence({ context, section }: { context: WebsiteRenderContext; section
             </h2>
           )}
         </div>
-        <span className={styles.count}>{String(section.items.length).padStart(2, '0')} plates</span>
+        <span className={css('count')}>{String(section.items.length).padStart(2, '0')} plates</span>
       </div>
-      <div className={styles.sequenceGrid}>
+      <div className={css('sequenceGrid')}>
         {section.items.map((item, index) => (
           <ImagePlate
             key={`${item.assetId}-${index}`}
@@ -241,6 +259,44 @@ function Sequence({ context, section }: { context: WebsiteRenderContext; section
         ))}
       </div>
       {section.note && <SectionNote>{section.note}</SectionNote>}
+    </SectionShell>
+  );
+}
+
+/** Native document scrolling drives the masks. The in-flow images are the complete static fallback. */
+function ScrollStory({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'sequence' }> }) {
+  return (
+    <SectionShell context={context} section={section} className={cinematic.story}>
+      <div className={cinematic.storyHeader}>
+        <Eyebrow>{section.label}</Eyebrow>
+        {section.title && <h2>{section.title}</h2>}
+        <a href={`#${section.id}-end`} className={cinematic.storySkip}>Skip the image story ↓</a>
+      </div>
+      <div className={cinematic.storyBody} data-story-body>
+        <ol className={cinematic.storySteps}>
+          {section.items.map((item, index) => (
+            <li id={`${section.id}-step-${index + 1}`} key={`${item.assetId}-${index}`} className={cinematic.storyStep} data-story-step>
+              <span className={cinematic.storyNumber}>{String(index + 1).padStart(2, '0')} <span>/ {String(section.items.length).padStart(2, '0')}</span></span>
+              <h3>{item.title ?? item.caption ?? `Chapter ${index + 1}`}</h3>
+              {item.body && <p>{item.body}</p>}
+              <div className={cinematic.storyInline}><ImagePlate context={context} plate={item} sizes="(min-width: 64rem) 60vw, 100vw" /></div>
+              <span className={cinematic.storyChapterLabel}>Keep wandering <span aria-hidden="true">↓</span></span>
+            </li>
+          ))}
+        </ol>
+        <div className={cinematic.storyStage} data-story-stage aria-hidden="true">
+          <div className={cinematic.storyFrames}>
+            {section.items.map((item, index) => (
+              <div className={cinematic.storyFrame} key={`${item.assetId}-${index}`} data-story-frame={index}>
+                <ImagePlate context={context} plate={item} sizes="60vw" bare />
+              </div>
+            ))}
+          </div>
+          <div className={cinematic.storyTrack}>{section.items.map((item, index) => <span key={`${item.assetId}-${index}`} data-story-marker={index}>{String(index + 1).padStart(2, '0')}<i /></span>)}</div>
+          <span className={cinematic.storyCredit}>Concept imagery · Not the actual property</span>
+        </div>
+      </div>
+      <div id={`${section.id}-end`} className={cinematic.storyEnd} tabIndex={-1}>{section.note && <SectionNote>{section.note}</SectionNote>}</div>
     </SectionShell>
   );
 }
@@ -258,29 +314,29 @@ function IndexSectionView({ context, section }: { context: WebsiteRenderContext;
 
   return (
     <SectionShell context={context} section={section} className={`${styles.indexSection} ${styles.indexSectionInteractive}`}>
-      <div className={styles.sectionHead}>
+      <div className={css('sectionHead')}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
           <h2>
             <Words text={section.title} />
           </h2>
-          {section.description && <p className={styles.headDescription}>{section.description}</p>}
+          {section.description && <p className={css('headDescription')}>{section.description}</p>}
         </div>
-        {section.countLabel && <span className={styles.count}>{section.countLabel}</span>}
+        {section.countLabel && <span className={css('count')}>{section.countLabel}</span>}
       </div>
-      <div className={styles.indexLayout} data-index-mode={plan.layout.indexMode} data-interactive={interactive || undefined}>
-        <ol className={styles.indexList}>
+      <div className={css('indexLayout')} data-index-mode={plan.layout.indexMode} data-interactive={interactive || undefined}>
+        <ol className={css('indexList')}>
           {section.entries.map((entry) => (
             <li
               key={`${entry.number}-${entry.title}`}
-              className={styles.indexRow}
+              className={css('indexRow')}
               data-active={interactive && entry.assetId === previewEntries[activeAsset]?.assetId ? '' : undefined}
               onMouseEnter={() => activate(entry.assetId)}
               onFocus={() => activate(entry.assetId)}
             >
-              <span className={styles.indexNumber}>{entry.number}</span>
-              <div className={styles.indexBody}>
-                {entry.tag && <span className={styles.tag}>{entry.tag}</span>}
+              <span className={css('indexNumber')}>{entry.number}</span>
+              <div className={css('indexBody')}>
+                {entry.tag && <span className={css('tag')}>{entry.tag}</span>}
                 <h3>
                   {entry.pageSlug ? (
                     <Link
@@ -295,16 +351,16 @@ function IndexSectionView({ context, section }: { context: WebsiteRenderContext;
                       {entry.title}
                     </Link>
                   ) : (
-                    entry.title
+                    interactive ? <button type="button" className={cinematic.roomSelect} aria-pressed={entry.assetId === previewEntries[activeAsset]?.assetId} onClick={() => activate(entry.assetId)}>{entry.title}<span aria-hidden="true"> ↗</span></button> : entry.title
                   )}
                 </h3>
-                <ul className={styles.indexMeta} aria-label="Entry metadata">
+                <ul className={css('indexMeta')} aria-label="Entry metadata">
                   {entry.meta.map((meta) => <li key={meta}>{meta}</li>)}
                 </ul>
                 {entry.summary && <p>{entry.summary}</p>}
               </div>
               {entry.assetId && (
-                <div className={styles.indexThumb}>
+                <div className={css('indexThumb')}>
                   <ImagePlate context={context} plate={{ assetId: entry.assetId, span: 'portrait' }} sizes="6rem" bare />
                 </div>
               )}
@@ -312,17 +368,17 @@ function IndexSectionView({ context, section }: { context: WebsiteRenderContext;
           ))}
         </ol>
         {interactive && (
-          <div className={styles.indexPreview} aria-hidden="true">
+          <div className={css('indexPreview')} aria-hidden="true">
             {previewEntries.map((entry, index) => (
               <div
-                className={styles.indexPreviewFrame}
+                className={css('indexPreviewFrame')}
                 data-active={index === activeAsset || undefined}
                 key={entry.assetId}
               >
                 <ImagePlate context={context} plate={{ assetId: entry.assetId!, span: 'portrait' }} sizes="(min-width: 64rem) 34vw, 26vw" bare />
               </div>
             ))}
-            <div className={styles.indexPreviewMeta}>
+            <div className={css('indexPreviewMeta')}>
               <span>{previewEntries[activeAsset]?.number}</span>
               <span>{previewEntries[activeAsset]?.title}</span>
             </div>
@@ -336,20 +392,20 @@ function IndexSectionView({ context, section }: { context: WebsiteRenderContext;
 
 function Chapter({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'chapter' }> }) {
   return (
-    <SectionShell context={context} section={section} className={styles.chapter}>
-      <div className={styles.chapterCopy}>
-        <div className={styles.chapterHeading}>
-          {section.number && <span className={styles.chapterNumber}>{section.number}</span>}
+    <SectionShell context={context} section={section} className={css('chapter')}>
+      <div className={css('chapterCopy')}>
+        <div className={css('chapterHeading')}>
+          {section.number && <span className={css('chapterNumber')}>{section.number}</span>}
           <Eyebrow>{section.label}</Eyebrow>
         </div>
         <h2>
           <Words text={section.title} />
         </h2>
-        <div className={styles.prose}>
+        <div className={css('prose')}>
           {section.body.map((paragraph) => <p key={paragraph.slice(0, 48)}>{paragraph}</p>)}
         </div>
         {section.details && (
-          <dl className={styles.inlineFacts}>
+          <dl className={css('inlineFacts')}>
             {section.details.map((detail) => (
               <div key={`${detail.label}-${detail.value}`}>
                 <dt>{detail.label}</dt>
@@ -361,7 +417,7 @@ function Chapter({ context, section }: { context: WebsiteRenderContext; section:
         {section.note && <SectionNote>{section.note}</SectionNote>}
       </div>
       {section.assetId && (
-        <div className={styles.chapterMedia}>
+        <div className={css('chapterMedia')}>
           <ImagePlate context={context} plate={{ assetId: section.assetId, span: 'portrait' }} parallax />
         </div>
       )}
@@ -371,20 +427,20 @@ function Chapter({ context, section }: { context: WebsiteRenderContext; section:
 
 function Process({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'process' }> }) {
   return (
-    <SectionShell context={context} section={section} className={styles.process}>
-      <div className={styles.sectionHead}>
+    <SectionShell context={context} section={section} className={css('process')}>
+      <div className={css('sectionHead')}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
           <h2>
             <Words text={section.title} />
           </h2>
         </div>
-        <span className={styles.count}>{String(section.steps.length).padStart(2, '0')} moves</span>
+        <span className={css('count')}>{String(section.steps.length).padStart(2, '0')} moves</span>
       </div>
-      <ol className={styles.processList}>
+      <ol className={css('processList')}>
         {section.steps.map((step) => (
           <li key={step.number}>
-            <span className={styles.stepNumber}>{step.number}</span>
+            <span className={css('stepNumber')}>{step.number}</span>
             <h3>{step.title}</h3>
             <p>{step.body}</p>
           </li>
@@ -396,9 +452,10 @@ function Process({ context, section }: { context: WebsiteRenderContext; section:
 }
 
 function Gallery({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'gallery' }> }) {
+  if (section.variant === 'editorial-gallery') return <EditorialGallery context={context} section={section} />;
   return (
-    <SectionShell context={context} section={section} className={styles.gallery}>
-      <div className={styles.sectionHead}>
+    <SectionShell context={context} section={section} className={css('gallery')}>
+      <div className={css('sectionHead')}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
           {section.title && (
@@ -407,9 +464,9 @@ function Gallery({ context, section }: { context: WebsiteRenderContext; section:
             </h2>
           )}
         </div>
-        <span className={styles.count}>{String(section.items.length).padStart(2, '0')} plates</span>
+        <span className={css('count')}>{String(section.items.length).padStart(2, '0')} plates</span>
       </div>
-      <div className={styles.galleryGrid}>
+      <div className={css('galleryGrid')}>
         {section.items.map((item, index) => (
           <ImagePlate key={`${item.assetId}-${index}`} context={context} plate={item} parallax={index === 1} />
         ))}
@@ -419,29 +476,56 @@ function Gallery({ context, section }: { context: WebsiteRenderContext; section:
   );
 }
 
+function EditorialGallery({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'gallery' }> }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (selected !== null && !dialog.current?.open) dialog.current?.showModal();
+    if (selected === null && dialog.current?.open) dialog.current.close();
+  }, [selected]);
+  const step = (direction: number) => setSelected((value) => value === null ? null : (value + direction + section.items.length) % section.items.length);
+  return (
+    <SectionShell context={context} section={section} className={cinematic.editorialGallery}>
+      <div className={cinematic.galleryHead}><Eyebrow>{section.label}</Eyebrow>{section.title && <h2>{section.title}</h2>}<span>Select a photograph to look closer ↗</span></div>
+      <div className={cinematic.galleryImages}>{section.items.map((item, index) => (
+        <div key={`${item.assetId}-${index}`} className={cinematic.galleryItem}>
+          <button type="button" className={cinematic.galleryOpen} onClick={() => setSelected(index)} aria-label={`Enlarge photograph ${index + 1}: ${item.title ?? item.caption ?? section.label}`}><ImagePlate context={context} plate={item} sizes="(min-width: 64rem) 48vw, 100vw" bare /><span aria-hidden="true">↗</span></button>
+          <p><span>{String(index + 1).padStart(2, '0')}</span>{item.caption}</p>
+        </div>
+      ))}</div>
+      {section.note && <SectionNote>{section.note}</SectionNote>}
+      <dialog ref={dialog} className={cinematic.lightbox} aria-label={`${section.label} photographs`} onCancel={() => setSelected(null)} onClose={() => setSelected(null)} onKeyDown={(event) => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); step(event.key === 'ArrowRight' ? 1 : -1); } }} onClick={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
+        <div className={cinematic.lightboxTop}><span>Concept photography</span><button type="button" autoFocus onClick={() => setSelected(null)} aria-label="Close photographs">Close ×</button></div>
+        {selected !== null && <ImagePlate context={context} plate={section.items[selected]} sizes="90vw" />}
+        <div className={cinematic.lightboxControls}><button type="button" onClick={() => step(-1)} aria-label="Previous photograph">← Previous</button><span aria-live="polite">{(selected ?? 0) + 1} / {section.items.length}</span><button type="button" onClick={() => step(1)} aria-label="Next photograph">Next →</button></div>
+      </dialog>
+    </SectionShell>
+  );
+}
+
 function Details({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'details' }> }) {
   return (
-    <SectionShell context={context} section={section} className={styles.details}>
-      <div className={styles.detailsHead}>
+    <SectionShell context={context} section={section} className={css('details')}>
+      <div className={css('detailsHead')}>
         <Eyebrow>{section.label}</Eyebrow>
         <h2>
           <Words text={section.title} />
         </h2>
         {section.body && <p>{section.body}</p>}
       </div>
-      <dl className={styles.detailsList}>
+      <dl className={css('detailsList')}>
         {section.items.map((item) => (
           <div key={`${item.label}-${item.value}`} data-placeholder={item.placeholder || undefined}>
             <dt>{item.label}</dt>
             <dd>
               {item.value}
-              {item.note && <span className={styles.detailNote}>{item.note}</span>}
+              {item.note && <span className={css('detailNote')}>{item.note}</span>}
             </dd>
           </div>
         ))}
       </dl>
       {section.action && (
-        <div className={styles.detailsAction}>
+        <div className={css('detailsAction')}>
           <SiteAction action={section.action} context={context} look="primary" />
         </div>
       )}
@@ -452,18 +536,19 @@ function Details({ context, section }: { context: WebsiteRenderContext; section:
 
 function Cta({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'cta' }> }) {
   return (
-    <SectionShell context={context} section={section} className={styles.cta}>
-      <div className={styles.ctaInner}>
+    <SectionShell context={context} section={section} className={css('cta')}>
+      {section.assetId && <div className={cinematic.invitationMedia} aria-hidden="true"><ImagePlate context={context} plate={{ assetId: section.assetId, span: 'wide' }} sizes="100vw" bare /></div>}
+      <div className={css('ctaInner')}>
         <div>
           <Eyebrow>{section.eyebrow}</Eyebrow>
           <h2>
             <Words text={section.title} />
           </h2>
         </div>
-        <div className={styles.ctaBody}>
+        <div className={css('ctaBody')}>
           <p>{section.body}</p>
           <Actions context={context} primary={section.primary} secondary={section.secondary} />
-          {section.note && <p className={styles.ctaNote}>{section.note}</p>}
+          {section.note && <p className={css('ctaNote')}>{section.note}</p>}
         </div>
       </div>
     </SectionShell>

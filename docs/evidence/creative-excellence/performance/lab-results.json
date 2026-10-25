@@ -1,0 +1,1091 @@
+{
+  "note": "Local Chromium lab samples, not field Core Web Vitals or a Lighthouse score. Interaction duration samples are not a field INP estimate. No recording, axe or test suite ran during measurement.",
+  "records": [
+    {
+      "profile": "desktop",
+      "sample": 1,
+      "lcpMs": 572,
+      "fcpMs": 572,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 572,
+        "loadTime": 0
+      },
+      "initialTbtMs": 47,
+      "observedInteractionMs": 160,
+      "scrollFrameP95Ms": 16.8,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1410636,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 364,
+          "responseEnd": 390
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 364,
+          "responseEnd": 395
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 444,
+          "responseEnd": 466
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 363,
+          "responseEnd": 392
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 363,
+          "responseEnd": 398
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 363,
+          "responseEnd": 410
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 363,
+          "responseEnd": 413
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 363,
+          "responseEnd": 467
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 363,
+          "responseEnd": 459
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 363,
+          "responseEnd": 416
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 363,
+          "responseEnd": 419
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 363,
+          "responseEnd": 429
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 364,
+          "responseEnd": 431
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 364,
+          "responseEnd": 444
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 364,
+          "responseEnd": 458
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 364,
+          "responseEnd": 469
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 364,
+          "responseEnd": 390
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 364,
+          "responseEnd": 395
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.avif",
+          "bytes": 147390,
+          "startTime": 364,
+          "responseEnd": 398
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 444,
+          "responseEnd": 466
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 553,
+          "responseEnd": 582
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372,
+          "startTime": 553,
+          "responseEnd": 579
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302,
+          "startTime": 553,
+          "responseEnd": 579
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236,
+          "startTime": 553,
+          "responseEnd": 581
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316,
+          "startTime": 553,
+          "responseEnd": 577
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391,
+          "startTime": 553,
+          "responseEnd": 583
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 888,
+          "startTime": 781,
+          "responseEnd": 833
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 906,
+          "startTime": 781,
+          "responseEnd": 834
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 893,
+          "startTime": 782,
+          "responseEnd": 834
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 901,
+          "startTime": 782,
+          "responseEnd": 834
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 896,
+          "startTime": 836,
+          "responseEnd": 846
+        }
+      ]
+    },
+    {
+      "profile": "desktop",
+      "sample": 2,
+      "lcpMs": 204,
+      "fcpMs": 204,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 204,
+        "loadTime": 0
+      },
+      "initialTbtMs": 88,
+      "observedInteractionMs": 152,
+      "scrollFrameP95Ms": 33.3,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1410635,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 39,
+          "responseEnd": 50
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 39,
+          "responseEnd": 51
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 86,
+          "responseEnd": 95
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 38,
+          "responseEnd": 53
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 38,
+          "responseEnd": 58
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 38,
+          "responseEnd": 60
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 38,
+          "responseEnd": 67
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 39,
+          "responseEnd": 94
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 39,
+          "responseEnd": 85
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 39,
+          "responseEnd": 73
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 39,
+          "responseEnd": 75
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 39,
+          "responseEnd": 75
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 39,
+          "responseEnd": 79
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 39,
+          "responseEnd": 92
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 39,
+          "responseEnd": 87
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 39,
+          "responseEnd": 90
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 39,
+          "responseEnd": 50
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 39,
+          "responseEnd": 51
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.avif",
+          "bytes": 147390,
+          "startTime": 40,
+          "responseEnd": 55
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 86,
+          "responseEnd": 95
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 191,
+          "responseEnd": 210
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302,
+          "startTime": 191,
+          "responseEnd": 206
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372,
+          "startTime": 191,
+          "responseEnd": 209
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236,
+          "startTime": 191,
+          "responseEnd": 209
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316,
+          "startTime": 191,
+          "responseEnd": 209
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391,
+          "startTime": 192,
+          "responseEnd": 211
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 888,
+          "startTime": 381,
+          "responseEnd": 439
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 904,
+          "startTime": 381,
+          "responseEnd": 439
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 892,
+          "startTime": 381,
+          "responseEnd": 439
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 903,
+          "startTime": 381,
+          "responseEnd": 440
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 896,
+          "startTime": 441,
+          "responseEnd": 453
+        }
+      ]
+    },
+    {
+      "profile": "desktop",
+      "sample": 3,
+      "lcpMs": 212,
+      "fcpMs": 212,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 212,
+        "loadTime": 0
+      },
+      "initialTbtMs": 87,
+      "observedInteractionMs": 152,
+      "scrollFrameP95Ms": 33.3,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 1410641,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 43,
+          "responseEnd": 57
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 43,
+          "responseEnd": 57
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 89,
+          "responseEnd": 100
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 42,
+          "responseEnd": 53
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 42,
+          "responseEnd": 60
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 42,
+          "responseEnd": 69
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 42,
+          "responseEnd": 69
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 42,
+          "responseEnd": 94
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 42,
+          "responseEnd": 99
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 43,
+          "responseEnd": 74
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 43,
+          "responseEnd": 76
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 43,
+          "responseEnd": 81
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 43,
+          "responseEnd": 80
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 43,
+          "responseEnd": 88
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 43,
+          "responseEnd": 88
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 43,
+          "responseEnd": 96
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 43,
+          "responseEnd": 57
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 43,
+          "responseEnd": 57
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-1536.avif",
+          "bytes": 147390,
+          "startTime": 43,
+          "responseEnd": 58
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 89,
+          "responseEnd": 100
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 195,
+          "responseEnd": 219
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372,
+          "startTime": 196,
+          "responseEnd": 218
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302,
+          "startTime": 196,
+          "responseEnd": 219
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236,
+          "startTime": 197,
+          "responseEnd": 220
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316,
+          "startTime": 197,
+          "responseEnd": 218
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast-castle-1280.jpg",
+          "bytes": 281391,
+          "startTime": 197,
+          "responseEnd": 221
+        },
+        {
+          "name": "/showcase/adwoas-house/house",
+          "bytes": 890,
+          "startTime": 374,
+          "responseEnd": 419
+        },
+        {
+          "name": "/showcase/adwoas-house/rooms",
+          "bytes": 905,
+          "startTime": 374,
+          "responseEnd": 420
+        },
+        {
+          "name": "/showcase/adwoas-house/day",
+          "bytes": 892,
+          "startTime": 375,
+          "responseEnd": 420
+        },
+        {
+          "name": "/showcase/adwoas-house/cape-coast",
+          "bytes": 905,
+          "startTime": 375,
+          "responseEnd": 420
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 897,
+          "startTime": 421,
+          "responseEnd": 431
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 1,
+      "lcpMs": 1524,
+      "fcpMs": 1352,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 1524,
+        "loadTime": 0
+      },
+      "initialTbtMs": 648,
+      "observedInteractionMs": 192,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 50,
+      "initialResourceBytes": 663563,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 182,
+          "responseEnd": 709
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 183,
+          "responseEnd": 844
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 863,
+          "responseEnd": 1497
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 177,
+          "responseEnd": 619
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 178,
+          "responseEnd": 732
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 179,
+          "responseEnd": 943
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 179,
+          "responseEnd": 1121
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 179,
+          "responseEnd": 2051
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 179,
+          "responseEnd": 2479
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 180,
+          "responseEnd": 1145
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 180,
+          "responseEnd": 1392
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 181,
+          "responseEnd": 1602
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 181,
+          "responseEnd": 1790
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 181,
+          "responseEnd": 2120
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 181,
+          "responseEnd": 2128
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 182,
+          "responseEnd": 2247
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 182,
+          "responseEnd": 709
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 183,
+          "responseEnd": 844
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.avif",
+          "bytes": 164523,
+          "startTime": 183,
+          "responseEnd": 3050
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 863,
+          "responseEnd": 1497
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 1340,
+          "responseEnd": 3791
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 895,
+          "startTime": 3073,
+          "responseEnd": 3251
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 2,
+      "lcpMs": 1540,
+      "fcpMs": 1352,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 1540,
+        "loadTime": 0
+      },
+      "initialTbtMs": 644,
+      "observedInteractionMs": 200,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 33.4,
+      "initialResourceBytes": 663563,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 189,
+          "responseEnd": 717
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 190,
+          "responseEnd": 853
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 868,
+          "responseEnd": 1511
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 183,
+          "responseEnd": 634
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 185,
+          "responseEnd": 740
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 185,
+          "responseEnd": 958
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 186,
+          "responseEnd": 1136
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 186,
+          "responseEnd": 2509
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 187,
+          "responseEnd": 2036
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 187,
+          "responseEnd": 1160
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 187,
+          "responseEnd": 1415
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 187,
+          "responseEnd": 1617
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 187,
+          "responseEnd": 1827
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 188,
+          "responseEnd": 2119
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 189,
+          "responseEnd": 2127
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 189,
+          "responseEnd": 2269
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 189,
+          "responseEnd": 717
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 190,
+          "responseEnd": 853
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.avif",
+          "bytes": 164523,
+          "startTime": 190,
+          "responseEnd": 3056
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 868,
+          "responseEnd": 1511
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 1344,
+          "responseEnd": 3800
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 895,
+          "startTime": 3109,
+          "responseEnd": 3289
+        }
+      ]
+    },
+    {
+      "profile": "mobile-4g-cpu4",
+      "sample": 3,
+      "lcpMs": 1540,
+      "fcpMs": 1360,
+      "cls": 0,
+      "lcpCandidate": {
+        "tag": "SPAN",
+        "url": null,
+        "renderTime": 1540,
+        "loadTime": 0
+      },
+      "initialTbtMs": 657,
+      "observedInteractionMs": 208,
+      "scrollFrameP95Ms": 33.4,
+      "scrollFrameMaxMs": 33.5,
+      "initialResourceBytes": 663565,
+      "fonts": [
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 194,
+          "responseEnd": 723
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 194,
+          "responseEnd": 858
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 872,
+          "responseEnd": 1511
+        }
+      ],
+      "resources": [
+        {
+          "name": "/_next/static/chunks/3yl-o_h7bz6hj.css",
+          "bytes": 11148,
+          "startTime": 188,
+          "responseEnd": 650
+        },
+        {
+          "name": "/_next/static/chunks/1kqsx6pwlefd6.css",
+          "bytes": 16826,
+          "startTime": 190,
+          "responseEnd": 746
+        },
+        {
+          "name": "/_next/static/chunks/1x6obpmlu1_c2.js",
+          "bytes": 1975,
+          "startTime": 191,
+          "responseEnd": 956
+        },
+        {
+          "name": "/_next/static/chunks/2kzd2bib-2ux6.js",
+          "bytes": 8655,
+          "startTime": 191,
+          "responseEnd": 1137
+        },
+        {
+          "name": "/_next/static/chunks/2khxl0v1q4i6n.js",
+          "bytes": 71969,
+          "startTime": 191,
+          "responseEnd": 2509
+        },
+        {
+          "name": "/_next/static/chunks/0vlgzkve6h0ys.js",
+          "bytes": 45431,
+          "startTime": 191,
+          "responseEnd": 2029
+        },
+        {
+          "name": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+          "bytes": 3940,
+          "startTime": 192,
+          "responseEnd": 1166
+        },
+        {
+          "name": "/_next/static/chunks/0umf92h1sb77c.js",
+          "bytes": 3514,
+          "startTime": 192,
+          "responseEnd": 1414
+        },
+        {
+          "name": "/_next/static/chunks/1nx0a_8sww4yr.js",
+          "bytes": 10549,
+          "startTime": 192,
+          "responseEnd": 1623
+        },
+        {
+          "name": "/_next/static/chunks/22amlt9mcg--3.js",
+          "bytes": 8440,
+          "startTime": 192,
+          "responseEnd": 1826
+        },
+        {
+          "name": "/_next/static/chunks/06dgbksxo0li4.js",
+          "bytes": 16914,
+          "startTime": 193,
+          "responseEnd": 2126
+        },
+        {
+          "name": "/_next/static/chunks/0x1boc3rzm9jh.js",
+          "bytes": 11244,
+          "startTime": 193,
+          "responseEnd": 2142
+        },
+        {
+          "name": "/_next/static/chunks/452633ojbdl0u.js",
+          "bytes": 12192,
+          "startTime": 194,
+          "responseEnd": 2276
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin.woff2",
+          "bytes": 15040,
+          "startTime": 194,
+          "responseEnd": 723
+        },
+        {
+          "name": "/showcase/fonts/public-sans/public-sans-latin-var.woff2",
+          "bytes": 26636,
+          "startTime": 194,
+          "responseEnd": 858
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.avif",
+          "bytes": 164523,
+          "startTime": 195,
+          "responseEnd": 3071
+        },
+        {
+          "name": "/showcase/fonts/instrument-serif/instrument-serif-latin-italic.woff2",
+          "bytes": 15684,
+          "startTime": 872,
+          "responseEnd": 1511
+        },
+        {
+          "name": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "startTime": 1354,
+          "responseEnd": 3807
+        },
+        {
+          "name": "/showcase/adwoas-house/stay",
+          "bytes": 897,
+          "startTime": 3119,
+          "responseEnd": 3296
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+{
+  "generatedOn": "2026-10-25",
+  "method": "Built-in image_gen tool; no external paid API",
+  "authorization": "Owner explicitly authorized synthetic concept imagery in this session",
+  "property": "One fictional Cape Coast courtyard guesthouse; no real property depicted",
+  "permissions": {
+    "inspect": "granted",
+    "store": "granted",
+    "prototype": "granted",
+    "export": "denied",
+    "publish": "denied"
+  },
+  "records": [
+    {
+      "name": "arrival",
+      "sourceFile": "exec-bdee26d9-9ac9-49a0-bb34-1f8073a82f60.png",
+      "sourceSha256": "a740a092dc19c47b9b4a04f034c6a25a980dee247fb541bf2a0967aa975150c0",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-640.webp",
+          "bytes": 79628,
+          "sha256": "b8c581b215551ca7690591c5436ed8e586debaf8633c81ada1cf07e0f727d1a1"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-1024.webp",
+          "bytes": 177018,
+          "sha256": "e905c3b2f04f4431c5d51c6d180be1e5616a22f50e31b363c7ef2ee2e293c66f"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-1536.webp",
+          "bytes": 335444,
+          "sha256": "aa66270c2630ed842e053716e3158e1a33360582c18e84516f3140891aae5295"
+        },
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-640.avif",
+          "mimeType": "image/avif",
+          "bytes": 34537,
+          "sha256": "3f648ef9a19ab886b274dab5fc7a8a6d35708980381bf29a0efba5a9635c344e"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-1024.avif",
+          "mimeType": "image/avif",
+          "bytes": 78625,
+          "sha256": "cfcb54baaf9dab64e211520637f8769ef9b7fcdf606a49685afeae57e9aa4c16"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-1536.avif",
+          "mimeType": "image/avif",
+          "bytes": 147390,
+          "sha256": "e1cda2006fb4830f903cb8f93b71a64fcc49afddba411c416ce51c5e146017a2"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/arrival.png"
+    },
+    {
+      "name": "courtyard",
+      "sourceFile": "exec-2cf5a6d3-5e95-46c1-abe3-b45a5cf8381d.png",
+      "sourceSha256": "1ee56bad79739040f237c76ef0f9da5fb3d2df69af8411b7ce99752ec61510fb",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/courtyard-640.webp",
+          "bytes": 81880,
+          "sha256": "bf3dc1b2913c42265e2d8c95e34f9cbd02ca22b69167bedb3109db2cf135c252"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/courtyard-1024.webp",
+          "bytes": 181372,
+          "sha256": "34758d99754397fc1d7e27d45609863a60015b63e0f0af89fe210839bc465f81"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/courtyard-1536.webp",
+          "bytes": 345752,
+          "sha256": "6a2fe8e2065c11b467b559219ea4a8ce792d80ef543d70ffd7a340d64be79eb5"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/courtyard.png"
+    },
+    {
+      "name": "room-garden",
+      "sourceFile": "exec-28718faa-d8ce-4ce0-a063-33a768a99295.png",
+      "sourceSha256": "763d81e22198e823acd3c595c0acdc30daa27679d9af3adada47d01caa37200f",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/room-garden-640.webp",
+          "bytes": 57064,
+          "sha256": "f970e8168ee9cb0747fde7cfd6e305a4714a3817880890eaeb3fe0e9ae34d210"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/room-garden-1024.webp",
+          "bytes": 127236,
+          "sha256": "372afc100e3613f31977815a1afd68e8c579a98b89352b8d30b02cad67464877"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/room-garden-1536.webp",
+          "bytes": 239758,
+          "sha256": "a54a9916c51f64f457e2cb26bf8d6b306a8a6925bda77b94a72434fd4a9c1039"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/room-garden.png"
+    },
+    {
+      "name": "room-evening",
+      "sourceFile": "exec-46dbed77-03d3-406b-b651-45b6dc2f42e1.png",
+      "sourceSha256": "66fae699451bfebd70464ab31fb85dcaf3efdef0d04c6e4831ded0ca1dff8416",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/room-evening-640.webp",
+          "bytes": 47316,
+          "sha256": "ba0872e6469ae68b2170b8b68c8ea2614afeb0785d1db2f490bbde42b6e3a080"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/room-evening-1024.webp",
+          "bytes": 98888,
+          "sha256": "0596c5356728064fefd440acf0b65439ff9b1deccf7df88551fa0dc76433aebe"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/room-evening-1536.webp",
+          "bytes": 181902,
+          "sha256": "eb54fb96f6a2a423f02eb572e28b08992448b80cf70a671c49800b087b4d7973"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/room-evening.png"
+    },
+    {
+      "name": "threshold",
+      "sourceFile": "exec-b9f7544b-28f0-4ce3-8c32-8bcf6c35141c.png",
+      "sourceSha256": "32eb8bd9cdbc42ac5784d6308573bf7260fbb77f8a3a3ea15db3485642e89a82",
+      "width": 1024,
+      "height": 1536,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/threshold-640.webp",
+          "bytes": 109176,
+          "sha256": "ade0d9be781fa204298abe59ccc432a48dc32a555789a8629255f3ac6f1d6ed7"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/threshold-1024.webp",
+          "bytes": 217988,
+          "sha256": "8325b754d6770dc30eee306ad7ca989f7caa64e44a02bac07e7a2004f5ec8023"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/threshold.png"
+    },
+    {
+      "name": "craft-detail",
+      "sourceFile": "exec-17c90080-db7c-45bd-af1d-55db98627a22.png",
+      "sourceSha256": "4699053601d13e270e614388c4034003eb2a55016f8961230e44a1477b308fe8",
+      "width": 1024,
+      "height": 1536,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/craft-detail-640.webp",
+          "bytes": 89164,
+          "sha256": "162d15d56898a79764318ac419b62321b2bde99c13e4588a0d5c05b2aae678aa"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/craft-detail-1024.webp",
+          "bytes": 166974,
+          "sha256": "fffa8f24e40b2e07a3d2a195ce1705504079f1c94e278744b86504424f1356db"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/craft-detail.png"
+    },
+    {
+      "name": "table",
+      "sourceFile": "exec-f6cbfa91-8236-4e7d-a501-b29ddafbcdf1.png",
+      "sourceSha256": "9ea21f360dc93bb9dbeaf25d931fd7d2d0588ae459c20af15a1221e569fc4417",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/table-640.webp",
+          "bytes": 65628,
+          "sha256": "5df9ce833f9b443ddaeef64a865fa29d4ea685ab423a375c21f15b9305a0f153"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/table-1024.webp",
+          "bytes": 123302,
+          "sha256": "25bce35ec74536e88502b83bb8579fb6fba5e8f4b5ac4b652f9dd20e281958a8"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/table-1536.webp",
+          "bytes": 207782,
+          "sha256": "8423cd40853e9b9689a620a2cfc053df4b86bc9e8c2c9416def789ea94b99c7d"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/table.png"
+    },
+    {
+      "name": "exterior-evening",
+      "sourceFile": "exec-9fcfd732-1d67-4b67-b4bf-05a768bad10d.png",
+      "sourceSha256": "d714fcc5ac8f69b2ee23630de15e02c70664ab1e95051e6be582ead1f109fb19",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/exterior-evening-640.webp",
+          "bytes": 72844,
+          "sha256": "a4ccf1529c7e432b1a5c52aa550def880e3198d662b43275e9d02755196619fd"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/exterior-evening-1024.webp",
+          "bytes": 160646,
+          "sha256": "75bce6bb9cd5185e59e420afdea2751e18954acfb630e0998c867e5ce2abda6d"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/exterior-evening-1536.webp",
+          "bytes": 298018,
+          "sha256": "06c879302c3f6419c274069017eb66f81a483af3826ee55d6fb5edeb235a8640"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/exterior-evening.png"
+    },
+    {
+      "name": "arrival-mobile",
+      "sourceFile": "exec-49b8d0c0-6e84-4759-81c4-3bd646292bfa.png",
+      "sourceSha256": "0ff12c29eb961c2b3897c2d5b6ede5b26440b4bf679887845839b431dcc9a489",
+      "width": 1024,
+      "height": 1536,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-mobile-640.webp",
+          "bytes": 179112,
+          "sha256": "1dda5cd32162d88d13d55d6ec06cd4229604bf340a4a3b4bbf214635620cd752"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.webp",
+          "bytes": 373150,
+          "sha256": "1af279e6a4c6f9b73635552e9f04d78517fe4cf96ba1244f8a19e83dc3d3a60c"
+        },
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-mobile-640.avif",
+          "mimeType": "image/avif",
+          "bytes": 81943,
+          "sha256": "4bc0e400afbd7202dc07e9ac161f80e629f35f5477ca20273cd502fb29146d93"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/arrival-mobile-1024.avif",
+          "mimeType": "image/avif",
+          "bytes": 164523,
+          "sha256": "fd78a7da7e52d5dc96702c234653f0e3d211776a7e37adc220a032c00448bdc9"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/arrival-mobile.png"
+    },
+    {
+      "name": "room-upper",
+      "sourceFile": "exec-c758d4ea-7333-43df-9ffd-88be327b0228.png",
+      "sourceSha256": "6a3b4e18f9c3337bcb38901351ba562b880b4c17a4067e6289edeb0d4a8ee279",
+      "width": 1536,
+      "height": 1024,
+      "variants": [
+        {
+          "width": 640,
+          "src": "/showcase/adwoas-house/concept-v2/room-upper-640.webp",
+          "bytes": 60788,
+          "sha256": "f4fc92dcd16816e85ce93efb3ee8501670d81ff7e1b020a551c282577b1077ce"
+        },
+        {
+          "width": 1024,
+          "src": "/showcase/adwoas-house/concept-v2/room-upper-1024.webp",
+          "bytes": 130968,
+          "sha256": "e40f2e3b913cd108d0b892fbcf09033edc53488c39b06dc8fc3b3ccea8d82255"
+        },
+        {
+          "width": 1536,
+          "src": "/showcase/adwoas-house/concept-v2/room-upper-1536.webp",
+          "bytes": 240822,
+          "sha256": "7ad2d3337934bc44eb11ec57926dae2688221710ae2bf7add1584e8f5d136cbb"
+        }
+      ],
+      "workspaceSource": "output/imagegen/adwoa-source/room-upper.png"
+    }
+  ]
+}

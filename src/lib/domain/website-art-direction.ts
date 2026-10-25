@@ -72,6 +72,8 @@ export interface BlueprintMotionPlan {
 }
 
 export interface BlueprintLayoutPlan {
+  /** Optional so immutable prototypes saved before this composition suite keep their appearance. */
+  surfaceStyle?: 'paper-and-ink';
   density: LayoutDensity;
   sectionSpacing: SectionSpacing;
   mediaRhythm: MediaRhythm;
@@ -262,6 +264,7 @@ export function buildArtDirection(family: CompositionFamily, direction: MotionDi
 
   return {
     layout: {
+      ...(family === 'cinematic_full_bleed' ? { surfaceStyle: 'paper-and-ink' as const } : {}),
       density: familyDensity(family),
       sectionSpacing: familySpacing(family),
       mediaRhythm: familyMediaRhythm(family),

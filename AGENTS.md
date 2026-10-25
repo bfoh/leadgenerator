@@ -7,3 +7,26 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Current creative work
+
+Read `docs/ACTIVE_CREATIVE_HANDOFF.md` before continuing website design. Work on
+`feature/codex-creative-excellence`; preserve existing work. Adwoa’s House is the current
+creative-review scope. The owner rejected the earlier sparse, dark, static layouts. The
+new direction must be reviewed in a real browser, including phone layouts and actual motion.
+
+**Stop for owner creative approval after presenting Adwoa’s House. Do not redesign
+Nsroma Atelier or Bantama Design Office until that approval is explicit.** Passing tests
+does not constitute creative approval.
+
+Keep all improvements in the shared blueprint/builder/trusted renderer. Preserve exact
+direction and Brand Kit binding, asset provenance and permissions, validation, immutable
+history, organization isolation, concept disclosures and `publishReady: false`.
+
+The owner authorized original synthetic concept imagery for Adwoa’s House using the
+built-in image tool, without paid external API calls. Records live in `docs/assets/`;
+all house images must remain clearly fictional, and publication is separately gated.
+
+No pushing, deployment, production Supabase changes, paid provider calls or prospect
+contact is authorized. Run local database tests through PGlite; browser verification must
+use demo mode with Supabase and provider credentials blanked. Preserve the Next.js rules above.

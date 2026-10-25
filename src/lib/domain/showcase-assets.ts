@@ -8,6 +8,7 @@
 // Publication permission is deliberately denied: a licence for a prototype is not a licence to
 // publish a client-facing site.
 
+import { SYNTHETIC_ADWOA_ASSETS } from './showcase-adwoa-assets';
 import type { BlueprintAsset } from './website-blueprint';
 import type { BlueprintMediaSource } from './website-compositions';
 
@@ -159,7 +160,7 @@ export const NSROMA_ASSETS: BlueprintAsset[] = [
   }),
 ];
 
-export const ADWOA_ASSETS: BlueprintAsset[] = [
+const LEGACY_ADWOA_ASSETS: BlueprintAsset[] = [
   photo({
     id: 'adwoa-room-evening',
     site: 'adwoas-house',
@@ -271,6 +272,9 @@ export const ADWOA_ASSETS: BlueprintAsset[] = [
   }),
 ];
 
+// Preserve the licensed castle context and Studio drawings; unrelated stock interiors are retired.
+export const ADWOA_ASSETS: BlueprintAsset[] = [...SYNTHETIC_ADWOA_ASSETS, ...LEGACY_ADWOA_ASSETS.filter((asset) => asset.id === 'adwoa-cape-coast' || asset.sourceKind === 'studio_drawing')];
+
 export const BANTAMA_ASSETS: BlueprintAsset[] = [
   photo({
     id: 'bantama-great-hall',
@@ -372,8 +376,9 @@ export function showcaseMedia(assets: readonly BlueprintAsset[]): BlueprintMedia
     height: asset.height ?? 1500,
     alt: asset.alt,
     srcSet: asset.variants?.length
-      ? [...asset.variants.map((variant) => `${variant.src} ${variant.width}w`), `${asset.sourcePath} ${asset.width ?? 2000}w`].join(', ')
+      ? [...new Map([...asset.variants.filter((variant) => variant.mimeType !== 'image/avif'), { width: asset.width ?? 2000, src: asset.sourcePath }].map((variant) => [variant.width, variant])).values()].map((variant) => `${variant.src} ${variant.width}w`).join(', ')
       : undefined,
+    avifSrcSet: asset.variants?.filter((variant) => variant.mimeType === 'image/avif').map((variant) => `${variant.src} ${variant.width}w`).join(', ') || undefined,
     sizes: '(min-width: 64rem) 56vw, 100vw',
   }));
 }

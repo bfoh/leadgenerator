@@ -1,0 +1,346 @@
+[
+  {
+    "width": 1440,
+    "slug": "home",
+    "height": 6894,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 900
+      },
+      {
+        "kind": "statement",
+        "height": 695
+      },
+      {
+        "kind": "sequence",
+        "height": 2005
+      },
+      {
+        "kind": "index",
+        "height": 1347
+      },
+      {
+        "kind": "chapter",
+        "height": 917
+      },
+      {
+        "kind": "cta",
+        "height": 497
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "slug": "house",
+    "height": 5340,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 900
+      },
+      {
+        "kind": "statement",
+        "height": 576
+      },
+      {
+        "kind": "chapter",
+        "height": 850
+      },
+      {
+        "kind": "sequence",
+        "height": 1984
+      },
+      {
+        "kind": "cta",
+        "height": 497
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "slug": "rooms",
+    "height": 6760,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 966
+      },
+      {
+        "kind": "sequence",
+        "height": 1984
+      },
+      {
+        "kind": "index",
+        "height": 1226
+      },
+      {
+        "kind": "details",
+        "height": 904
+      },
+      {
+        "kind": "statement",
+        "height": 634
+      },
+      {
+        "kind": "cta",
+        "height": 511
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "slug": "day",
+    "height": 5384,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 900
+      },
+      {
+        "kind": "chapter",
+        "height": 850
+      },
+      {
+        "kind": "sequence",
+        "height": 1880
+      },
+      {
+        "kind": "chapter",
+        "height": 850
+      },
+      {
+        "kind": "cta",
+        "height": 370
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "slug": "cape-coast",
+    "height": 4504,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 900
+      },
+      {
+        "kind": "chapter",
+        "height": 850
+      },
+      {
+        "kind": "gallery",
+        "height": 1823
+      },
+      {
+        "kind": "cta",
+        "height": 398
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "slug": "stay",
+    "height": 4508,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 900
+      },
+      {
+        "kind": "details",
+        "height": 786
+      },
+      {
+        "kind": "process",
+        "height": 900
+      },
+      {
+        "kind": "chapter",
+        "height": 850
+      },
+      {
+        "kind": "cta",
+        "height": 539
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "home",
+    "height": 6276,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "statement",
+        "height": 731
+      },
+      {
+        "kind": "sequence",
+        "height": 1279
+      },
+      {
+        "kind": "index",
+        "height": 1108
+      },
+      {
+        "kind": "chapter",
+        "height": 1159
+      },
+      {
+        "kind": "cta",
+        "height": 404
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "house",
+    "height": 4953,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "statement",
+        "height": 615
+      },
+      {
+        "kind": "chapter",
+        "height": 1121
+      },
+      {
+        "kind": "sequence",
+        "height": 1246
+      },
+      {
+        "kind": "cta",
+        "height": 376
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "rooms",
+    "height": 5846,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "sequence",
+        "height": 1241
+      },
+      {
+        "kind": "index",
+        "height": 993
+      },
+      {
+        "kind": "details",
+        "height": 960
+      },
+      {
+        "kind": "statement",
+        "height": 639
+      },
+      {
+        "kind": "cta",
+        "height": 418
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "day",
+    "height": 5275,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "chapter",
+        "height": 1071
+      },
+      {
+        "kind": "sequence",
+        "height": 1209
+      },
+      {
+        "kind": "chapter",
+        "height": 1066
+      },
+      {
+        "kind": "cta",
+        "height": 333
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "cape-coast",
+    "height": 4478,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "chapter",
+        "height": 1139
+      },
+      {
+        "kind": "gallery",
+        "height": 1411
+      },
+      {
+        "kind": "cta",
+        "height": 333
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "slug": "stay",
+    "height": 4999,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "height": 844
+      },
+      {
+        "kind": "details",
+        "height": 849
+      },
+      {
+        "kind": "process",
+        "height": 1031
+      },
+      {
+        "kind": "chapter",
+        "height": 1044
+      },
+      {
+        "kind": "cta",
+        "height": 481
+      }
+    ]
+  }
+]

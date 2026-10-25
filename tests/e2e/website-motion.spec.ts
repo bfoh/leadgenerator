@@ -37,7 +37,7 @@ test('scroll progression and the sticky room register are observable', async ({ 
     scroll: element.getAttribute('data-motion-scroll'),
   }));
   expect(first.scene).toBe('sequence');
-  expect(first.scroll).toBe('drift');
+  expect(first.scroll).toBe('sticky');
   expect(Number(first.progress)).toBeGreaterThan(0);
   await page.evaluate(() => scrollBy(0, 700));
   await page.waitForTimeout(400);

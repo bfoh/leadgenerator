@@ -1,0 +1,112 @@
+[
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0,
+    "elapsedMs": 6587,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(99.96% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0.25,
+    "elapsedMs": 7694,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(75.09% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0.5,
+    "elapsedMs": 8434,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(49.96% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0.75,
+    "elapsedMs": 8993,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(25.09% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 1,
+    "elapsedMs": 9595,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(0% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 3,
+    "progress": 1,
+    "elapsedMs": 10388,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(0% 0px 0px)",
+      "inset(0% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 3,
+    "progress": 0.5,
+    "elapsedMs": 11165,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(0% 0px 0px)",
+      "inset(49.95% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 3,
+    "progress": 0,
+    "elapsedMs": 11958,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(0% 0px 0px)",
+      "inset(99.95% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0.5,
+    "elapsedMs": 12779,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(49.96% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  },
+  {
+    "width": 1440,
+    "chapter": 2,
+    "progress": 0,
+    "elapsedMs": 13445,
+    "frames": [
+      "inset(0% 0px 0px)",
+      "inset(99.96% 0px 0px)",
+      "inset(100% 0px 0px)"
+    ]
+  }
+]

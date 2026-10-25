@@ -12,6 +12,15 @@ import { MOTION_EASING, type BlueprintArtDirection } from '@/lib/domain/website-
 
 const SCROLL_SCENES = new Set(['progress', 'drift', 'sticky']);
 
+function clearStory(section: HTMLElement) {
+  delete section.dataset.storyReady;
+  section.querySelectorAll<HTMLElement>('[data-story-frame]').forEach((frame) => frame.style.removeProperty('--frame-reveal'));
+  section.querySelectorAll<HTMLElement>('[data-story-marker]').forEach((marker) => {
+    delete marker.dataset.active;
+    marker.style.removeProperty('--chapter-progress');
+  });
+}
+
 /**
  * The executable motion layer.
  *
@@ -42,6 +51,7 @@ export function useWebsiteMotion(
         delete section.dataset.inview;
         section.style.removeProperty('--scene-progress');
         section.style.removeProperty('--scene-y');
+        clearStory(section);
       }
       delete element.dataset.motion;
       delete element.dataset.motionEngine;
@@ -66,6 +76,13 @@ export function useWebsiteMotion(
       }
 
       const scrollSections = sections.filter((section) => SCROLL_SCENES.has(section.dataset.motionScroll ?? ''));
+      const stories = sections.filter((section) => section.dataset.variant === 'scroll-story').map((section) => ({
+        section,
+        steps: Array.from(section.querySelectorAll<HTMLElement>('[data-story-step]')),
+        headings: Array.from(section.querySelectorAll<HTMLElement>('[data-story-step] h3')),
+        frames: Array.from(section.querySelectorAll<HTMLElement>('[data-story-frame]')),
+        markers: Array.from(section.querySelectorAll<HTMLElement>('[data-story-marker]')),
+      }));
 
       let observer: IntersectionObserver | null = null;
       if (typeof IntersectionObserver === 'function') {
@@ -88,6 +105,7 @@ export function useWebsiteMotion(
       const update = () => {
         frame = 0;
         const viewport = window.innerHeight || 1;
+        const storyEnabled = element.clientWidth >= 1024;
         const measurements: { section: HTMLElement; progress: number; y: number }[] = [];
         for (const section of scrollSections) {
           const rect = section.getBoundingClientRect();
@@ -100,10 +118,28 @@ export function useWebsiteMotion(
             y: (progress - 0.5) * 2 * artDirection.motion.distancePx,
           });
         }
+        // The next chapter wipes upward as its in-flow text enters. This is directly mapped to
+        // document geometry, with no easing catch-up, wheel handler, pin spacer or React rerender.
+        const storyMeasurements = stories.map((story) => ({
+          ...story,
+          reveals: story.headings.map((heading, index) => index === 0 ? 1 : Math.min(1, Math.max(0, (viewport * 0.78 - heading.getBoundingClientRect().top) / (viewport * 0.42)))),
+          progress: story.headings.map((heading) => Math.min(1, Math.max(0, (viewport * 0.78 - heading.getBoundingClientRect().top) / (viewport * 0.78)))),
+        }));
         // Read all geometry first, then write, so the loop does not interleave layout reads and writes.
         for (const measurement of measurements) {
           measurement.section.style.setProperty('--scene-progress', measurement.progress.toFixed(3));
           measurement.section.style.setProperty('--scene-y', `${measurement.y.toFixed(2)}px`);
+        }
+        for (const story of storyMeasurements) {
+          if (!storyEnabled) { clearStory(story.section); continue; }
+          story.section.dataset.storyReady = '';
+          story.frames.forEach((frame, index) => frame.style.setProperty('--frame-reveal', (story.reveals[index] ?? 0).toFixed(4)));
+          const active = story.reveals.findLastIndex((reveal) => reveal >= 0.5);
+          story.markers.forEach((marker, index) => {
+            if (index === active) marker.dataset.active = '';
+            else delete marker.dataset.active;
+            marker.style.setProperty('--chapter-progress', (story.progress[index] ?? 0).toFixed(4));
+          });
         }
       };
       const onScroll = () => {
@@ -125,6 +161,7 @@ export function useWebsiteMotion(
           delete section.dataset.inview;
           section.style.removeProperty('--scene-progress');
           section.style.removeProperty('--scene-y');
+          clearStory(section);
         }
         element.style.removeProperty('--scene-duration');
         element.style.removeProperty('--scene-stagger');
@@ -138,7 +175,8 @@ export function useWebsiteMotion(
     };
 
     const onPreferenceChange = () => {
-      if (reduced.matches) {
+      const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+      if (reduced.matches || connection?.saveData) {
         dispose?.();
         reset();
         element.dataset.motion = 'static';
@@ -148,11 +186,7 @@ export function useWebsiteMotion(
       }
     };
 
-    if (reduced.matches) {
-      element.setAttribute('data-motion', 'static');
-    } else {
-      start();
-    }
+    onPreferenceChange();
     reduced.addEventListener('change', onPreferenceChange);
 
     return () => {

@@ -5,8 +5,10 @@ import { THEME_SCRIPT } from '@/components/theme';
 import './globals.css';
 import './site-fonts.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap', style: ['normal', 'italic'] });
+// Application fonts load when used. Global preloads competed with the renderer's own licensed
+// pairing and its priority hero on showcase/prototype routes, which do not use these families.
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap', preload: false });
+const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap', style: ['normal', 'italic'], preload: false });
 
 export const metadata: Metadata = {
   title: { default: 'Digital Opportunity Finder', template: '%s · Digital Opportunity Finder' },

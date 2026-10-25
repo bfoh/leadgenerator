@@ -1,6 +1,8 @@
 # Adwoa’s House — 3C.4R redesign evidence
 
-**Status: awaiting owner creative approval.** This document records the rebuild of the first flagship
+**Historical status: rejected by the owner.** The current rebuild and creative-review gate are tracked
+in [ACTIVE_CREATIVE_HANDOFF.md](ACTIVE_CREATIVE_HANDOFF.md) and
+[CODEX_ADWOA_REVIEW.md](CODEX_ADWOA_REVIEW.md). This document records the earlier rebuild of the first flagship
 website (Adwoa’s House, “First Light”), the measurements taken in a real browser, the defects found
 after the rebuild, and what was corrected. It is not a claim of creative acceptance.
 

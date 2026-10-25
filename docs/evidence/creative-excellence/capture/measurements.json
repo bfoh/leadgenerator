@@ -1,0 +1,400 @@
+[
+  {
+    "slug": "home",
+    "width": 1440,
+    "liveHeight": 7114,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "immersive-arrival",
+        "height": 900
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 868
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 2194
+      },
+      {
+        "kind": "index",
+        "variant": "suite-register",
+        "height": 1106
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 776
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 5858
+  },
+  {
+    "slug": "house",
+    "width": 1440,
+    "liveHeight": 5836,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 793
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 868
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 2129
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 776
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 4580
+  },
+  {
+    "slug": "rooms",
+    "width": 1440,
+    "liveHeight": 5337,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 793
+      },
+      {
+        "kind": "index",
+        "variant": "suite-register",
+        "height": 1106
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 1685
+      },
+      {
+        "kind": "details",
+        "variant": "visit-ledger",
+        "height": 482
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 5337
+  },
+  {
+    "slug": "day",
+    "width": 1440,
+    "liveHeight": 5315,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 793
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 2194
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 1058
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 4059
+  },
+  {
+    "slug": "cape-coast",
+    "width": 1440,
+    "liveHeight": 4538,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 793
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 868
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 1140
+      },
+      {
+        "kind": "details",
+        "variant": "visit-ledger",
+        "height": 468
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 4538
+  },
+  {
+    "slug": "stay",
+    "width": 1440,
+    "liveHeight": 3433,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 793
+      },
+      {
+        "kind": "process",
+        "variant": "sequence-track",
+        "height": 594
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 776
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 765
+      }
+    ],
+    "staticHeight": 3433
+  },
+  {
+    "slug": "home",
+    "width": 390,
+    "liveHeight": 6852,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "immersive-arrival",
+        "height": 844
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 797
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 1794
+      },
+      {
+        "kind": "index",
+        "variant": "suite-register",
+        "height": 990
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 981
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 6852
+  },
+  {
+    "slug": "house",
+    "width": 390,
+    "liveHeight": 5686,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 913
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 825
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 1739
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 762
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 5675
+  },
+  {
+    "slug": "rooms",
+    "width": 390,
+    "liveHeight": 5196,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 913
+      },
+      {
+        "kind": "index",
+        "variant": "suite-register",
+        "height": 990
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 1230
+      },
+      {
+        "kind": "details",
+        "variant": "visit-ledger",
+        "height": 616
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 5184
+  },
+  {
+    "slug": "day",
+    "width": 390,
+    "liveHeight": 4977,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 888
+      },
+      {
+        "kind": "sequence",
+        "variant": "scroll-story",
+        "height": 1739
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 904
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 4966
+  },
+  {
+    "slug": "cape-coast",
+    "width": 390,
+    "liveHeight": 4574,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 913
+      },
+      {
+        "kind": "statement",
+        "variant": "editorial-image",
+        "height": 746
+      },
+      {
+        "kind": "gallery",
+        "variant": "editorial-gallery",
+        "height": 969
+      },
+      {
+        "kind": "details",
+        "variant": "visit-ledger",
+        "height": 500
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 4563
+  },
+  {
+    "slug": "stay",
+    "width": 390,
+    "liveHeight": 4123,
+    "overflow": 0,
+    "sections": [
+      {
+        "kind": "hero",
+        "variant": "split-arrival",
+        "height": 913
+      },
+      {
+        "kind": "process",
+        "variant": "sequence-track",
+        "height": 907
+      },
+      {
+        "kind": "chapter",
+        "variant": "image-story",
+        "height": 857
+      },
+      {
+        "kind": "cta",
+        "variant": "image-invitation",
+        "height": 688
+      }
+    ],
+    "staticHeight": 4111
+  }
+]

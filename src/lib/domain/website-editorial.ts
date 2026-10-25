@@ -7,7 +7,7 @@
 // the same section skeleton.
 
 import type { SectorProfile } from './creative-direction';
-import type { BlueprintAction, SiteTone } from './website-blueprint';
+import type { BlueprintAction, BlueprintSection, SiteTone } from './website-blueprint';
 
 /** A named visual slot resolved against the approved asset set. */
 export type AssetRole =
@@ -24,7 +24,8 @@ export type AssetRole =
   | 'threshold'
   | 'table'
   | 'room-alt'
-  | 'house';
+  | 'house'
+  | 'arrival-mobile';
 
 export interface EditorialPlate {
   assetRole: AssetRole;
@@ -34,6 +35,8 @@ export interface EditorialPlate {
   emphasis?: 'portrait' | 'landscape' | 'square' | 'wide' | 'full';
   focal?: 'centre' | 'top' | 'bottom' | 'left' | 'right';
   placeholder?: boolean;
+  title?: string;
+  body?: string;
 }
 
 interface SectionBase {
@@ -44,17 +47,20 @@ interface SectionBase {
 
 export interface EditorialHero extends SectionBase {
   kind: 'hero';
+  variant?: Extract<BlueprintSection, { kind: 'hero' }>['variant'];
   eyebrow: string;
   lines: string[];
   lead: string;
   meta: { label: string; value: string }[];
   assetRole?: AssetRole;
+  mobileAssetRole?: AssetRole;
   primary?: BlueprintAction;
   secondary?: BlueprintAction;
 }
 
 export interface EditorialStatement extends SectionBase {
   kind: 'statement';
+  variant?: Extract<BlueprintSection, { kind: 'statement' }>['variant'];
   title?: string;
   body: string[];
   aside?: string;
@@ -63,6 +69,7 @@ export interface EditorialStatement extends SectionBase {
 
 export interface EditorialSequence extends SectionBase {
   kind: 'sequence';
+  variant?: Extract<BlueprintSection, { kind: 'sequence' }>['variant'];
   title?: string;
   items: EditorialPlate[];
 }
@@ -85,6 +92,7 @@ export interface EditorialIndex extends SectionBase {
 
 export interface EditorialChapter extends SectionBase {
   kind: 'chapter';
+  variant?: Extract<BlueprintSection, { kind: 'chapter' }>['variant'];
   number?: string;
   title: string;
   body: string[];
@@ -100,6 +108,7 @@ export interface EditorialProcess extends SectionBase {
 
 export interface EditorialGallery extends SectionBase {
   kind: 'gallery';
+  variant?: Extract<BlueprintSection, { kind: 'gallery' }>['variant'];
   title?: string;
   items: EditorialPlate[];
 }
@@ -114,6 +123,8 @@ export interface EditorialDetails extends SectionBase {
 
 export interface EditorialCta extends SectionBase {
   kind: 'cta';
+  variant?: Extract<BlueprintSection, { kind: 'cta' }>['variant'];
+  assetRole?: AssetRole;
   eyebrow: string;
   title: string;
   body: string;

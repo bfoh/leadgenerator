@@ -2,9 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import { pageHref, type BlueprintAction } from '@/lib/domain/website-blueprint';
+import type { BlueprintAction } from '@/lib/domain/website-blueprint';
+import { pageHref } from '@/lib/domain/website-navigation';
 import styles from './website.module.css';
+import cinematic from './cinematic.module.css';
 import { actionNote, type PrototypeNotice, type WebsiteRenderContext } from './types';
+
+const css = (name: string) => `${styles[name] ?? ''} ${cinematic[name] ?? ''}`.trim();
 
 export function SiteAction({
   action,
@@ -17,7 +21,7 @@ export function SiteAction({
   look?: 'inline' | 'primary' | 'quiet';
   className?: string;
 }) {
-  const classes = `${styles.action} ${styles[`action_${look}`] ?? ''} ${className}`.trim();
+  const classes = `${styles.action} ${cinematic.action} ${styles[`action_${look}`] ?? ''} ${className}`.trim();
   if (action.kind === 'prototype') {
     return (
       <button
@@ -69,8 +73,8 @@ export function Wordmark({ context, onNavigate, size = 'normal' }: { context: We
       }}
       aria-label={`${context.blueprint.identity.siteName} — home`}
     >
-      <span className={styles.monogram} aria-hidden="true">{context.blueprint.identity.monogram}</span>
-      <span className={styles.wordmarkText}>{context.blueprint.identity.siteName}</span>
+      <span className={css('monogram')} aria-hidden="true">{context.blueprint.identity.monogram}</span>
+      <span className={css('wordmarkText')}>{context.blueprint.identity.siteName}</span>
     </Link>
   );
 }
@@ -131,18 +135,18 @@ function SiteMenu({
   };
 
   return (
-    <div className={styles.menuScrim} onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <div id={id} className={styles.menu} role="dialog" aria-modal="true" aria-labelledby={labelledBy} ref={panel}>
-        <div className={styles.menuTop}>
+    <div className={css('menuScrim')} onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div id={id} className={css('menu')} role="dialog" aria-modal="true" aria-labelledby={labelledBy} ref={panel}>
+        <div className={css('menuTop')}>
           <Wordmark context={context} onNavigate={() => onClose()} size="large" />
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close menu">
+          <button type="button" className={css('closeButton')} onClick={onClose} aria-label="Close menu">
             <span aria-hidden="true">×</span>
           </button>
         </div>
-        <nav className={styles.menuLinks} aria-label="Website pages">
+        <nav className={css('menuLinks')} aria-label="Website pages">
           <Link
             href={pageHref(context.basePath, 'home')}
-            className={styles.menuLink}
+            className={css('menuLink')}
             onClick={(event) => {
               if (context.onNavigate) {
                 event.preventDefault();
@@ -152,14 +156,14 @@ function SiteMenu({
               }
             }}
           >
-            <span className={styles.menuIndex}>00</span>
+            <span className={css('menuIndex')}>00</span>
             Home
           </Link>
           {context.blueprint.navigation.items.map((item, index) => (
             <Link
               key={item.pageSlug}
               href={pageHref(context.basePath, item.pageSlug)}
-              className={styles.menuLink}
+              className={css('menuLink')}
               aria-current={pageSlug === item.pageSlug ? 'page' : undefined}
               onClick={(event) => {
                 if (context.onNavigate) {
@@ -170,12 +174,12 @@ function SiteMenu({
                 }
               }}
             >
-              <span className={styles.menuIndex}>{String(index + 1).padStart(2, '0')}</span>
+              <span className={css('menuIndex')}>{String(index + 1).padStart(2, '0')}</span>
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className={styles.menuFoot}>
+        <div className={css('menuFoot')}>
           {context.blueprint.navigation.action && <SiteAction action={context.blueprint.navigation.action} context={context} look="primary" />}
           <p>{context.blueprint.disclosures[0]?.label}</p>
         </div>
@@ -203,17 +207,17 @@ export function SiteNavigation({ context, pageSlug }: { context: WebsiteRenderCo
   return (
     <>
       <header
-        className={`${styles.nav} ${styles[`nav_${style.replace(/-/g, '_')}`] ?? ''}`}
+        className={`${styles.nav} ${cinematic.nav} ${styles[`nav_${style.replace(/-/g, '_')}`] ?? ''}`}
         data-scrolled={scrolled || undefined}
         data-open={open || undefined}
       >
         <Wordmark context={context} onNavigate={() => setOpen(false)} />
-        <nav className={styles.navLinks} aria-label="Primary">
+        <nav className={css('navLinks')} aria-label="Primary">
           {context.blueprint.navigation.items.map((item, index) => (
             <Link
               key={item.pageSlug}
               href={pageHref(context.basePath, item.pageSlug)}
-              className={styles.navLink}
+              className={css('navLink')}
               aria-current={activeSlug === item.pageSlug ? 'page' : undefined}
               onClick={(event) => {
                 if (context.onNavigate) {
@@ -222,22 +226,22 @@ export function SiteNavigation({ context, pageSlug }: { context: WebsiteRenderCo
                 }
               }}
             >
-              {style === 'offset-rail' && <span className={styles.navNumber}>{String(index + 1).padStart(2, '0')}</span>}
+              {style === 'offset-rail' && <span className={css('navNumber')}>{String(index + 1).padStart(2, '0')}</span>}
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className={styles.navAction}>
+        <div className={css('navAction')}>
           {context.blueprint.navigation.action && <SiteAction action={context.blueprint.navigation.action} context={context} look="quiet" />}
         </div>
         <button
           type="button"
-          className={styles.menuButton}
+          className={css('menuButton')}
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
           onClick={() => setOpen(true)}
         >
-          <span className={styles.menuButtonLines} aria-hidden="true"><i /><i /></span>
+          <span className={css('menuButtonLines')} aria-hidden="true"><i /><i /></span>
           Menu
         </button>
       </header>
@@ -254,14 +258,14 @@ export function SiteNavigation({ context, pageSlug }: { context: WebsiteRenderCo
 export function SiteFooter({ context, pageSlug }: { context: WebsiteRenderContext; pageSlug: string }) {
   const credits = context.blueprint.assets;
   return (
-    <footer className={styles.footer}>
-      <div className={styles.footerTop}>
-        <div className={styles.footerMark}>
-          <span className={styles.monogram} aria-hidden="true">{context.blueprint.identity.monogram}</span>
+    <footer className={css('footer')}>
+      <div className={css('footerTop')}>
+        <div className={css('footerMark')}>
+          <span className={css('monogram')} aria-hidden="true">{context.blueprint.identity.monogram}</span>
           <p>{context.blueprint.identity.siteName}</p>
           <span>{context.blueprint.identity.descriptor}</span>
         </div>
-        <nav className={styles.footerNav} aria-label="Footer">
+        <nav className={css('footerNav')} aria-label="Footer">
           <Link
             href={pageHref(context.basePath, 'home')}
             onClick={(event) => {
@@ -289,19 +293,19 @@ export function SiteFooter({ context, pageSlug }: { context: WebsiteRenderContex
             </Link>
           ))}
         </nav>
-        <div className={styles.footerAction}>
+        <div className={css('footerAction')}>
           {context.blueprint.navigation.action && <SiteAction action={context.blueprint.navigation.action} context={context} look="primary" />}
         </div>
       </div>
-      <div className={styles.footerNotice}>
+      <div className={css('footerNotice')}>
         <p>{context.blueprint.disclosures[0]?.label}</p>
         <p>{context.blueprint.disclosures[1]?.detail}</p>
       </div>
-      <details className={styles.credits}>
+      <details className={css('credits')}>
         <summary>
           Credits, licences and type <span aria-hidden="true">＋</span>
         </summary>
-        <div className={styles.creditsBody}>
+        <div className={css('creditsBody')}>
           <div>
             <h2>Media</h2>
             <ul>
@@ -309,7 +313,7 @@ export function SiteFooter({ context, pageSlug }: { context: WebsiteRenderContex
                 <li key={asset.id}>
                   <strong>{asset.fileName}</strong> — {asset.credit ?? 'Credit not recorded'}.
                   <span> {asset.licence.name}.</span>
-                  {asset.sourceUrl && <span className={styles.sourceUrl}> Source: {asset.sourceUrl}</span>}
+                  {asset.sourceUrl && <span className={css('sourceUrl')}> Source: {asset.sourceUrl}</span>}
                 </li>
               ))}
               {!credits.length && <li>No client photography is present. Image-pending plates mark the commission.</li>}
@@ -331,7 +335,7 @@ export function SiteFooter({ context, pageSlug }: { context: WebsiteRenderContex
           </div>
         </div>
       </details>
-      <div className={styles.footerBottom}>
+      <div className={css('footerBottom')}>
         <span>Concept prototype · {context.blueprint.generatedAt.slice(0, 10)}</span>
         <span>No cookies, analytics, payments or external requests.</span>
         <span>Not for publication.</span>
@@ -343,7 +347,7 @@ export function SiteFooter({ context, pageSlug }: { context: WebsiteRenderContex
 export function ConceptDisclosure({ context }: { context: WebsiteRenderContext }) {
   if (context.embedded) {
     return (
-      <div className={styles.embeddedDisclosure}>
+      <div className={css('embeddedDisclosure')}>
         <span>{context.blueprint.disclosures[0]?.label}</span>
         <button
           type="button"
@@ -357,10 +361,10 @@ export function ConceptDisclosure({ context }: { context: WebsiteRenderContext }
   return (
     <button
       type="button"
-      className={styles.disclosurePill}
+      className={css('disclosurePill')}
       onClick={() => context.openNotice({ title: 'Prototype notes', body: 'Missing information, licence status and the limits of this preview.' })}
     >
-      <span className={styles.disclosureDot} aria-hidden="true" />
+      <span className={css('disclosureDot')} aria-hidden="true" />
       Concept Website — Not an Official Business Website
       <span aria-hidden="true">↗</span>
     </button>
@@ -388,7 +392,7 @@ export function PrototypeDialog({ context, notice, onClose }: { context: Website
   return (
     <dialog
       ref={dialog}
-      className={styles.noticeDialog}
+      className={css('noticeDialog')}
       aria-label={`Prototype notice — ${notice?.title ?? 'Notes'}`}
       onCancel={(event) => {
         event.preventDefault();
@@ -397,16 +401,16 @@ export function PrototypeDialog({ context, notice, onClose }: { context: Website
       onClose={onClose}
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className={styles.noticeDialogInner}>
-        <div className={styles.noticeDialogTop}>
-          <p className={styles.eyebrow}>Prototype notice</p>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close notice">
+      <div className={css('noticeDialogInner')}>
+        <div className={css('noticeDialogTop')}>
+          <p className={css('eyebrow')}>Prototype notice</p>
+          <button type="button" className={css('closeButton')} onClick={onClose} aria-label="Close notice">
             <span aria-hidden="true">×</span>
           </button>
         </div>
         <h2 id={titleId}>{notice?.title ?? 'Prototype notes'}</h2>
-        <p className={styles.noticeLead}>{notice?.body}</p>
-        <div className={styles.noticeBody}>
+        <p className={css('noticeLead')}>{notice?.body}</p>
+        <div className={css('noticeBody')}>
           {context.blueprint.disclosures.map((disclosure) => (
             <div key={disclosure.id}>
               <h3>{disclosure.label}</h3>
@@ -439,12 +443,13 @@ export function PrototypeDialog({ context, notice, onClose }: { context: Website
           <div>
             <h3>Permission state</h3>
             <p>
+              {context.blueprint.assets.some((asset) => asset.sourceKind === 'synthetic_concept') && 'Images of the house are synthetic concept imagery of one fictional property, not actual photographs or confirmed facilities. '}
               {context.blueprint.assets.length} approved prototype asset{context.blueprint.assets.length === 1 ? '' : 's'}. Publishing is
               blocked until every asset, claim and commercial term has separate permission and a human approval.
             </p>
           </div>
         </div>
-        <button type="button" className={styles.noticeClose} onClick={onClose}>
+        <button type="button" className={css('noticeClose')} onClick={onClose}>
           Return to the concept
         </button>
       </div>

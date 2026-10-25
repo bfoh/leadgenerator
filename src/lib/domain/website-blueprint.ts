@@ -59,6 +59,9 @@ export interface MediaPlate {
   /** A controlled crop focus; no arbitrary object-position string crosses the boundary. */
   focal?: 'centre' | 'top' | 'bottom' | 'left' | 'right';
   placeholder?: boolean;
+  /** Optional editorial copy used by a scroll-story; never executable markup. */
+  title?: string;
+  body?: string;
 }
 
 export interface HeroSection {
@@ -66,12 +69,13 @@ export interface HeroSection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'editorial-opener' | 'cinematic-frame' | 'offset-masthead';
+  variant: 'editorial-opener' | 'cinematic-frame' | 'offset-masthead' | 'immersive-arrival' | 'split-arrival';
   eyebrow: string;
   lines: string[];
   lead: string;
   meta: { label: string; value: string }[];
   assetId?: string;
+  mobileAssetId?: string;
   primary?: BlueprintAction;
   secondary?: BlueprintAction;
   note?: string;
@@ -82,7 +86,7 @@ export interface StatementSection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'marginal' | 'centred' | 'offset';
+  variant: 'marginal' | 'centred' | 'offset' | 'editorial-image';
   title?: string;
   body: string[];
   aside?: string;
@@ -95,7 +99,7 @@ export interface SequenceSection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'staggered-portraits' | 'cinematic-stills' | 'offset-plates';
+  variant: 'staggered-portraits' | 'cinematic-stills' | 'offset-plates' | 'scroll-story';
   title?: string;
   items: MediaPlate[];
   note?: string;
@@ -129,7 +133,7 @@ export interface ChapterSection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'split' | 'overlay' | 'index-sheet';
+  variant: 'split' | 'overlay' | 'index-sheet' | 'image-story';
   number?: string;
   title: string;
   body: string[];
@@ -154,7 +158,7 @@ export interface GallerySection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'contact-sheet' | 'filmstrip' | 'offset-grid';
+  variant: 'contact-sheet' | 'filmstrip' | 'offset-grid' | 'editorial-gallery';
   title?: string;
   items: MediaPlate[];
   note?: string;
@@ -178,12 +182,13 @@ export interface CtaSection {
   id: string;
   label: string;
   tone?: SiteTone;
-  variant: 'letterpress' | 'invitation' | 'file-note';
+  variant: 'letterpress' | 'invitation' | 'file-note' | 'image-invitation';
   eyebrow: string;
   title: string;
   body: string;
   primary: BlueprintAction;
   secondary?: BlueprintAction;
+  assetId?: string;
   note?: string;
 }
 
@@ -220,14 +225,14 @@ export interface BlueprintAsset {
   credit: string | null;
   licence: { name: string; reference: string | null; expiresOn: string | null; url: string | null };
   permission: 'prototype';
-  sourceKind: 'client_supplied' | 'licensed_concept' | 'studio_drawing';
+  sourceKind: 'client_supplied' | 'licensed_concept' | 'studio_drawing' | 'synthetic_concept';
   /** The private storage path or a public showcase path. The renderer receives signed URLs separately. */
   sourcePath: string;
   /** The licence evidence page; a reference is shown as text, never hotlinked. */
   sourceUrl: string | null;
   checksum: string | null;
   /** Optional pre-generated responsive renditions. The renderer adds a native srcset when present. */
-  variants?: { width: number; src: string }[];
+  variants?: { width: number; src: string; mimeType?: 'image/webp' | 'image/avif' }[];
 }
 
 export interface BlueprintNavigation {
@@ -326,6 +331,8 @@ const plateSchema = z.object({
   span: z.enum(PLATE_SPANS),
   focal: z.enum(['centre', 'top', 'bottom', 'left', 'right']).optional(),
   placeholder: z.boolean().optional(),
+  title: z.string().trim().min(1).max(120).optional(),
+  body: z.string().trim().min(1).max(400).optional(),
 });
 
 const metaSchema = z.array(z.object({ label: z.string().min(1), value: z.string().min(1) }));
@@ -335,12 +342,13 @@ const heroSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['editorial-opener', 'cinematic-frame', 'offset-masthead']),
+  variant: z.enum(['editorial-opener', 'cinematic-frame', 'offset-masthead', 'immersive-arrival', 'split-arrival']),
   eyebrow: z.string().min(1),
   lines: z.array(z.string().min(1)).min(1).max(6),
   lead: z.string().min(1),
   meta: metaSchema,
   assetId: z.string().min(1).optional(),
+  mobileAssetId: z.string().min(1).optional(),
   primary: actionSchema.optional(),
   secondary: actionSchema.optional(),
   note: z.string().max(400).optional(),
@@ -351,7 +359,7 @@ const statementSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['marginal', 'centred', 'offset']),
+  variant: z.enum(['marginal', 'centred', 'offset', 'editorial-image']),
   title: z.string().max(300).optional(),
   body: z.array(z.string().min(1)).min(1).max(8),
   aside: z.string().max(500).optional(),
@@ -364,7 +372,7 @@ const sequenceSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['staggered-portraits', 'cinematic-stills', 'offset-plates']),
+  variant: z.enum(['staggered-portraits', 'cinematic-stills', 'offset-plates', 'scroll-story']),
   title: z.string().max(300).optional(),
   items: z.array(plateSchema).min(1).max(8),
   note: z.string().max(500).optional(),
@@ -401,7 +409,7 @@ const chapterSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['split', 'overlay', 'index-sheet']),
+  variant: z.enum(['split', 'overlay', 'index-sheet', 'image-story']),
   number: z.string().max(20).optional(),
   title: z.string().min(1),
   body: z.array(z.string().min(1)).min(1).max(8),
@@ -426,7 +434,7 @@ const gallerySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['contact-sheet', 'filmstrip', 'offset-grid']),
+  variant: z.enum(['contact-sheet', 'filmstrip', 'offset-grid', 'editorial-gallery']),
   title: z.string().max(300).optional(),
   items: z.array(plateSchema).min(1).max(10),
   note: z.string().max(500).optional(),
@@ -460,12 +468,13 @@ const ctaSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tone: z.enum(SITE_TONES).optional(),
-  variant: z.enum(['letterpress', 'invitation', 'file-note']),
+  variant: z.enum(['letterpress', 'invitation', 'file-note', 'image-invitation']),
   eyebrow: z.string().min(1),
   title: z.string().min(1),
   body: z.string().min(1),
   primary: actionSchema,
   secondary: actionSchema.optional(),
+  assetId: z.string().min(1).optional(),
   note: z.string().max(500).optional(),
 });
 
@@ -507,11 +516,11 @@ const assetSchema = z.object({
     url: z.string().url().nullable(),
   }),
   permission: z.literal('prototype'),
-  sourceKind: z.enum(['client_supplied', 'licensed_concept', 'studio_drawing']),
+  sourceKind: z.enum(['client_supplied', 'licensed_concept', 'studio_drawing', 'synthetic_concept']),
   sourcePath: z.string().min(1),
   sourceUrl: z.string().url().nullable(),
   checksum: z.string().nullable(),
-  variants: z.array(z.object({ width: z.number().int().positive(), src: z.string().min(1) })).max(6).optional(),
+  variants: z.array(z.object({ width: z.number().int().positive(), src: z.string().min(1), mimeType: z.enum(['image/webp', 'image/avif']).optional() })).max(6).optional(),
 });
 
 const artDirectionSchema = z.object({
@@ -522,6 +531,7 @@ const artDirectionSchema = z.object({
     indexMode: z.enum(INDEX_MODES),
     sequenceMode: z.enum(SEQUENCE_MODES),
     sectionTransition: z.enum(['rule', 'tone-shift', 'overlap', 'none']),
+    surfaceStyle: z.enum(['paper-and-ink']).optional(),
   }),
   motion: z.object({
     engine: z.literal('native-css-io-raf/1'),
@@ -649,6 +659,7 @@ export const websiteBlueprintSchema = z.object({
 export function sectionAssetIds(section: BlueprintSection): string[] {
   const ids: string[] = [];
   if ('assetId' in section && section.assetId) ids.push(section.assetId);
+  if (section.kind === 'hero' && section.mobileAssetId) ids.push(section.mobileAssetId);
   if (section.kind === 'sequence' || section.kind === 'gallery') ids.push(...section.items.map((item) => item.assetId));
   if (section.kind === 'index') ids.push(...section.entries.flatMap((entry) => (entry.assetId ? [entry.assetId] : [])));
   return ids;
@@ -662,15 +673,7 @@ export function blueprintAssetIds(blueprint: WebsiteBlueprint): string[] {
   return blueprint.pages.flatMap(pageAssetIds);
 }
 
-/** The URL for a page inside this blueprint. Home is the site root. */
-export function pageHref(basePath: string, slug: string): string {
-  const base = basePath.replace(/\/$/, '');
-  return slug === 'home' ? base || '/' : `${base}/${slug}`;
-}
-
-export function blueprintPage(blueprint: WebsiteBlueprint, slug: string): BlueprintPage {
-  return blueprint.pages.find((page) => page.slug === slug) ?? blueprint.pages[0];
-}
+export { blueprintPage, pageHref } from './website-navigation';
 
 /**
  * The semantic gate the renderer and save action share. Zod proves the shape; this proves the
