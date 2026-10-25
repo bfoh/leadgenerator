@@ -8,7 +8,7 @@ Milestone 3C.4R — Adwoa’s House creative-excellence rebuild. **Awaiting owne
 The owner authorized the redesign, original built-in image generation and local testing/commits.
 They have **not** approved this direction, any publication or a redesign of the other showcases.
 
-Implementation and evidence commit: recorded in `CODEX_ADWOA_REVIEW.md` after verification.
+Implementation and evidence commit: `4179da9` (855 unit/database and 117 browser tests passed).
 Baseline was clean `aa6eec0` on `feature/milestone-3c-4`; the dedicated branch was created without
 resetting, discarding or stashing work. Preserve the existing Next.js block in root `AGENTS.md`.
 

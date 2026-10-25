@@ -2,7 +2,7 @@
 
 25 October 2026 · **owner creative approval pending** · branch `feature/codex-creative-excellence`.
 
-Implementation commit: to be recorded after final verification. Nothing has been pushed or deployed.
+Implementation and evidence commit: `4179da9`. Nothing has been pushed or deployed.
 
 ## Open the experience
 
