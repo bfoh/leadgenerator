@@ -12,6 +12,7 @@ const PNG_1X1 = Buffer.from(
 async function axe(page: Page, label: string) {
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(600);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     expect(serious.map((v) => `${label} (${scheme}): ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);
@@ -132,9 +133,31 @@ test('creative direction: brief, three concepts, an edit and a named approval', 
   await expect(page.getByText('This direction has an approved concept')).toBeVisible();
   await expect(page.getByText('Approved by the design lead', { exact: false }).first()).toBeVisible();
 
-  await axe(page, 'creative direction');
+  // The approved concept renders as a real, navigable multi-page website inside the Studio.
+  await page.getByRole('tab', { name: 'Website prototype' }).click();
+  await expect(page.getByRole('heading', { name: 'Website prototype', exact: true })).toBeVisible();
+  await expect(page.getByText('Current draft', { exact: true })).toBeVisible();
+  await expect(page.getByText('Concept Website — Not an Official Business Website').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Mobile/ })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: /Mobile/ }).click();
+  await expect(page.getByRole('button', { name: /Mobile/ })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByLabel('Preview page').selectOption('contact');
+  await expect(page.getByRole('heading', { level: 1, name: 'One clear next step.' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save version' }).click();
+  const save = page.getByRole('dialog', { name: 'Save this prototype version' });
+  await save.getByLabel('What changed, and why').fill('Rendered from the approved direction for the E2E journey.');
+  await save.getByRole('button', { name: 'Save version' }).click();
+  await expect(page.getByText('Prototype version 1 saved')).toBeVisible();
+  await expect(page.locator('p').filter({ hasText: /^Version 1$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Open', exact: true }).first().click();
+  await expect(page.getByText('Saved version 1', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Return to current draft' }).click();
+
+  await axe(page, 'website preview');
   await page.setViewportSize({ width: 360, height: 800 });
-  await expect(page.getByText('Direction board', { exact: false })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Website prototype', exact: true })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   expect(errors).toEqual([]);

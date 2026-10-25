@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1500" role="img" aria-labelledby="title desc">
+  <title id="title">Image pending</title>
+  <desc id="desc">A Studio placeholder shown when approved photography has not yet been supplied.</desc>
+  <rect width="1200" height="1500" fill="#E8E5DE"/>
+  <g stroke="#A9A49A" stroke-width="1" opacity="0.55">
+    <path d="M0 100H1200M0 200H1200M0 300H1200M0 400H1200M0 500H1200M0 600H1200M0 700H1200M0 800H1200M0 900H1200M0 1000H1200M0 1100H1200M0 1200H1200M0 1300H1200M0 1400H1200"/>
+    <path d="M100 0V1500M200 0V1500M300 0V1500M400 0V1500M500 0V1500M600 0V1500M700 0V1500M800 0V1500M900 0V1500M1000 0V1500M1100 0V1500"/>
+  </g>
+  <g fill="none" stroke="#3A3732" stroke-width="2">
+    <rect x="160" y="220" width="880" height="1060"/>
+    <path d="M160 220L1040 1280M1040 220L160 1280"/>
+  </g>
+  <g fill="#3A3732" font-family="Helvetica, Arial, sans-serif">
+    <text x="600" y="700" text-anchor="middle" font-size="20" letter-spacing="8">IMAGE PENDING</text>
+    <text x="600" y="740" text-anchor="middle" font-size="13" letter-spacing="3">APPROVED PHOTOGRAPHY NOT SUPPLIED</text>
+    <text x="600" y="770" text-anchor="middle" font-size="12" fill="#6F6A62">THE COMMISSION REMAINS VISIBLE; NOTHING WAS DOWNLOADED.</text>
+  </g>
+  <g fill="#6F6A62" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="2">
+    <text x="160" y="1330">STUDIO PLACEHOLDER / NOT A CLIENT ASSET</text>
+  </g>
+</svg>

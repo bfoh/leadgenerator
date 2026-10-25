@@ -42,6 +42,21 @@ manifest. Migration 013 is **not applied** to production. The authoritative Stud
 all six phases from brand intelligence to secure client presentations, is
 [docs/WEBSITE_STUDIO.md](docs/WEBSITE_STUDIO.md).
 
+**Website generation and rendering engine (milestone 3C.4):** an approved concept becomes a deterministic
+`dof-website-blueprint/1` document bound to the exact direction, Brand Kit version and prototype-cleared
+media, and a trusted React renderer turns that data into a responsive multi-page website. The blueprint
+carries a page plan, navigation, sections, type bindings, design tokens, disclosures and
+`publishReady: false`; it can express only internal pages, anchors or a prototype notice, never an external
+link, form post or tracking call. A Studio **Website prototype** tab renders the draft at desktop and phone
+widths, shows readiness and warnings, and saves immutable versions with a note. Six SIL OFL families are
+self-hosted with their licence text; an unbundled catalogue family falls back visibly rather than being
+silently substituted. Three flagship concept websites render the same engine at `/showcase` —
+[Nsroma Atelier](docs/creative-demos/nsroma-atelier.md) (editorial columns),
+[Adwoa's House](docs/creative-demos/adwoas-house.md) (cinematic full bleed) and
+[Bantama Design Office](docs/creative-demos/bantama-design-office.md) (asymmetric offset). Migration 015
+is **not applied** to production. See [docs/WEBSITE_STUDIO.md](docs/WEBSITE_STUDIO.md) §3 phase 4 and §5.4,
+and [docs/CREATIVE_DIRECTION.md](docs/CREATIVE_DIRECTION.md) §11.
+
 **Creative Director (milestone 3C.3):** a confirmed, versioned Creative Direction Brief built from the
 approved Brand Kit and reviewed evidence, then three structurally different territories — different
 composition, typography, colour system, imagery, motion and conversion path, not one layout with

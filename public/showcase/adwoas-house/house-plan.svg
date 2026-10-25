@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Concept plan of the walled garden and guest rooms</title>
+  <desc id="desc">A Studio-generated diagram for Adwoa's House. It is a spatial concept, not a measured floor plan.</desc>
+  <rect width="1400" height="1100" fill="#171A17"/>
+  <g stroke="#31533F" stroke-width="1" opacity="0.6">
+    <path d="M0 110H1400M0 220H1400M0 330H1400M0 440H1400M0 550H1400M0 660H1400M0 770H1400M0 880H1400M0 990H1400"/>
+    <path d="M110 0V1100M220 0V1100M330 0V1100M440 0V1100M550 0V1100M660 0V1100M770 0V1100M880 0V1100M990 0V1100M1100 0V1100M1210 0V1100M1320 0V1100"/>
+  </g>
+  <g fill="none" stroke="#F4EFE6" stroke-width="4">
+    <rect x="200" y="220" width="1000" height="650"/>
+    <rect x="248" y="268" width="360" height="540"/>
+    <rect x="608" y="268" width="240" height="230"/>
+    <rect x="848" y="268" width="304" height="230"/>
+    <rect x="608" y="498" width="544" height="310"/>
+    <path d="M200 870V930H1200V870"/>
+  </g>
+  <g fill="none" stroke="#C9A227" stroke-width="2">
+    <path d="M248 808H608M608 728H1152M848 498H1152"/>
+    <path d="M640 940C720 900 820 900 900 940M1020 940C1060 925 1100 925 1135 940"/>
+    <circle cx="700" cy="380" r="34"/>
+  </g>
+  <g fill="#F4EFE6" font-family="Helvetica, Arial, sans-serif" font-size="15" letter-spacing="2">
+    <text x="285" y="330">NINE ROOMS</text>
+    <text x="285" y="355" fill="#A09E97" font-size="12">CONCEPT ARRANGEMENT</text>
+    <text x="650" y="330">COURTYARD</text>
+    <text x="890" y="330">WALLED GARDEN</text>
+    <text x="650" y="580">THE LONG TABLE</text>
+    <text x="650" y="605" fill="#A09E97" font-size="12">CONCEPT SPACE — PROGRAMME TO CONFIRM</text>
+    <text x="285" y="885" fill="#A09E97" font-size="12">SHORT WALK TO CAPE COAST CASTLE</text>
+  </g>
+  <g fill="none" stroke="#A09E97" stroke-width="1.5">
+    <path d="M1200 920V1010M1200 920L1192 946M1200 920L1208 946"/>
+    <path d="M200 1020H1200"/>
+  </g>
+  <g fill="#F4EFE6" font-family="Georgia, serif">
+    <text x="110" y="105" font-size="30">A QUIET HOUSE, ARRANGED AROUND LIGHT.</text>
+    <text x="110" y="136" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="4" fill="#A09E97">CONCEPT DIAGRAM — NOT A MEASURED PLAN</text>
+  </g>
+  <g fill="#A09E97" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="2">
+    <text x="110" y="1050">ADWOA’S HOUSE / CAPE COAST</text>
+    <text x="1290" y="1050" text-anchor="end">STUDIO DRAWING / 01</text>
+  </g>
+</svg>

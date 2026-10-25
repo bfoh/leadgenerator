@@ -1,13 +1,15 @@
 # The Creative Director Engine
 
-This document is the authoritative specification for phase 3 of the Lead-to-Website Studio: the
+This document is the authoritative specification for phase 3 of the Lead-to-Website Studio — the
 Creative Direction Brief, the typography research, the design-token system, the three-concept engine,
-the motion language and the review that a person signs off. It sits beside
-[WEBSITE_STUDIO.md](WEBSITE_STUDIO.md), which holds the creative standard and the six phases; when a
-rule here changes, the Studio specification and this document change together.
+the motion language and the review that a person signs off — and now records how phase 4 consumes those
+decisions. It sits beside [WEBSITE_STUDIO.md](WEBSITE_STUDIO.md), which holds the creative standard and
+the six phases; when a rule here changes, the Studio specification and this document change together.
 
-Milestone 3C.3 is implemented and tested locally against migration **014**, which is **not applied** to
-production. Nothing here authorises a deployment, a paid model call or a production migration.
+Milestone 3C.3 is implemented and tested locally against migration **014**. Milestone 3C.4 adds the
+deterministic blueprint engine, the trusted renderer, the Studio preview and three flagship websites
+against migration **015**. Neither migration is **applied** to production. Nothing here authorises a
+deployment, a paid model call or a production migration.
 
 ## 1. Why a Creative Director, and what it must not become
 
@@ -55,6 +57,9 @@ audited assets ─────────────────────�
 | Data | `src/lib/data/creative-direction-services.ts` | Shared service gates for demo and cloud mode; activity log |
 | Data | `src/lib/data/store.ts`, `local-store.ts`, `supabase-store.ts` | Append-only persistence contract and both adapters |
 | Database | `supabase/migrations/014_studio_creative_direction.sql` | Tables, immutability, provenance and asset triggers, RLS, grants |
+| Domain (3C.4) | `src/lib/domain/website-blueprint.ts`, `website-compositions.ts`, `website-editorial.ts`, `bundled-fonts.ts` | Blueprint schema and checks, deterministic build, authored page plans, self-hosted type registry |
+| Data (3C.4) | `src/lib/data/website-prototype-services.ts`, `supabase/migrations/015_studio_website_prototypes.sql` | Save gate, immutable versions, database guard and RLS |
+| Renderer (3C.4) | `src/components/website/*`, `src/app/showcase/*`, `src/components/studio/website-preview.tsx` | Trusted React renderer, Studio preview, three flagship sites |
 | UI | `src/components/studio/creative-*.tsx` | Brief review, typography and colour specimens, comparison, board, feedback, edit, approval |
 | Demo generator | `src/lib/domain/creative-demos.ts`, `scripts/generate-creative-demos.mjs` | Three flagship businesses, rendered by the real engine |
 
@@ -209,8 +214,17 @@ Spacing is a 4px base with a restrained scale and a stated section rhythm. Break
 
 Each concept carries a complete token bundle: palette with contrast checks, type system with steps and
 `clamp()` expressions, spacing, grid, motion and radius/border notes. `tokensAsCssVariables` emits the
-custom properties phase 4 should consume (`--colour-*`, `--type-*`, `--grid-*`, `--motion-*`). The
+custom properties the renderer consumes (`--colour-*`, `--type-*`, `--grid-*`, `--motion-*`). The
 Studio does not generate arbitrary CSS or animation code; it generates data.
+
+Milestone 3C.4 implemented this contract in `src/components/website/`. The renderer receives a validated
+blueprint (not the direction directly), maps the token bundle onto CSS custom properties, chooses the
+composition family's layout and switches on each section kind and variant. Type is resolved through the
+self-hosted registry in `src/lib/domain/bundled-fonts.ts`: a bundled family uses its WOFF2 file, and an
+unbundled catalogue family resolves to a documented fallback stack of the same classification, with both
+the requested family and a warning retained in the blueprint. Motion uses CSS transitions and animation
+inside the specification's properties and durations, and is removed under
+`prefers-reduced-motion: reduce`. See [WEBSITE_STUDIO.md](WEBSITE_STUDIO.md) §3 phase 4 and §5.4.
 
 ## 7. Motion language
 
@@ -263,7 +277,10 @@ Inside a concept, the **Creative direction** tab provides:
    revoke an approval; feedback does not.
 7. **Edit** a concept into a new immutable direction version, with a note.
 8. **Approve** a concept with a note naming the person and version. The latest approval is shown, and
-   `approvedCreativeDirection` returns the direction and concept phase 4 should consume.
+   `approvedCreativeDirection` returns the direction and concept phase 4 consumes.
+9. **Open the Website prototype tab** to build the blueprint from the approved concept and current Brand
+   Kit, review it at desktop and phone widths, select any page, compare a saved version with the current
+   draft, and save an immutable version with a note. Nothing is published.
 
 Directions and briefs are never edited in place. Older versions and their reviews remain readable. A
 brief change invalidates approval of directions built from the old brief; approving or editing against
@@ -305,10 +322,51 @@ downloads a font, and never sends brief or kit content to a model. The optional 
 and uncalled. Migration 014 is **not applied** to production; its rollback is
 `supabase/rollback/014_studio_creative_direction_down.sql`.
 
-## 11. Flagship demonstrations and the next phase
+## 11. Rendered prototypes (milestone 3C.4, migration 015)
+
+Phase 4 turns an approved concept into a website blueprint and a rendered prototype.
+
+- **Deterministic blueprint:** `src/lib/domain/website-blueprint.ts` defines
+  `dof-website-blueprint/1`; `buildWebsiteBlueprint` in `website-compositions.ts` produces it from an
+  approved direction, concept, Brand Kit version and approved media. The builder has no clock, network or
+  model call, and makes no generated-code decision.
+- **The document:** identity, Studio project, direction and concept binding, Brand Kit binding, design
+  tokens, resolved type bindings, at least three pages with sections and navigation, media plates that
+  cite asset ids, mandatory disclosures and a readiness record. `publishReady` is always `false`.
+- **Structured actions:** page, in-page anchor or prototype notice only. The renderer cannot follow an
+  external URL from a blueprint, submit a form, run analytics or take a payment.
+- **Trusted renderer:** `src/components/website/` renders with React and CSS modules, switches on section
+  kinds and composition families, honours reduced motion, and implements a focus-trapped, Escape-closing
+  navigation drawer with focus return.
+- **Self-hosted type:** `src/lib/domain/bundled-fonts.ts` registers six SIL OFL 1.1 families with their
+  exact WOFF2 files and licence text under `public/showcase/fonts/`. A catalogue family without a file is
+  not silently substituted: the blueprint records the requested family and the documented fallback.
+- **Save gate:** `saveWebsitePrototype` requires a current approval for the exact direction and concept,
+  the approved current Brand Kit version, an unarchived project, the same brief version, only approved,
+  unexpired prototype media, a valid and preview-ready blueprint, and no existing schema mismatch. It
+  writes the next immutable version and a timeline entry.
+- **Database:** migration 015 adds `studio_website_prototypes`. The guard refuses update and delete,
+  requires the next version number, requires the latest project review to be an approval for the same
+  direction and concept, and checks the direction, concept and project bindings in the JSON. The content
+  check requires the format, at least three pages, assets, disclosures and `publishReady: false`. RLS:
+  members read; owners, admins, researchers and sales insert.
+- **Studio preview:** the **Website prototype** tab generates the draft from the current approved
+  direction, offers page selection, desktop and mobile framing, readiness and warnings, saved versions
+  and a draft-versus-version comparison. It is internal and creates no public link.
+- **Migration status:** 015 is **not applied** to production. Its rollback is
+  `supabase/rollback/015_studio_website_prototypes_down.sql`; it is tested on PGlite only.
+
+The three flagship demonstrations are now rendered websites built by this same engine:
+[Nsroma Atelier](creative-demos/nsroma-atelier.md) in editorial columns,
+[Adwoa's House](creative-demos/adwoas-house.md) in cinematic full bleed, and
+[Bantama Design Office](creative-demos/bantama-design-office.md) in asymmetric offset. They are reached
+at `/showcase`, not through a separate renderer.
+
+## 12. Flagship demonstrations and the next phase
 
 Three fictional businesses demonstrate the engine end to end, with synthetic evidence, synthetic
-approved assets and an approved Brand Kit:
+approved assets and an approved Brand Kit. Since 3C.4 each also renders a complete, navigable concept
+website at `/showcase`, built by the same blueprint engine and renderer as the Studio:
 
 | Business | Sector | Concepts |
 | --- | --- | --- |
@@ -327,17 +385,24 @@ npm run demo:creative
 The generator loads the real domain module and writes `docs/creative-demos/`. No photograph, font or
 page is fetched. See [CREATIVE_DEMOS.md](CREATIVE_DEMOS.md) for the index.
 
-### Prerequisites for milestone 3C.4 (Bespoke Design and Build)
+### From 3C.4 to phase 5
+
+Delivered in 3C.4:
 
 1. A confirmed brief and an approved concept from `approvedCreativeDirection` for the project.
-2. The approved Brand Kit version and its assets, still approved and unexpired at build time.
-3. Self-hosted WOFF2 files for the chosen families, with licence records; the Studio must not download
-   them at build time.
+2. The approved Brand Kit version and its prototype-cleared assets, still approved and unexpired at build
+   time.
+3. Self-hosted WOFF2 files for six OFL families, with licence text; no file is downloaded at build time.
 4. A renderer that consumes `DesignTokens` / `tokensAsCssVariables` and implements the motion
    specification, including reduced motion.
-5. Photography commissioned or supplied for any concept whose `imagery.missing` is non-empty.
-6. A separate publish-permission check before any client-facing preview; prototype approval is not
-   publication.
+5. An immutable blueprint version, a Studio preview and three flagship rendered demonstrations.
+
+Still open before a client-facing presentation (milestone 3C.5):
+
+1. Photography commissioned or supplied for any concept whose `imagery.missing` is non-empty; the
+   prototype currently shows a labelled image-pending plate.
+2. A separate publish-permission check for every asset; prototype approval is not publication.
+3. A private, expiring presentation link with its own audience, view log and decision record.
 
 
 

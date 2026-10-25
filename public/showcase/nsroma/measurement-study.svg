@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1500" role="img" aria-labelledby="title desc">
+  <title id="title">Toile pattern study with seam allowances</title>
+  <desc id="desc">A Studio-generated garment pattern study in graphite and kente red. It is a design artefact, not a production pattern.</desc>
+  <rect width="1200" height="1500" fill="#F4EEE3"/>
+  <g opacity="0.32" stroke="#B9B0A3" stroke-width="1">
+    <path d="M0 100H1200M0 200H1200M0 300H1200M0 400H1200M0 500H1200M0 600H1200M0 700H1200M0 800H1200M0 900H1200M0 1000H1200M0 1100H1200M0 1200H1200M0 1300H1200M0 1400H1200M0 1500H1200"/>
+    <path d="M100 0V1500M200 0V1500M300 0V1500M400 0V1500M500 0V1500M600 0V1500M700 0V1500M800 0V1500M900 0V1500M1000 0V1500M1100 0V1500"/>
+  </g>
+  <g fill="none" stroke="#241E1A" stroke-width="3">
+    <path d="M260 300C330 270 380 310 410 390L470 590C480 630 455 680 415 690L350 705C310 715 285 690 275 650L245 470C235 400 235 330 260 300Z"/>
+    <path d="M690 260C760 230 830 270 850 350L905 590C920 660 885 715 820 725L760 735C700 742 665 708 650 650L610 425C595 350 630 295 690 260Z"/>
+    <path d="M380 880C470 840 620 850 690 930L750 1030C775 1075 750 1130 690 1150L520 1200C455 1215 410 1180 405 1120L370 980C362 940 357 900 380 880Z"/>
+  </g>
+  <g fill="none" stroke="#7A1F3D" stroke-width="1.5" stroke-dasharray="10 7">
+    <path d="M218 282C305 240 395 292 438 386L500 598C514 648 483 710 432 722L353 740C300 752 263 718 251 668L218 464C206 386 205 316 218 282Z"/>
+    <path d="M648 232C735 190 855 238 878 334L936 594C954 676 913 744 832 756L760 768C687 778 640 738 622 668L580 416C562 330 596 270 648 232Z"/>
+    <path d="M348 854C452 804 638 816 724 910L792 1024C822 1079 793 1149 720 1172L528 1228C449 1246 393 1204 387 1132L347 966C338 918 331 878 348 854Z"/>
+  </g>
+  <g stroke="#241E1A" stroke-width="1">
+    <path d="M218 282H438M648 232H878M348 854H724"/>
+    <path d="M438 282V386M878 232V334M724 854V910"/>
+  </g>
+  <g fill="#241E1A" font-family="Helvetica, Arial, sans-serif" font-size="14">
+    <text x="225" y="268">A / FRONT</text>
+    <text x="655" y="218">B / BACK</text>
+    <text x="355" y="840">C / SLEEVE</text>
+    <text x="470" y="430">2 cm seam</text>
+    <text x="890" y="390">GRAIN</text>
+    <text x="400" y="1090">SELVEDGE</text>
+  </g>
+  <g fill="#7A1F3D" font-family="Georgia, serif">
+    <text x="100" y="120" font-size="30">TOILE / NSROMA ATELIER</text>
+    <text x="100" y="151" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="4">PATTERN STUDY — SCALE 1:4 — NOT FOR PRODUCTION</text>
+  </g>
+  <g stroke="#241E1A" stroke-width="1">
+    <path d="M100 1360H1100"/>
+  </g>
+  <g fill="#241E1A" font-family="Helvetica, Arial, sans-serif" font-size="13">
+    <text x="100" y="1392">SHEET 02 / 03</text>
+    <text x="600" y="1392" text-anchor="middle">HAND-FINISHED KENTE AND KABA</text>
+    <text x="1100" y="1392" text-anchor="end">STUDIO DRAWING / 2026</text>
+  </g>
+  <g fill="#241E1A" font-size="11" opacity="0.6" font-family="Helvetica, Arial, sans-serif">
+    <text x="100" y="1428">SYNTHETIC DEMONSTRATION DOCUMENT. MEASUREMENTS AND CUTS ARE ILLUSTRATIVE.</text>
+  </g>
+</svg>

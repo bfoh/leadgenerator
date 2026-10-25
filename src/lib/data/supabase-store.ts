@@ -46,7 +46,8 @@ import type {
   StudioCreativeDirection,
   StudioCreativeDirectionReview,
 } from '@/lib/domain/creative-direction';
-import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import type { StudioWebsitePrototype } from '@/lib/domain/website-prototype';
+import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -107,6 +108,7 @@ export class SupabaseStore implements DataStore {
   private studio: Promise<boolean> | null = null;
   private vault: Promise<boolean> | null = null;
   private creative: Promise<boolean> | null = null;
+  private prototype: Promise<boolean> | null = null;
 
   constructor(
     private readonly sb: SupabaseClient,
@@ -697,6 +699,38 @@ export class SupabaseStore implements DataStore {
   createStudioCreativeDirectionReview: DataStore['createStudioCreativeDirectionReview'] = async (input) => {
     await this.requireCreativeDirection();
     return this.insertRow<StudioCreativeDirectionReview>('studio_creative_direction_reviews', input);
+  };
+
+  // ── Rendered website prototypes (migration 015) ──
+  /** Whether migration 015 is applied. Probed once per store. */
+  websitePrototypeSchemaAvailable() {
+    this.prototype ??= (async () => {
+      const { error } = await this.sb
+        .from('studio_website_prototypes')
+        .select('id', { head: true, count: 'exact' })
+        .eq('organization_id', this.organizationId)
+        .limit(1);
+      if (error && MISSING.has(error.code)) return false;
+      if (error) {
+        this.prototype = null;
+        throw storeError(error);
+      }
+      return true;
+    })();
+    return this.prototype;
+  }
+  private async requireWebsitePrototypeSchema() {
+    if (!(await this.websitePrototypeSchemaAvailable())) throw new StoreError(WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, 'unavailable');
+  }
+  async listStudioWebsitePrototypes(projectId?: string) {
+    if (!(await this.websitePrototypeSchemaAvailable())) return [];
+    return this.all<StudioWebsitePrototype>('studio_website_prototypes', (q) =>
+      (projectId ? q.eq('project_id', projectId) : q).order('version', { ascending: false }),
+    );
+  }
+  createStudioWebsitePrototype: DataStore['createStudioWebsitePrototype'] = async (input) => {
+    await this.requireWebsitePrototypeSchema();
+    return this.insertRow<StudioWebsitePrototype>('studio_website_prototypes', input);
   };
 
 

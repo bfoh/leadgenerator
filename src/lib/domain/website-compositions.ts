@@ -1,0 +1,491 @@
+// The composition engine: editorial plan + approved direction + token bundle -> website blueprint.
+//
+// The renderer only understands the variants below. Which variant a page receives is decided by the
+// approved concept's composition family and by the section's job, never at random. The three flagship
+// plans feed this same module; a fourth brief with the same family would receive the same layout
+// grammar and entirely different content.
+
+import { sectorProfile, prototypeAssets, type CreativeBriefContent, type CreativeDirectionContent } from './creative-direction';
+import { resolveFontBinding, fontPreloads } from './bundled-fonts';
+import type { CompositionFamily } from './design-tokens';
+import type { StudioAsset } from './studio-assets';
+import {
+  WEBSITE_BLUEPRINT_FORMAT,
+  blueprintProblems,
+  parseWebsiteBlueprint,
+  type BlueprintAsset,
+  type BlueprintPage,
+  type BlueprintSection,
+  type MediaPlate,
+  type PlateSpan,
+  type WebsiteBlueprint,
+} from './website-blueprint';
+import { editorialFromDirection, type AssetRole, type EditorialPlate, type EditorialSection, type WebsiteEditorial } from './website-editorial';
+
+export interface BlueprintMediaSource {
+  assetId: string;
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
+}
+
+export interface BlueprintBuildInput {
+  project: { id: string; name: string };
+  business: { name: string; category: string; city: string; websiteUrl?: string | null };
+  brief: CreativeBriefContent;
+  direction: { id: string; version: number; content: CreativeDirectionContent };
+  conceptKey: string;
+  kit: { versionId: string; version: number };
+  assets: readonly StudioAsset[];
+  /** Extra already-approved assets owned by a demonstration, outside a live vault. */
+  supplementaryAssets?: readonly BlueprintAsset[];
+  /** The approved asset chosen for each visual role. */
+  roleAssets: Partial<Record<AssetRole, string>>;
+  /** Optional because a saved blueprint may be opened later and its media re-signed. */
+  availableMediaIds?: readonly string[];
+  editorial?: WebsiteEditorial;
+  synthetic?: boolean;
+  generatedAt?: string;
+}
+
+export const IMAGE_PENDING_ASSET: BlueprintAsset = {
+  id: 'studio-image-pending',
+  fileName: 'image-pending.svg',
+  kind: 'illustration',
+  mimeType: 'image/svg+xml',
+  width: 1200,
+  height: 1500,
+  alt: 'A Studio placeholder for approved photography that has not been supplied.',
+  caption: 'Image pending: the direction records a photography commission.',
+  credit: 'Studio-generated placeholder',
+  licence: { name: 'Studio-generated artwork', reference: 'No third-party material', expiresOn: null, url: null },
+  permission: 'prototype',
+  sourceKind: 'studio_drawing',
+  sourcePath: '/showcase/studio/image-pending.svg',
+  sourceUrl: null,
+  checksum: null,
+};
+
+const familyNav = (family: CompositionFamily): WebsiteBlueprint['navigation']['style'] => {
+  if (family === 'cinematic_full_bleed') return 'overlay-sequence';
+  if (family === 'editorial_columns' || family === 'catalogue_index' || family === 'quiet_centered') return 'editorial-line';
+  return 'offset-rail';
+};
+
+const variantFor = (family: CompositionFamily, section: EditorialSection) => {
+  switch (section.kind) {
+    case 'hero':
+      return family === 'cinematic_full_bleed' ? 'cinematic-frame' : family === 'editorial_columns' || family === 'catalogue_index' ? 'editorial-opener' : 'offset-masthead';
+    case 'statement':
+      return family === 'editorial_columns' ? 'marginal' : family === 'cinematic_full_bleed' ? 'centred' : 'offset';
+    case 'sequence':
+      return family === 'editorial_columns' ? 'staggered-portraits' : family === 'cinematic_full_bleed' ? 'cinematic-stills' : 'offset-plates';
+    case 'index':
+      return family === 'catalogue_index' || family === 'editorial_columns' ? 'material-ledger' : family === 'cinematic_full_bleed' ? 'suite-register' : 'project-register';
+    case 'chapter':
+      return family === 'cinematic_full_bleed' ? 'overlay' : family === 'editorial_columns' || family === 'quiet_centered' ? 'split' : 'index-sheet';
+    case 'process':
+      return family === 'editorial_columns' || family === 'quiet_centered' ? 'numbered-columns' : family === 'cinematic_full_bleed' ? 'sequence-track' : 'drawing-sheet';
+    case 'gallery':
+      return family === 'cinematic_full_bleed' ? 'filmstrip' : family === 'editorial_columns' || family === 'quiet_centered' ? 'contact-sheet' : 'offset-grid';
+    case 'details':
+      return family === 'cinematic_full_bleed' ? 'visit-ledger' : family === 'editorial_columns' || family === 'catalogue_index' ? 'contact-ledger' : 'office-block';
+    case 'cta':
+      return family === 'cinematic_full_bleed' ? 'invitation' : family === 'editorial_columns' ? 'letterpress' : 'file-note';
+  }
+};
+
+const defaultSpan = (family: CompositionFamily, position: number, emphasis?: EditorialPlate['emphasis']): PlateSpan => {
+  if (emphasis) return emphasis;
+  if (family === 'cinematic_full_bleed') return 'full';
+  if (family === 'editorial_columns') return ['portrait', 'square', 'landscape'][position % 3] as PlateSpan;
+  return ['wide', 'portrait', 'square'][position % 3] as PlateSpan;
+};
+
+const kebab = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+
+const pretty = (value: string) => value.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+function asBlueprintAsset(asset: StudioAsset): BlueprintAsset {
+  return {
+    id: asset.id,
+    fileName: asset.fileName,
+    kind: asset.kind,
+    mimeType: asset.mimeType,
+    width: asset.width,
+    height: asset.height,
+    alt: asset.attributionText?.trim() || asset.note.trim() || `Approved concept asset: ${pretty(asset.fileName)}.`,
+    caption: asset.note.trim() || null,
+    credit: asset.attributionText?.trim() || [asset.ownerName, asset.supplier].filter(Boolean).join(' / ') || null,
+    licence: {
+      name: asset.licenceName?.trim() || 'Permission recorded in the vault',
+      reference: asset.licenceReference,
+      expiresOn: asset.licenceExpiresOn,
+      url: null,
+    },
+    permission: 'prototype',
+    sourceKind: asset.origin === 'client_supplied' ? 'client_supplied' : 'licensed_concept',
+    sourcePath: asset.storagePath,
+    sourceUrl: null,
+    checksum: asset.checksumSha256,
+  };
+}
+
+const ALL_ROLES: AssetRole[] = ['hero', 'portrait', 'detail', 'scene', 'context', 'drawing', 'drawing-alt', 'texture'];
+
+function usedRoles(editorial: WebsiteEditorial): AssetRole[] {
+  const roles = new Set<AssetRole>();
+  for (const page of editorial.pages) {
+    for (const section of page.sections) {
+      if ('assetRole' in section && section.assetRole) roles.add(section.assetRole);
+      if (section.kind === 'sequence' || section.kind === 'gallery') section.items.forEach((item) => roles.add(item.assetRole));
+      if (section.kind === 'index') section.entries.forEach((entry) => entry.assetRole && roles.add(entry.assetRole));
+    }
+  }
+  return [...roles];
+}
+
+function roleResolver(roleAssets: Partial<Record<AssetRole, string>>, images: readonly BlueprintAsset[], editorial: WebsiteEditorial) {
+  const assigned = new Map<AssetRole, string>();
+  const used = new Set<string>();
+  for (const role of ALL_ROLES) {
+    const chosen = roleAssets[role];
+    if (chosen && (images.some((asset) => asset.id === chosen) || chosen === IMAGE_PENDING_ASSET.id)) {
+      assigned.set(role, chosen);
+      used.add(chosen);
+    }
+  }
+  const needed = usedRoles(editorial).filter((role) => !assigned.has(role));
+  const unusedImages = images.filter((asset) => !used.has(asset.id));
+  for (const role of needed) {
+    const next = unusedImages.shift();
+    assigned.set(role, next?.id ?? IMAGE_PENDING_ASSET.id);
+    if (next) used.add(next.id);
+  }
+  return (role: AssetRole): string => assigned.get(role) ?? roleAssets[role] ?? IMAGE_PENDING_ASSET.id;
+}
+
+function plateFor(assetId: string, assetsById: Map<string, BlueprintAsset>, editorial: EditorialPlate, family: CompositionFamily, position: number): MediaPlate {
+  const asset = assetsById.get(assetId) ?? IMAGE_PENDING_ASSET;
+  return {
+    assetId: asset.id,
+    caption: editorial.caption ?? asset.caption ?? undefined,
+    credit: editorial.credit ?? asset.credit ?? undefined,
+    index: editorial.index,
+    span: defaultSpan(family, position, editorial.emphasis),
+    placeholder: editorial.placeholder || asset.id === IMAGE_PENDING_ASSET.id,
+  };
+}
+
+function buildSections(
+  editorial: WebsiteEditorial,
+  family: CompositionFamily,
+  resolveRole: (role: AssetRole) => string,
+  assetsById: Map<string, BlueprintAsset>,
+  referenced: Set<string>,
+): { slug: string; sections: BlueprintSection[] }[] {
+  return editorial.pages.map((page) => {
+    const seen = new Map<string, number>();
+    const sections = page.sections.map((section, index) => {
+      const base = kebab(section.label) || `${section.kind}-${index + 1}`;
+      const count = (seen.get(base) ?? 0) + 1;
+      seen.set(base, count);
+      const id = count === 1 ? base : `${base}-${count}`;
+      const tone = section.tone ? { tone: section.tone } : {};
+      const note = section.note ? { note: section.note } : {};
+      const asset = (role?: AssetRole) => {
+        if (!role) return undefined;
+        const assetId = resolveRole(role);
+        referenced.add(assetId);
+        return assetId;
+      };
+      switch (section.kind) {
+        case 'hero':
+          return {
+            kind: 'hero' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'editorial-opener' | 'cinematic-frame' | 'offset-masthead',
+            eyebrow: section.eyebrow,
+            lines: section.lines,
+            lead: section.lead,
+            meta: section.meta,
+            assetId: asset(section.assetRole),
+            primary: section.primary,
+            secondary: section.secondary,
+          };
+        case 'statement':
+          return {
+            kind: 'statement' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'marginal' | 'centred' | 'offset',
+            title: section.title,
+            body: section.body,
+            aside: section.aside,
+            assetId: asset(section.assetRole),
+          };
+        case 'sequence':
+          return {
+            kind: 'sequence' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'staggered-portraits' | 'cinematic-stills' | 'offset-plates',
+            title: section.title,
+            items: section.items.map((item, position) => plateFor(asset(item.assetRole)!, assetsById, item, family, position)),
+          };
+        case 'index':
+          return {
+            kind: 'index' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'material-ledger' | 'suite-register' | 'project-register',
+            title: section.title,
+            description: section.description,
+            countLabel: section.countLabel,
+            entries: section.entries.map((entry) => ({
+              number: entry.number,
+              title: entry.title,
+              meta: entry.meta,
+              summary: entry.summary,
+              assetId: asset(entry.assetRole),
+              tag: entry.tag,
+              pageSlug: entry.pageSlug,
+            })),
+          };
+        case 'chapter':
+          return {
+            kind: 'chapter' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'split' | 'overlay' | 'index-sheet',
+            number: section.number,
+            title: section.title,
+            body: section.body,
+            assetId: asset(section.assetRole),
+            details: section.details,
+          };
+        case 'process':
+          return {
+            kind: 'process' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'numbered-columns' | 'sequence-track' | 'drawing-sheet',
+            title: section.title,
+            steps: section.steps,
+          };
+        case 'gallery':
+          return {
+            kind: 'gallery' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'contact-sheet' | 'filmstrip' | 'offset-grid',
+            title: section.title,
+            items: section.items.map((item, position) => plateFor(asset(item.assetRole)!, assetsById, item, family, position)),
+          };
+        case 'details':
+          return {
+            kind: 'details' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'contact-ledger' | 'visit-ledger' | 'office-block',
+            title: section.title,
+            body: section.body,
+            items: section.items,
+            action: section.action,
+          };
+        case 'cta':
+          return {
+            kind: 'cta' as const,
+            id,
+            label: section.label,
+            ...tone,
+            ...note,
+            variant: variantFor(family, section) as 'letterpress' | 'invitation' | 'file-note',
+            eyebrow: section.eyebrow,
+            title: section.title,
+            body: section.body,
+            primary: section.primary,
+            secondary: section.secondary,
+          };
+      }
+    });
+    return { slug: page.slug, sections };
+  });
+}
+
+/** Builds one deterministic blueprint. No network, model call or generated code. */
+export function buildWebsiteBlueprint(input: BlueprintBuildInput): WebsiteBlueprint {
+  const concept = input.direction.content.concepts.find((entry) => entry.key === input.conceptKey);
+  if (!concept) throw new Error('That concept is not in this approved direction.');
+  const family = concept.composition.family;
+  const profile = sectorProfile(input.business.category);
+  const editorial = input.editorial ?? editorialFromDirection({
+    profile,
+    businessName: input.business.name,
+    city: input.business.city,
+    siteName: input.business.name,
+    monogram: input.business.name.split(/\s+/).map((word) => word[0]).join('').slice(0, 3).toUpperCase(),
+    descriptor: input.business.category,
+    concept,
+    brief: input.brief,
+  });
+  const vaultImages = prototypeAssets(input.assets)
+    .filter((asset) => asset.mimeType.startsWith('image/'))
+    .map(asBlueprintAsset);
+  const supplementary = (input.supplementaryAssets ?? []).filter((asset) => asset.mimeType.startsWith('image/'));
+  const images = [...vaultImages, ...supplementary];
+  const resolveRole = roleResolver(input.roleAssets, images, editorial);
+  const referenced = new Set<string>();
+  const sectionsByPage = buildSections(editorial, family, resolveRole, new Map(images.map((asset) => [asset.id, asset])), referenced);
+  const pages: BlueprintPage[] = editorial.pages.map((page, index) => ({
+    slug: page.slug,
+    label: page.label,
+    title: page.title,
+    description: page.description,
+    tone: page.tone ?? (family === 'cinematic_full_bleed' ? 'ink' : 'ground'),
+    sections: sectionsByPage[index].sections,
+  }));
+  const chosenAssets = images.filter((asset) => referenced.has(asset.id));
+  if (referenced.has(IMAGE_PENDING_ASSET.id)) chosenAssets.push(IMAGE_PENDING_ASSET);
+  const assets = chosenAssets.filter((asset, index, list) => list.findIndex((other) => other.id === asset.id) === index);
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+  for (const id of referenced) {
+    if (!assetsById.has(id)) throw new Error(`The composition failed to resolve an approved asset (${id}).`);
+  }
+  const display = resolveFontBinding(concept.typography.displayFontId);
+  const body = resolveFontBinding(concept.typography.bodyFontId);
+  const typographyWarnings = [display.fallbackReason, body.fallbackReason].filter((reason): reason is string => Boolean(reason));
+  if (display.requestedFontId === body.requestedFontId) typographyWarnings.push('The direction uses one family for both display and body; hierarchy is weaker than it should be.');
+  const navigationItems = editorial.pages
+    .filter((page) => page.slug !== 'home' && page.inNavigation !== false)
+    .map((page) => ({ label: page.label, pageSlug: page.slug }));
+  const mediaSet = new Set(input.availableMediaIds ?? []);
+  const mediaKnown = input.availableMediaIds !== undefined;
+  const missingMedia = mediaKnown
+    ? assets.filter((asset) => referenced.has(asset.id) && !mediaSet.has(asset.id)).map((asset) => asset.fileName)
+    : [];
+  const warnings = [
+    ...typographyWarnings,
+    ...concept.imagery.missing,
+    ...missingMedia.map((fileName) => `${fileName} has no resolved file for this preview; an image-pending plate is shown.`),
+    'Prototype only: no publish permission is implied, no enquiry is sent and no analytics run.',
+  ];
+  const blueprint: WebsiteBlueprint = {
+    format: WEBSITE_BLUEPRINT_FORMAT,
+    generatedAt: input.generatedAt ?? new Date().toISOString(),
+    identity: {
+      businessName: input.business.name,
+      siteName: editorial.siteName,
+      monogram: editorial.monogram,
+      category: input.business.category,
+      city: input.business.city,
+      descriptor: editorial.descriptor,
+      synthetic: input.synthetic ?? false,
+    },
+    studio: { projectId: input.project.id, projectName: input.project.name },
+    direction: {
+      directionId: input.direction.id,
+      directionVersion: input.direction.version,
+      conceptKey: concept.key,
+      conceptName: concept.name,
+      idea: concept.idea,
+      narrative: concept.narrative,
+      compositionFamily: family,
+      compositionLabel: concept.composition.label,
+      motionDirection: concept.motion.direction,
+      briefVersionId: input.direction.content.briefVersionId,
+      briefVersion: input.direction.content.briefVersion,
+    },
+    brandKit: {
+      versionId: input.kit.versionId,
+      version: input.kit.version,
+      paletteNames: input.brief.brandKit?.palette.map((entry) => entry.name) ?? concept.colour.palette.map((entry) => entry.name),
+    },
+    tokens: structuredClone(concept.tokens),
+    typography: {
+      display,
+      body,
+      warnings: typographyWarnings,
+      note: `Self-hosted WOFF2, Latin subset, font-display: swap. ${fontPreloads([display, body]).length} file(s) preloaded; the rest fall back deliberately. Licence: ${display.licence.name} / ${body.licence.name}.`,
+    },
+    navigation: {
+      style: familyNav(family),
+      items: navigationItems,
+      action: editorial.action,
+      note: concept.composition.navigation,
+    },
+    pages,
+    assets,
+    missingInformation: input.brief.missingInformation.map((item) => ({
+      id: item.id,
+      question: item.question,
+      why: item.why,
+      blocking: item.blocking,
+      source: item.source,
+    })),
+    disclosures: [
+      {
+        id: 'concept_website',
+        label: 'Concept Website — Not an Official Business Website',
+        detail: input.synthetic
+          ? 'This is a fictional demonstration business. The site exists only to show the Studio’s rendering engine.'
+          : 'This is a private Studio prototype. It has not been published or approved by the business, and it must not be mistaken for its official site.',
+      },
+      {
+        id: 'prototype_actions',
+        label: 'Prototype — no enquiries, payments or tracking',
+        detail: 'Buttons labelled as enquiries open a Studio notice. No form fields, payment processor, analytics script or external request are present.',
+      },
+      {
+        id: 'licensed_media',
+        label: 'Approved or licensed concept media only',
+        detail: 'Only files with prototype permission and a current licence render. Credits and licence notes are listed in the site footer.',
+      },
+    ],
+    readiness: {
+      previewReady: false,
+      publishReady: false,
+      blockers: [],
+      warnings,
+      missingMedia,
+      assetCount: assets.length,
+    },
+    palette: concept.colour.palette.map((entry) => ({ name: entry.name, role: entry.role, hex: entry.hex })),
+    designNotes: [
+      ...editorial.designNotes,
+      `Composition: ${concept.composition.label}. ${concept.composition.hero}`,
+      `Motion: ${concept.motion.label} at ${concept.motion.spec.durationMs}ms. ${concept.motion.spec.reducedMotion}`,
+      'The renderer interprets trusted section components from this schema; it never evaluates generated CSS, HTML or JavaScript.',
+    ],
+  };
+  const shape = parseWebsiteBlueprint(blueprint);
+  const problems = blueprintProblems(shape);
+  shape.readiness.blockers = problems;
+  shape.readiness.previewReady = problems.length === 0;
+  return shape;
+}
+

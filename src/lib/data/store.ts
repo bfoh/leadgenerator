@@ -51,6 +51,7 @@ import type {
   StudioCreativeDirectionReview,
   StudioCreativeDirectionReviewInsert,
 } from '@/lib/domain/creative-direction';
+import type { StudioWebsitePrototype, StudioWebsitePrototypeInsert } from '@/lib/domain/website-prototype';
 import type {
   Activity,
   ActivityInsert,
@@ -262,6 +263,11 @@ export interface DataStore {
   listStudioCreativeDirectionReviews(projectId?: string): Promise<StudioCreativeDirectionReview[]>;
   createStudioCreativeDirectionReview(input: StudioCreativeDirectionReviewInsert): Promise<StudioCreativeDirectionReview>;
 
+  /** False when the cloud database has not had migration 015 (rendered website prototypes). */
+  websitePrototypeSchemaAvailable(): Promise<boolean>;
+  /** Immutable rendered blueprints for one concept, newest first. */
+  listStudioWebsitePrototypes(projectId?: string): Promise<StudioWebsitePrototype[]>;
+  createStudioWebsitePrototype(input: StudioWebsitePrototypeInsert): Promise<StudioWebsitePrototype>;
 
   getSettings(): Promise<OrgSettings>;
   updateSettings(settings: OrgSettings, organizationName?: string): Promise<OrgSettings>;
@@ -312,3 +318,6 @@ export const ASSET_VAULT_MIGRATION_REQUIRED =
 
 export const CREATIVE_DIRECTION_MIGRATION_REQUIRED =
   'Apply database migration 014 (supabase/migrations/014_studio_creative_direction.sql) to use the Creative Direction Brief, territories and approvals.';
+
+export const WEBSITE_PROTOTYPE_MIGRATION_REQUIRED =
+  'Apply database migration 015 (supabase/migrations/015_studio_website_prototypes.sql) to save rendered website prototype versions.';

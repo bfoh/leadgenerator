@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Section A–A, concept study for a courtyard clinic</title>
+  <desc id="desc">A Studio-generated architectural section drawing in graphite and mineral red. It is a concept study, not a construction document.</desc>
+  <rect width="1400" height="1100" fill="#ECEDEA"/>
+  <g opacity="0.38" stroke="#C1C2C0" stroke-width="1">
+    <path d="M0 100H1400M0 200H1400M0 300H1400M0 400H1400M0 500H1400M0 600H1400M0 700H1400M0 800H1400M0 900H1400M0 1000H1400"/>
+    <path d="M100 0V1100M200 0V1100M300 0V1100M400 0V1100M500 0V1100M600 0V1100M700 0V1100M800 0V1100M900 0V1100M1000 0V1100M1100 0V1100M1200 0V1100M1300 0V1100"/>
+  </g>
+  <g stroke="#16181A" fill="none">
+    <path d="M120 820H1280" stroke-width="4"/>
+    <path d="M180 820V420H560V820" stroke-width="5"/>
+    <path d="M560 820V300H1000V820" stroke-width="5"/>
+    <path d="M1000 820V480H1220V820" stroke-width="5"/>
+    <path d="M180 420H560M560 300H1000M1000 480H1220" stroke-width="5"/>
+  </g>
+  <g fill="none" stroke="#7C8586" stroke-width="1.5">
+    <path d="M220 420V820M300 420V820M380 420V820M460 420V820M540 420V820"/>
+    <path d="M610 300V820M690 300V820M770 300V820M850 300V820M930 300V820"/>
+    <path d="M1040 480V820M1120 480V820M1200 480V820"/>
+    <path d="M180 450H560M560 330H1000M1000 510H1220"/>
+  </g>
+  <g fill="#B23A26">
+    <path d="M180 820H560V850H180Z"/>
+    <rect x="860" y="580" width="80" height="240"/>
+  </g>
+  <g stroke="#16181A" stroke-width="1">
+    <path d="M180 850L155 875M560 850L535 875M1000 820L975 845"/>
+    <path d="M180 930H1220"/>
+  </g>
+  <g fill="#16181A" font-family="Helvetica, Arial, sans-serif" font-size="13" letter-spacing="2">
+    <text x="220" y="400">CONSULT</text>
+    <text x="600" y="280">COURTYARD</text>
+    <text x="1040" y="460">SERVICE</text>
+    <text x="860" y="570" fill="#B23A26">CONCRETE CORE</text>
+    <text x="190" y="970">GROUND FLOOR</text>
+    <text x="190" y="995" fill="#676969" font-size="11">CONCEPT STUDY — NOT A CONSTRUCTION DOCUMENT</text>
+  </g>
+  <g fill="none" stroke="#16181A" stroke-width="1.5">
+    <path d="M160 330V820M150 330H170M150 820H170"/>
+    <path d="M1250 480V820M1240 480H1260M1240 820H1260"/>
+  </g>
+  <g fill="#16181A" font-family="Helvetica, Arial, sans-serif" font-size="12">
+    <text x="105" y="590" transform="rotate(-90 105 590)" text-anchor="middle">SECTION A–A</text>
+  </g>
+  <g fill="#16181A" font-family="Georgia, serif">
+    <text x="90" y="95" font-size="30">THE SECTION IS THE ARGUMENT.</text>
+    <text x="90" y="124" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="4" fill="#676969">COURTYARD CLINIC / CONCEPT STUDY / 1:100</text>
+  </g>
+  <g fill="#16181A" font-family="Helvetica, Arial, sans-serif" font-size="12" letter-spacing="2">
+    <text x="90" y="1050">BANTAMA DESIGN OFFICE / KUMASI</text>
+    <text x="1310" y="1050" text-anchor="end">SHEET A-03</text>
+  </g>
+</svg>

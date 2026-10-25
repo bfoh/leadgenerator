@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildCreativeBrief, generateCreativeDirection, type CreativeBriefContent, type CreativeDirectionContent } from '@/lib/domain/creative-direction';
+import { buildWebsiteBlueprint } from '@/lib/domain/website-compositions';
+import type { WebsiteBlueprint } from '@/lib/domain/website-blueprint';
 import type { BrandKitContent, StudioAsset } from '@/lib/domain/studio-assets';
 import type { StudioObservation, StudioProject } from '@/lib/domain/studio';
 import type { Business } from '@/lib/domain/types';
@@ -30,6 +32,9 @@ let briefContent: CreativeBriefContent;
 let directionContent: CreativeDirectionContent;
 let briefId: string;
 let directionId: string;
+let kitVersionId: string;
+let approvedDirectionId: string;
+let approvedConceptKey: string;
 
 const workspace = async (d: PGlite, user: string) => (await as(d, user, () => rows<{ org_id: string; member_role: string }>(d, 'select * from public.ensure_workspace()')))[0];
 
@@ -225,6 +230,7 @@ beforeAll(async () => {
   await assetRow(PHOTO, 'approved', org, projectId, 'product_photo');
   await assetRow(CANDIDATE, 'candidate', org, projectId, 'illustration');
   const kit = await kitRows(projectId);
+  kitVersionId = kit.versionId;
   await insertObservations(projectId, OBS);
 
   const business = { id: businessId, name: 'Nsroma Atelier', category: 'Fashion and tailoring', city: 'Accra', officialWebsite: 'https://nsromaatelier.example' } as Business;
@@ -381,6 +387,8 @@ describe('the creative direction schema', () => {
     await as(db, OWNER, () =>
       db.query("insert into public.studio_creative_direction_reviews (organization_id, project_id, direction_id, concept_key, decision, note) values ($1,$2,$3,$4,'approve','Approved by the design lead.')", [org, projectId, second, conceptKey]),
     );
+    approvedDirectionId = second;
+    approvedConceptKey = conceptKey;
 
     await expect(
       as(db, OWNER, () =>
@@ -395,11 +403,101 @@ describe('the creative direction schema', () => {
     ).rejects.toThrow(/not in this direction/i);
   });
 
+  it('stores an immutable rendered prototype only while the concept approval is current', async () => {
+    const business = { id: businessId, name: 'Nsroma Atelier', category: 'Fashion and tailoring', city: 'Accra', officialWebsite: 'https://nsromaatelier.example' } as Business;
+    const project = {
+      id: projectId,
+      organizationId: org,
+      businessId,
+      name: 'Nsroma Atelier — website concept',
+      status: 'intelligence_ready',
+      websiteUrl: 'https://nsromaatelier.example',
+      brief: '',
+      intelligenceStatus: 'ready',
+      intelligenceAt: new Date().toISOString(),
+      intelligenceNote: null,
+      createdBy: OWNER,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as StudioProject;
+    const assets = [asset(LOGO, 'logo'), asset(PHOTO, 'product_photo')];
+    const blueprint = buildWebsiteBlueprint({
+      project,
+      business,
+      brief: briefContent,
+      direction: { id: approvedDirectionId, version: 2, content: directionContent },
+      conceptKey: approvedConceptKey,
+      kit: { versionId: kitVersionId, version: 1 },
+      assets,
+      roleAssets: { hero: PHOTO, portrait: PHOTO, detail: PHOTO },
+      availableMediaIds: [LOGO, PHOTO],
+      synthetic: false,
+      generatedAt: '2026-10-25T09:00:00.000Z',
+    });
+    expect(blueprint.readiness.previewReady).toBe(true);
+
+    const [saved] = await as(db, OWNER, () =>
+      rows<{ id: string; version: number }>(
+        db,
+        'insert into public.studio_website_prototypes (organization_id, project_id, direction_id, concept_key, version, content, note) values ($1,$2,$3,$4,1,$5,$6) returning id, version',
+        [org, projectId, approvedDirectionId, approvedConceptKey, JSON.stringify(blueprint), 'First rendered prototype.'],
+      ),
+    );
+    expect(saved.version).toBe(1);
+
+    const visible = await as(db, VIEWER, () => rows<{ content: WebsiteBlueprint }>(db, 'select content from public.studio_website_prototypes where id = $1', [saved.id]));
+    expect(visible[0].content.format).toBe('dof-website-blueprint/1');
+    expect(visible[0].content.readiness.publishReady).toBe(false);
+    const foreign = await as(db, OTHER, () => rows(db, 'select id from public.studio_website_prototypes where project_id = $1', [projectId]));
+    expect(foreign).toHaveLength(0);
+
+    await expect(
+      as(db, VIEWER, () =>
+        db.query('insert into public.studio_website_prototypes (organization_id, project_id, direction_id, concept_key, version, content) values ($1,$2,$3,$4,2,$5)', [
+          org,
+          projectId,
+          approvedDirectionId,
+          approvedConceptKey,
+          JSON.stringify(blueprint),
+        ]),
+      ),
+    ).rejects.toThrow(/policy|permission/i);
+
+    await expect(as(db, OWNER, () => db.query("update public.studio_website_prototypes set note = 'edited' where id = $1", [saved.id]))).rejects.toThrow(/immutable|permission denied/i);
+    await expect(as(db, OWNER, () => db.query('delete from public.studio_website_prototypes where id = $1', [saved.id]))).rejects.toThrow(/immutable|permission denied/i);
+
+    await expect(
+      as(db, OWNER, () =>
+        db.query('insert into public.studio_website_prototypes (organization_id, project_id, direction_id, concept_key, version, content) values ($1,$2,$3,$4,3,$5)', [
+          org,
+          projectId,
+          approvedDirectionId,
+          approvedConceptKey,
+          JSON.stringify(blueprint),
+        ]),
+      ),
+    ).rejects.toThrow(/next prototype version is 2/i);
+
+    const misbound = structuredClone(blueprint);
+    misbound.direction.directionId = directionId;
+    await expect(
+      as(db, OWNER, () =>
+        db.query('insert into public.studio_website_prototypes (organization_id, project_id, direction_id, concept_key, version, content) values ($1,$2,$3,$4,2,$5)', [
+          org,
+          projectId,
+          approvedDirectionId,
+          approvedConceptKey,
+          JSON.stringify(misbound),
+        ]),
+      ),
+    ).rejects.toThrow(/not bound to this direction/i);
+  });
+
   it('deletes a concept together with its briefs, directions and reviews', async () => {
     const [ownerOrg] = await as(db, OWNER, () => rows<{ org_id: string }>(db, 'select * from public.ensure_workspace()'));
     expect(ownerOrg.org_id).toBe(org);
     await as(db, OWNER, () => db.query('delete from public.studio_projects where id = $1', [projectId]));
-    for (const table of ['studio_creative_briefs', 'studio_creative_brief_reviews', 'studio_creative_directions', 'studio_creative_direction_reviews']) {
+    for (const table of ['studio_creative_briefs', 'studio_creative_brief_reviews', 'studio_creative_directions', 'studio_creative_direction_reviews', 'studio_website_prototypes']) {
       const remaining = await as(db, OWNER, () => rows(db, `select id from public.${table} where project_id = $1`, [projectId]));
       expect(remaining, table).toHaveLength(0);
     }
@@ -409,6 +507,7 @@ describe('the creative direction schema', () => {
 describe('migration 014 rollback', () => {
   it('drops only the creative direction objects and can be applied again', async () => {
     const d = await createDatabase();
+    await d.exec(readFileSync(join(process.cwd(), 'supabase', 'rollback', '015_studio_website_prototypes_down.sql'), 'utf8'));
     const rollback = readFileSync(join(process.cwd(), 'supabase', 'rollback', '014_studio_creative_direction_down.sql'), 'utf8');
     await d.exec(rollback);
     const [gone] = await rows<{ briefs: string | null; directions: string | null }>(d, "select to_regclass('public.studio_creative_briefs') as briefs, to_regclass('public.studio_creative_directions') as directions");
@@ -419,8 +518,32 @@ describe('migration 014 rollback', () => {
     expect(still.kits).toBeTruthy();
 
     await d.exec(readFileSync(join(MIGRATIONS_DIR, '014_studio_creative_direction.sql'), 'utf8'));
-    const [again] = await rows<{ briefs: string | null }>(d, "select to_regclass('public.studio_creative_briefs') as briefs");
+    await d.exec(readFileSync(join(MIGRATIONS_DIR, '015_studio_website_prototypes.sql'), 'utf8'));
+    const [again] = await rows<{ briefs: string | null; prototypes: string | null }>(
+      d,
+      "select to_regclass('public.studio_creative_briefs') as briefs, to_regclass('public.studio_website_prototypes') as prototypes",
+    );
     expect(again.briefs).toBeTruthy();
+    expect(again.prototypes).toBeTruthy();
+    await d.close();
+  });
+});
+
+describe('migration 015 rollback', () => {
+  it('drops only the rendered prototype table and can be applied again', async () => {
+    const d = await createDatabase();
+    const rollback = readFileSync(join(process.cwd(), 'supabase', 'rollback', '015_studio_website_prototypes_down.sql'), 'utf8');
+    await d.exec(rollback);
+    const [gone] = await rows<{ prototypes: string | null; directions: string | null }>(
+      d,
+      "select to_regclass('public.studio_website_prototypes') as prototypes, to_regclass('public.studio_creative_directions') as directions",
+    );
+    expect(gone.prototypes).toBeNull();
+    expect(gone.directions).toBeTruthy();
+
+    await d.exec(readFileSync(join(MIGRATIONS_DIR, '015_studio_website_prototypes.sql'), 'utf8'));
+    const [again] = await rows<{ prototypes: string | null }>(d, "select to_regclass('public.studio_website_prototypes') as prototypes");
+    expect(again.prototypes).toBeTruthy();
     await d.close();
   });
 });

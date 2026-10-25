@@ -3,6 +3,7 @@ import { Inter, Newsreader } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import { THEME_SCRIPT } from '@/components/theme';
 import './globals.css';
+import './site-fonts.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap', style: ['normal', 'italic'] });

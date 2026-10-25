@@ -71,6 +71,7 @@ import {
   type StudioCreativeDirection,
   type StudioCreativeDirectionReview,
 } from '@/lib/domain/creative-direction';
+import type { StudioWebsitePrototype } from '@/lib/domain/website-prototype';
 import type {
   Activity,
   AuditEvent,
@@ -161,6 +162,8 @@ interface DemoState {
   studioCreativeBriefReviews: StudioCreativeBriefReview[];
   studioCreativeDirections: StudioCreativeDirection[];
   studioCreativeDirectionReviews: StudioCreativeDirectionReview[];
+  /** Added with rendered prototypes (migration 015); filled in on load for older demo data. */
+  studioWebsitePrototypes: StudioWebsitePrototype[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -259,6 +262,7 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     studioCreativeBriefReviews: [],
     studioCreativeDirections: [],
     studioCreativeDirectionReviews: [],
+    studioWebsitePrototypes: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -320,6 +324,7 @@ const INSERT_ONLY = new Set<keyof Tables>([
   'studioCreativeBriefReviews',
   'studioCreativeDirections',
   'studioCreativeDirectionReviews',
+  'studioWebsitePrototypes',
 ]);
 const PROVIDER_SOURCES = new Set(['licensed_dataset', 'authorized_directory', 'enrichment_provider']);
 /** Mirrors the generated match_key / channel_key and the active-entry unique index of migration 005. */
@@ -385,6 +390,7 @@ export class LocalStore implements DataStore {
           parsed.studioCreativeBriefReviews ??= [];
           parsed.studioCreativeDirections ??= [];
           parsed.studioCreativeDirectionReviews ??= [];
+          parsed.studioWebsitePrototypes ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -1709,6 +1715,53 @@ export class LocalStore implements DataStore {
         }
       }
       return this.insert('studioCreativeDirectionReviews', { ...input, note, reviewerId: this.userId });
+    });
+
+  // ── Rendered website prototypes (migration 015) ──
+  async websitePrototypeSchemaAvailable() {
+    return true;
+  }
+  async listStudioWebsitePrototypes(projectId?: string) {
+    return clone(
+      this.state.studioWebsitePrototypes
+        .filter((prototype) => !projectId || prototype.projectId === projectId)
+        .sort((a, b) => b.version - a.version),
+    );
+  }
+  createStudioWebsitePrototype: DataStore['createStudioWebsitePrototype'] = (input) =>
+    this.commit(() => {
+      const project = this.state.studioProjects.find((entry) => entry.id === input.projectId);
+      if (!project) throw new StoreError('Website concept not found', 'not_found');
+      if (project.status === 'archived') throw new StoreError('This concept is archived. Restore it before saving a prototype.', 'conflict');
+      const direction = this.state.studioCreativeDirections.find(
+        (entry) => entry.id === input.directionId && entry.projectId === input.projectId,
+      );
+      if (!direction) throw new StoreError('Creative direction not found', 'not_found');
+      if (!direction.content.concepts.some((concept) => concept.key === input.conceptKey)) {
+        throw new StoreError('That concept is not in this direction.', 'invalid');
+      }
+      const approval = currentDirectionApproval(
+        this.state.studioCreativeDirectionReviews.filter((review) => review.projectId === input.projectId),
+      );
+      if (!approval || approval.directionId !== input.directionId || approval.conceptKey !== input.conceptKey) {
+        throw new StoreError('Rendered prototypes need a current approval for this concept.', 'conflict');
+      }
+      const latest = Math.max(0, ...this.state.studioWebsitePrototypes.filter((row) => row.projectId === input.projectId).map((row) => row.version));
+      if (input.version !== latest + 1) throw new StoreError(`The next prototype version is ${latest + 1}.`, 'conflict');
+      if (input.note.length > 1000) throw new StoreError('A prototype note is limited to 1,000 characters.', 'invalid');
+      if (input.content.format !== 'dof-website-blueprint/1') throw new StoreError('This is not a version 1 website blueprint.', 'invalid');
+      if (input.content.direction.directionId !== direction.id || input.content.direction.conceptKey !== input.conceptKey) {
+        throw new StoreError('The blueprint is not bound to this direction and concept.', 'invalid');
+      }
+      if (input.content.direction.directionVersion !== direction.version) {
+        throw new StoreError('The blueprint names a different direction version.', 'invalid');
+      }
+      return this.insert('studioWebsitePrototypes', {
+        ...input,
+        note: input.note.trim(),
+        content: clone(input.content),
+        createdBy: this.userId,
+      });
     });
 
   // ── Settings, audit, usage ──

@@ -11,8 +11,10 @@ Milestone status is recorded in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADM
 implemented (milestone 3C.1, migration 012); phase 2 is implemented by milestone 3C.2 (migration 013);
 phase 3 is implemented by milestone 3C.3 (migration 014), with its architecture, typography licensing,
 token system, motion language and review framework specified in
-[CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md). Phases 4–6 are specified here and not built. Nothing in
-this document authorises a deployment, a paid provider call or a production migration.
+[CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md); and phase 4 is implemented by milestone 3C.4
+(migration 015) as a deterministic blueprint engine and trusted React renderer with a Studio preview and
+three flagship demonstrations. Phases 5–6 are specified here and not built. Nothing in this document
+authorises a deployment, a paid provider call or a production migration.
 
 ## 1. The creative standard
 
@@ -147,23 +149,36 @@ generated or approved.
 *Specification:* [CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md). The three flagship demonstrations are
 indexed in [CREATIVE_DEMOS.md](CREATIVE_DEMOS.md).
 
-### Phase 4 — Bespoke Design and Build (milestone 3C.4, specified)
+### Phase 4 — Bespoke Design and Build (milestone 3C.4, implemented)
 
-*Input:* one approved direction, the approved assets and the Brand Kit.
+*Input:* one approved direction and concept, the approved Brand Kit version, and the files in the vault
+that are cleared for **prototype** use.
 
-*What happens:* the direction becomes a designed, responsive site: page structures written for this
-business, original copy, real content where it exists and clearly marked placeholders where the business
-still owes an answer, art-directed imagery from the vault, designed states (empty, loading, error), and
-motion that serves the narrative. The build is a real implementation with a component inventory, tokens
-derived from the Brand Kit, and budgets for performance and accessibility.
+*What happens:* a deterministic **website blueprint** is built from the direction. It binds the approved
+concept to a page plan, navigation, sections, media plates, type bindings and the direction's design
+tokens. The blueprint carries editorial content authored for this business, real content where it exists
+and visibly marked unknowns or placeholders where the business still owes an answer. It is data, not
+generated code: a trusted React renderer switches on the blueprint schema and renders the site. No HTML,
+CSS, JavaScript or animation code is generated or evaluated.
 
-*What is produced:* a private, versioned build per concept, with per-page design intent, the assets it
-uses (by approved asset id) and an accessibility/performance report. Screens are reviewed at mobile,
-tablet and desktop widths in light and dark where the design supports both.
+The type layer resolves the recommended families against the self-hosted WOFF2 registry. A family with no
+bundled file falls back to a documented stack of the same classification, and the blueprint keeps both the
+requested family and the fallback warning visible. Media comes only from approved, unexpired assets with
+prototype permission; an unresolved image becomes a labelled image-pending plate rather than a broken or
+substituted photograph. Every action is structured as a page, an in-page anchor or a prototype notice, so
+an external link, form submission or tracking request cannot be expressed.
 
-*Gate:* design review against the creative standard (section 6), accessibility checks with no serious
-violations, and a licence check that every published asset is approved for **publish**, not merely for
-prototype use.
+*What is produced:* a live **Website prototype** tab inside the Studio with desktop and mobile framing, a
+page selector, the exact blueprint's warnings and readiness, and immutable saved versions with a note.
+The same engine renders three flagship demonstration sites at `/showcase`, from the same Creative
+Direction demonstrations indexed in [CREATIVE_DEMOS.md](CREATIVE_DEMOS.md). The three sites are not a
+separate template: they are three authored editorial plans over one builder and one renderer.
+
+*Gate:* a current approval for the exact concept, a blueprint bound to that direction and Brand Kit, a
+complete page plan with working internal navigation, prototype-cleared media, a visible concept-website
+disclosure, and no serious accessibility violation at desktop and phone widths. The blueprint always
+reports `publishReady: false`; prototype approval is not publication. The publish-permission gate remains
+phase 6.
 
 ### Phase 5 — Review and Secure Client Presentation (milestone 3C.5, specified)
 
@@ -252,7 +267,7 @@ exported or published, by construction.
 
 ## 5. Data and storage architecture
 
-### 5.1 Tables (migrations 012, 013 and 014, not applied to production)
+### 5.1 Tables (migrations 012–015, not applied to production)
 
 | Table | Role | Mutability |
 | --- | --- | --- |
@@ -269,6 +284,7 @@ exported or published, by construction.
 | `studio_creative_brief_reviews` | A person's confirm, reject or note about a brief | Append-only |
 | `studio_creative_directions` | Immutable sets of three structurally different concepts | Immutable |
 | `studio_creative_direction_reviews` | Feedback, change request, approval and rejection, naming the concept | Append-only |
+| `studio_website_prototypes` | A numbered website blueprint rendered from one approved concept; the exact document the renderer reads | Immutable |
 
 The Brand Kit version content is validated in the database as well as in the service: it must be a JSON
 object with the expected sections, and every asset id it references must belong to the same concept and
@@ -282,6 +298,13 @@ and its three concepts must have distinct keys, compositions, motions, pairings 
 approval is append-only and requires the latest confirmed brief; a later change request or rejection
 revokes it, and a concept may be re-approved after the changes are addressed; an older direction cannot
 be approved after a newer one.
+
+Rendered prototypes are immutable and versioned within their project. The database refuses an update or
+delete (except the cascade from deleting the concept), requires the next version number, requires the
+latest review of the project to be an approval for the same direction and concept, and checks that the
+blueprint names that direction, version, concept and project. The content constraint requires format
+`dof-website-blueprint/1`, at least three pages, an asset list and disclosures, and
+`publishReady: false`. RLS lets members read and the four Studio roles insert; nobody may rewrite history.
 
 ### 5.2 Private storage
 
@@ -309,7 +332,35 @@ in `studio_asset_events` and an entry on the prospect's timeline. The asset tabl
 the workspace audit trail, so a changed permission or licence can be traced to a person and a time.
 Exports are logged with the number of files and the manifest hash, never with the file contents.
 Creative direction logs each brief version, confirmation, proposed direction, revision and review on the
-prospect timeline, with version and concept ids rather than the full document.
+prospect timeline, with version and concept ids rather than the full document. Saving a rendered prototype
+logs its version, direction version and concept key — never the blueprint body.
+
+Prototype previews are internal and author-less: opening a page is a read of the blueprint held in the
+Studio tab, not a client presentation, so it creates no shareable link and no view log. Presentation and
+its audit trail belong to phase 5.
+
+### 5.4 The blueprint and the renderer
+
+`dof-website-blueprint/1` is the whole document. It contains the business identity, the Studio project,
+the exact direction version and concept, the Brand Kit version, the design tokens, the resolved type
+bindings, at least three pages with sections and navigation, the media plates that cite approved asset
+ids, the mandatory disclosures and a readiness record. The same inputs always produce the same
+blueprint; the builder has no clock, network or model call.
+
+`blueprintProblems` re-checks the document before it is previewed or saved: unique page slugs, a home
+page, working internal navigation and anchors, no duplicate or missing asset, every referenced plate
+traceable to an approved, unexpired prototype asset, a visible “Concept Website — Not an Official
+Business Website” disclosure, a documented fallback for any unbundled face, and `publishReady` strictly
+false. A saved version is parsed through the same Zod schema when it is opened.
+
+The renderer is a small set of React components in `src/components/website/`. It chooses a layout from the
+composition family, then switches on each section kind and variant. It never uses
+`dangerouslySetInnerHTML`, never accepts a URL from the blueprint, and never fetches a remote resource.
+Actions resolve to an internal page, an in-page anchor or a prototype notice; the enquiry, booking and
+brief buttons open a labelled `<dialog>` instead of a form. Images are passed separately from the
+blueprint as file sources, so a saved version never stores a signed URL. Motion is CSS keyed to the
+direction's specification and disabled under `prefers-reduced-motion`; the header menu traps focus, closes
+on Escape and returns focus to its button.
 
 
 ## 6. Quality gates
@@ -321,7 +372,7 @@ A concept may not move to the next phase until the gate for the current one is m
 | 1 Brand intelligence | Evidence reviewed; unknowns listed for the business | Reviews on the run; brief written |
 | 2 Vault and Brand Kit | Every usable asset approved with permission and licence; kit version approved | Asset events; approved kit version |
 | 3 Creative direction | Direction signed off against the creative standard; type licences confirmed | Confirmed brief; approved concept with rationale; licence and contrast evidence |
-| 4 Design and build | Design review; accessibility; publish-permission check | Review notes; axe results; asset audit |
+| 4 Design and build | Approved concept; preview-ready blueprint; accessibility; prototype-only media | Approved direction; saved prototype version; axe results; asset audit |
 | 5 Client presentation | Client approved a named version through a private link | Presentation decision record |
 | 6 Handover and publication | Every asset publishable or replaced; attribution and expiry scheduled | Publication record; manifest |
 
@@ -344,8 +395,8 @@ The design review in phase 4 asks, in this order:
 | Role | Studio rights |
 | --- | --- |
 | Owner, admin | Everything, including deleting concepts, assets and references |
-| Researcher, sales | Create and analyse concepts, upload and review assets, build and approve Brand Kit versions, record references, export approved packs |
-| Developer | Reads the Studio; works on builds once phase 4 exists (write access to builds is defined with that milestone) |
+| Researcher, sales | Create and analyse concepts, upload and review assets, build and approve Brand Kit versions, record references, export approved packs, preview and save rendered prototype versions |
+| Developer | Reads the Studio and every rendered prototype; cannot save a prototype version in this milestone |
 | Viewer | Reads concepts, evidence, assets and kits; cannot change or export |
 
 RLS in the database is authoritative. The UI mirrors it with `studio.write`, `records.delete` and
@@ -356,13 +407,14 @@ RLS in the database is authoritative. The UI mirrors it with `studio.write`, `re
 - No downloading or re-hosting of third-party images, including from Google Maps, company websites or
   social media. No scraping, crawling or harvesting beyond the single guarded homepage reading in
   phase 1.
-- No downloaded, bundled or redistributed font files. Typography is recommended from a catalogue whose
-  licences permit web embedding and self-hosting; a client's own commercial licence is a confirmation
-  requirement, not an assumption.
+- No proprietary or commercially licensed font is downloaded, bundled or redistributed. Six SIL OFL 1.1
+  families ship with their licence text for the renderer; a catalogue family without a bundled file
+  resolves to a documented same-classification fallback, and the blueprint records the gap. A client's
+  own commercial licence remains a confirmation requirement, not an assumption.
 - No AI-generated imitation of a living designer's work or a real brand's identity, and no generated
   logo presented as the client's existing mark.
-- No arbitrary generated CSS, HTML or animation code. The engine produces structured tokens and motion
-  specifications; a renderer implements them, with reduced motion.
+- No arbitrary generated CSS, HTML or animation code. The engine produces a validated blueprint, design
+  tokens and a motion specification; one trusted renderer implements them, with reduced motion.
 - No paid model call in creative direction by default. The optional enhancement boundary is disabled
   until explicitly configured and authorised, and remains uncalled.
 - No publishing, exporting or presenting an asset without the specific permission for that use, a
@@ -379,7 +431,8 @@ RLS in the database is authoritative. The UI mirrors it with `studio.write`, `re
 | 1 | `src/lib/domain/studio.ts`, `src/lib/data/studio-services.ts`, `src/components/studio/*` | 012 |
 | 2 | `src/lib/domain/studio-assets.ts`, `src/lib/data/studio-asset-services.ts`, `src/lib/data/asset-storage.ts`, `src/components/studio/asset-vault.tsx`, `brand-kit.tsx` | 013 |
 | 3 | `src/lib/domain/creative-direction.ts`, `font-catalogue.ts`, `design-tokens.ts`, `src/lib/data/creative-direction-services.ts`, `src/components/studio/creative-*.tsx` | 014 |
-| 4–6 | Not built | — |
+| 4 | `src/lib/domain/website-blueprint.ts`, `website-compositions.ts`, `website-editorial.ts`, `showcase-sites.ts`, `bundled-fonts.ts`, `src/lib/data/website-prototype-services.ts`, `src/components/website/*`, `src/components/studio/website-preview.tsx`, `src/app/showcase/*` | 015 |
+| 5–6 | Not built | — |
 
 The roadmap entry for each milestone records what was built, what was tested and what remains. When a
 later phase changes a rule in this document, the document changes with it: this is the specification the

@@ -70,6 +70,10 @@ export const useCreativeBriefReviews = (projectId: string) => useStoreQuery(['cr
 /** Immutable direction versions, newest first. */
 export const useCreativeDirections = (projectId: string) => useStoreQuery(['creative-directions', projectId], (s) => s.listStudioCreativeDirections(projectId));
 export const useCreativeDirectionReviews = (projectId: string) => useStoreQuery(['creative-direction-reviews', projectId], (s) => s.listStudioCreativeDirectionReviews(projectId));
+/** Whether migration 015 (rendered website prototypes) is applied. */
+export const useWebsitePrototypeSchema = () => useStoreQuery(['website-prototype-schema'], (s) => s.websitePrototypeSchemaAvailable());
+/** Immutable rendered blueprint versions, newest first. */
+export const useStudioWebsitePrototypes = (projectId: string) => useStoreQuery(['studio-website-prototypes', projectId], (s) => s.listStudioWebsitePrototypes(projectId));
 /** The kit with its immutable versions and append-only approvals, newest first. */
 export const useStudioBrandKit = (projectId: string) =>
   useStoreQuery(['studio-brand-kit', projectId], async (s) => {

@@ -11,6 +11,9 @@ Target: **WCAG 2.1 AA** on desktop and phone, in light and dark themes (the Stud
 | axe on the Website Studio list and on a concept with recorded evidence (run selector, the four evidence groups, reviews, brief), light and dark | `tests/e2e/studio.spec.ts` |
 | axe on the Studio Asset vault (upload, review, permissions, references, history) and the Brand Kit (logo selection, palette, typography, direction, version history), light and dark | `tests/e2e/studio-assets.spec.ts` |
 | axe on the Creative direction tab (brief with basis badges and evidence, typography and colour specimens, three-concept comparison, direction board, advisory review, feedback/edit/approval history), light and dark | `tests/e2e/creative-direction.spec.ts` |
+| axe on all three rendered concept websites, a nested case study and the Website prototype tab, including the prototype notice dialog, at desktop width | `tests/e2e/website-showcase.spec.ts`, `tests/e2e/creative-direction.spec.ts` |
+| Trusted renderer: visible “Concept Website — Not an Official Business Website” disclosure, one `h1` per page, labelled navigation, focus trap and Escape-to-close with focus return on the mobile menu, no horizontal overflow at 360 and 1440px | `tests/e2e/website-showcase.spec.ts` |
+| Rendered-site contrast: footer navigation, credits, notices and prototype dialog text are measured by axe against the site's own palette | `tests/e2e/website-showcase.spec.ts` |
 | Studio colour tokens: every text pair is measured in code and adjusted to WCAG AA (4.5:1) before a concept can be approved; the support tone is held at 3:1 | `unit/creative-direction` (brief contrast and token rules) |
 | Studio motion: every concept names a reduced-motion alternative and may animate only opacity, transform or clip-path | `unit/creative-direction` (motion and direction validation) |
 | axe inside flows (Next steps after a reply, outreach dialogs, contacts) | `e2e/conversion`, `e2e/outreach`, `e2e/contacts` |

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1500" role="img" aria-labelledby="title desc">
+  <title id="title">Woven study in kente red, ink and brass</title>
+  <desc id="desc">A Studio-generated geometric weaving study, made for the Nsroma Atelier concept. It does not reproduce a specific kente cloth.</desc>
+  <rect width="1200" height="1500" fill="#241E1A"/>
+  <g opacity="0.42" stroke="#F4EEE3" stroke-width="1">
+    <path d="M0 150H1200M0 300H1200M0 450H1200M0 600H1200M0 750H1200M0 900H1200M0 1050H1200M0 1200H1200M0 1350H1200"/>
+    <path d="M150 0V1500M300 0V1500M450 0V1500M600 0V1500M750 0V1500M900 0V1500M1050 0V1500"/>
+  </g>
+  <g>
+    <rect x="0" y="0" width="1200" height="120" fill="#7A1F3D"/>
+    <rect x="0" y="1380" width="1200" height="120" fill="#7A1F3D"/>
+    <rect x="0" y="132" width="1200" height="18" fill="#B98A44"/>
+    <rect x="0" y="1350" width="1200" height="18" fill="#B98A44"/>
+  </g>
+  <g fill="none" stroke="#B98A44" stroke-width="7">
+    <path d="M-40 260L170 120 380 260 590 120 800 260 1010 120 1220 260"/>
+    <path d="M-40 260L170 400 380 260 590 400 800 260 1010 400 1220 260"/>
+    <path d="M-40 520L170 380 380 520 590 380 800 520 1010 380 1220 520"/>
+    <path d="M-40 520L170 660 380 520 590 660 800 520 1010 660 1220 520"/>
+    <path d="M-40 780L170 640 380 780 590 640 800 780 1010 640 1220 780"/>
+    <path d="M-40 780L170 920 380 780 590 920 800 780 1010 920 1220 780"/>
+    <path d="M-40 1040L170 900 380 1040 590 900 800 1040 1010 900 1220 1040"/>
+    <path d="M-40 1040L170 1180 380 1040 590 1180 800 1040 1010 1180 1220 1040"/>
+    <path d="M-40 1300L170 1160 380 1300 590 1160 800 1300 1010 1160 1220 1300"/>
+  </g>
+  <g fill="#F4EEE3">
+    <path d="M560 690h80v80h-80zM560 850h80v80h-80z"/>
+  </g>
+  <g fill="#7A1F3D" stroke="#F4EEE3" stroke-width="3">
+    <path d="M160 690l80-80 80 80-80 80zM880 690l80-80 80 80-80 80z"/>
+    <path d="M160 1010l80-80 80 80-80 80zM880 1010l80-80 80 80-80 80z"/>
+  </g>
+  <g fill="#F4EEE3" font-family="Georgia, serif">
+    <text x="80" y="90" font-size="22" letter-spacing="8">NSROMA ATELIER</text>
+    <text x="80" y="1450" font-size="17" letter-spacing="4">WOVEN STUDY / 01</text>
+    <text x="1120" y="1450" font-size="17" text-anchor="end" letter-spacing="4">STUDIO DRAWING</text>
+  </g>
+  <g fill="#F4EEE3" font-family="Helvetica, Arial, sans-serif" font-size="12" opacity="0.72">
+    <text x="80" y="1478" letter-spacing="2">SYNTHETIC GEOMETRY — NOT A REPRODUCTION OF A SPECIFIC CLOTH</text>
+  </g>
+</svg>
