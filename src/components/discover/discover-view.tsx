@@ -149,6 +149,8 @@ function Discover({
   const [error, setError] = useState<{ message: string; retryable: boolean; retry: () => void } | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [tracking, setTracking] = useState<DiscoveryResult | null>(null);
+  /** Fictional practice results store no Place ID, so the row keeps its own link to the new record. */
+  const [trackedDemo, setTrackedDemo] = useState<Record<string, string>>({});
   const requestId = useRef(0);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -553,7 +555,7 @@ function Discover({
                     <ResultRow
                       key={r.externalId}
                       result={r}
-                      trackedId={tracked.get(r.externalId)?.id ?? null}
+                      trackedId={tracked.get(r.externalId)?.id ?? trackedDemo[r.externalId] ?? null}
                       canTrack={can('prospects.write')}
                       onTrack={() => setTracking(r)}
                     />
@@ -632,7 +634,10 @@ function Discover({
               </Notice>
             )
           }
-          onSaved={() => setTracking(null)}
+          onSaved={(b) => {
+            if (tracking) setTrackedDemo((m) => ({ ...m, [tracking.externalId]: b.id }));
+            setTracking(null);
+          }}
         />
       )}
 

@@ -307,6 +307,10 @@ describe('validation schemas and settings', () => {
     expect(businessFormSchema.safeParse(base).success).toBe(false);
     expect(businessFormSchema.safeParse({ ...base, districtCode: 'GH9999' }).success).toBe(false);
     expect(businessFormSchema.safeParse({ ...base, districtCode: 'GH0201', region: 'Greater Accra' }).success).toBe(false);
+    // Services re-validate the parsed form (createBusiness/updateBusinessProfile), so the schema must
+    // accept its own output: a region-level record carries city as NULL, which must not fail again.
+    const regionLevel = businessFormSchema.parse({ ...base, region: 'Ashanti' });
+    expect(businessFormSchema.safeParse(regionLevel).success).toBe(true);
   });
 
   it('requires two methods to record "no official website found" and a domain for site outcomes', () => {

@@ -58,9 +58,7 @@ export const businessFormSchema = z
     districtCode: optionalText(20),
     /** Optional when a district or region is known: the database stores NULL for a region-level record. */
     city: z
-      .string()
-      .trim()
-      .max(80)
+      .union([z.string().trim().max(80), z.null()])
       .transform((value) => value || null),
     neighborhood: optionalText(80),
     address: optionalText(300),
