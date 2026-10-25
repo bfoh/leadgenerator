@@ -160,7 +160,9 @@
 .toneAccent {
   --tone-bg: var(--colour-accent);
   --tone-ink: var(--colour-accent-text);
-  --tone-muted: color-mix(in srgb, var(--colour-accent-text) 78%, var(--colour-accent));
+  /* On a filled accent block the readable ink is already close to the 4.5:1 floor, so mixing it back
+     towards the accent for a “softer” grey drops the eyebrow below AA. Small type stays at full ink. */
+  --tone-muted: var(--colour-accent-text);
   --tone-rule: color-mix(in srgb, var(--colour-accent-text) 32%, var(--colour-accent));
   --tone-accent: var(--colour-accent-text);
   --tone-accent-ink: var(--colour-accent);
@@ -518,12 +520,6 @@
   transition: transform 800ms var(--motion-ease), filter 500ms ease;
 }
 
-.plate[data-motion='subtle_parallax'] .mediaFrame img {
-  width: 100%;
-  height: 108%;
-  transform: translateY(var(--parallax-y, 0));
-}
-
 .caption {
   display: flex;
   flex-wrap: wrap;
@@ -548,7 +544,8 @@
   margin-left: auto;
   font-size: 0.61rem;
   letter-spacing: 0.03em;
-  opacity: 0.72;
+  /* Provenance is small print, not decoration: secondary ink at full strength, never a faded copy. */
+  color: var(--tone-muted);
 }
 
 .plateBare .mediaFrame {
@@ -3229,3 +3226,1227 @@
     font-size: clamp(2.4rem, 4.2vw, 4.6rem);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   3C.4R — executable art direction
+   These rules are the runtime half of `website-art-direction.ts`. Every hiding rule requires
+   [data-motion='ready'], which only the client hook sets after it has created the observer. Without
+   JavaScript, or with reduced motion, the complete design is visible at rest.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+.wordMask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.09em;
+}
+
+.wordInner {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Page arrival: a short settle, never a blocker or a full-screen wipe. */
+.site[data-page-motion='veil'] .page {
+  animation: pageVeil 520ms var(--scene-ease, var(--motion-ease)) both;
+}
+
+.site[data-page-motion='settle'] .page {
+  animation: pageSettle 420ms var(--scene-ease, var(--motion-ease)) both;
+}
+
+.site[data-page-motion='none'] .page {
+  animation: none;
+}
+
+@keyframes pageVeil {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    clip-path: inset(0 0 7% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes pageSettle {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Heading choreography. The line is revealed by clipping the text itself rather than by pushing a
+   translated copy up inside an overflow box: a transformed descendant inside a mask box counts as
+   scrollable overflow, which makes a perfectly masked line look clipped to measurement tools and to
+   any assistive scroll container. Clipping keeps the box honest at every frame. */
+.site[data-motion='ready'] [data-motion-scene='arrival'] .heroLineMask {
+  display: block;
+  overflow: hidden;
+  /* The mask hides the incoming line, so its padding must clear the descenders of a 0.84 leading.
+     0.18em left three pixels of the line box outside the clip at 360px; 0.28em clears it and the
+     negative margin keeps the headline rhythm identical. */
+  padding-bottom: 0.28em;
+  margin-bottom: -0.2em;
+}
+
+.site[data-motion='ready'] [data-motion-scene='arrival'] .heroLineInner {
+  display: block;
+  animation: heroLineReveal var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease)) both;
+  animation-delay: calc(var(--line-index, 0) * var(--scene-stagger, 60ms) + 110ms);
+}
+
+.site[data-motion='ready'] [data-motion-scene='arrival'] .heroMedia {
+  animation: heroFrameReveal 900ms var(--scene-ease, var(--motion-ease)) both;
+}
+
+.site[data-motion='ready'] [data-motion-scene='arrival'] :is(.heroLead, .heroMeta, .actions, .sectionNote) {
+  animation: heroCopyEnter var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease)) both;
+  animation-delay: calc(var(--scene-stagger, 60ms) * 3 + 260ms);
+}
+
+@keyframes heroLineReveal {
+  /* Hidden: the visible band sits above the glyphs. Revealed: the band extends past the ascenders and
+     descenders so tight leading never shaves a letter. */
+  from { clip-path: inset(-8% -6% 106% -6%); }
+  to { clip-path: inset(-30% -6% -22% -6%); }
+}
+
+@keyframes heroFrameReveal {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes heroCopyEnter {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.site[data-motion='ready'] [data-motion-heading='line-mask'] .wordInner,
+.site[data-motion='ready'] [data-motion-heading='word-stagger'] .wordInner {
+  transform: translate3d(0, 115%, 0);
+  transition: transform var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease));
+}
+
+.site[data-motion='ready'] [data-motion-heading='word-stagger'] .wordInner {
+  transition-delay: calc(var(--word-index, 0) * var(--scene-stagger, 60ms));
+}
+
+.site[data-motion='ready'] [data-motion-heading='line-mask'][data-inview] .wordInner,
+.site[data-motion='ready'] [data-motion-heading='word-stagger'][data-inview] .wordInner {
+  transform: none;
+}
+
+.site[data-motion='ready'] [data-motion-heading='rise'] :is(h2, h3) {
+  opacity: 0;
+  transform: translate3d(0, calc(var(--scene-distance, 12px) * 0.7), 0);
+  transition: opacity var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease)),
+    transform var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease));
+}
+
+.site[data-motion='ready'] [data-motion-heading='rise'][data-inview] :is(h2, h3) {
+  opacity: 1;
+  transform: none;
+}
+
+/* Body and supporting copy. */
+.site[data-motion='ready'] [data-motion-body='rise'] :is(.prose, .headDescription, .heroLead, .heroMeta, .ctaBody, .detailsList, .processList, .inlineFacts, .sectionHead) {
+  opacity: 0;
+  transform: translate3d(0, calc(var(--scene-distance, 12px) * 0.75), 0);
+  transition: opacity var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease)),
+    transform var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease));
+}
+
+.site[data-motion='ready'] [data-motion-body='rise'][data-inview] :is(.prose, .headDescription, .heroLead, .heroMeta, .ctaBody, .detailsList, .processList, .inlineFacts, .sectionHead) {
+  opacity: 1;
+  transform: none;
+}
+
+.site[data-motion='ready'] [data-motion-body='fade'] :is(.prose, .headDescription, .ctaBody, .detailsList, .sectionHead) {
+  opacity: 0;
+  transition: opacity var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease));
+}
+
+.site[data-motion='ready'] [data-motion-body='fade'][data-inview] :is(.prose, .headDescription, .ctaBody, .detailsList, .sectionHead) {
+  opacity: 1;
+}
+
+/* Image choreography. */
+.site[data-motion='ready'] [data-motion-media='wipe'] .plate .mediaFrame {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--scene-duration, var(--motion-duration)) var(--scene-ease, var(--motion-ease));
+}
+
+.site[data-motion='ready'] [data-motion-media='wipe'][data-inview] .plate .mediaFrame {
+  clip-path: inset(0 0 0 0);
+}
+
+.site[data-motion='ready'] [data-motion-media='drift'] .plate img {
+  transform: translate3d(0, var(--scene-y, 0), 0) scale(1.035);
+  will-change: transform;
+}
+
+.site[data-motion='ready'] [data-motion-media='drift'] .heroMedia img {
+  transform: translate3d(0, calc(var(--scene-y, 0) * 0.45), 0) scale(1.055);
+}
+
+.site[data-motion='ready'] [data-motion-media='wipe'] .plate img,
+.site[data-motion='ready'] [data-motion-media='drift'] .plate img {
+  filter: saturate(0.88) contrast(1.035) brightness(0.94);
+}
+
+/* Controlled focal crops. */
+.plate[data-focal='top'] img { object-position: 50% 18%; }
+.plate[data-focal='bottom'] img { object-position: 50% 82%; }
+.plate[data-focal='left'] img { object-position: 22% 50%; }
+.plate[data-focal='right'] img { object-position: 78% 50%; }
+.plate[data-focal='centre'] img { object-position: 50% 50%; }
+
+/* Section-to-section transitions are drawn in the margin, not over the content. */
+.site[data-section-transition='rule'] .section + .section::before,
+.site[data-section-transition='tone-shift'] .section + .section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--site-margin-mobile);
+  right: var(--site-margin-mobile);
+  height: 1px;
+  background: color-mix(in srgb, var(--tone-ink) 16%, transparent);
+  pointer-events: none;
+}
+
+/* Density variables. Sections use these instead of repeating a hard-coded clamp. */
+.site[data-density='open'] {
+  --section-pad-block: clamp(3.25rem, 7vw, 6.5rem);
+}
+
+.site[data-density='balanced'] {
+  --section-pad-block: clamp(3.5rem, 6.5vw, 6rem);
+}
+
+.site[data-density='dense'] {
+  --section-pad-block: clamp(2.75rem, 5vw, 4.5rem);
+}
+
+.site[data-density] .section {
+  padding-block: var(--section-pad-block);
+  padding-inline: var(--site-margin-mobile);
+}
+
+/* A static composition is a designed state: everything visible, no transform residue. */
+.site[data-motion='static'] .heroLineInner,
+.site[data-motion='static'] .wordInner,
+.site[data-motion='static'] .heroMedia,
+.site[data-motion='static'] :is(.prose, .headDescription, .heroLead, .heroMeta, .actions, .ctaBody, .detailsList, .processList, .inlineFacts, .sectionHead),
+.site[data-motion='static'] .plate .mediaFrame {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  clip-path: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site .heroLineInner,
+  .site .heroMedia,
+  .site .wordInner,
+  .site :is(.prose, .headDescription, .heroLead, .heroMeta, .actions, .ctaBody, .detailsList, .processList, .inlineFacts, .sectionHead),
+  .site .plate .mediaFrame {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Cinematic composition, rebuilt for Adwoa’s House ─────────────────────────────────────── */
+
+.site[data-family='cinematic_full_bleed'] .hero {
+  min-height: 100svh;
+  padding: 7.5rem var(--site-margin-mobile) clamp(2rem, 4vw, 3.4rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMedia::after {
+  background:
+    linear-gradient(180deg, rgb(5 8 6 / 0.62) 0%, rgb(5 8 6 / 0.2) 23%, rgb(5 8 6 / 0.5) 64%, rgb(5 8 6 / 0.96) 100%),
+    linear-gradient(90deg, rgb(5 8 6 / 0.66) 0%, rgb(5 8 6 / 0.2) 52%, transparent 82%);
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMedia img {
+  animation: none;
+  transform-origin: 50% 45%;
+  filter: saturate(0.84) contrast(1.04) brightness(0.88);
+}
+
+.site[data-family='cinematic_full_bleed'] .heroLines {
+  margin-top: 1.4rem;
+  font-size: clamp(3.8rem, 12.4vw, 10.8rem);
+  line-height: 0.84;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroLines span {
+  display: block;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroLead {
+  max-width: 34ch;
+  margin-top: 1.6rem;
+  font-size: clamp(0.98rem, 1.3vw, 1.12rem);
+  line-height: 1.6;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid color-mix(in srgb, var(--colour-text) 28%, transparent);
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMeta > div {
+  padding: 0.45rem 0.8rem 0 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMeta > div + div {
+  border-left: 1px solid color-mix(in srgb, var(--colour-text) 17%, transparent);
+  padding-left: 0.9rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMeta dt {
+  color: color-mix(in srgb, var(--colour-text) 58%, transparent);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site[data-family='cinematic_full_bleed'] .heroMeta dd {
+  margin-top: 0.25rem;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.site[data-family='cinematic_full_bleed'] .hero .sectionNote {
+  margin-top: 1.2rem;
+  padding-top: 0.55rem;
+}
+
+/* Statement: a two-column editorial argument rather than a centred headline in a void. */
+.site[data-family='cinematic_full_bleed'] .statement {
+  padding-inline: var(--site-margin-mobile);
+  background: var(--colour-surface);
+}
+
+.site[data-family='cinematic_full_bleed'] .statementInner {
+  display: grid;
+  gap: 2.2rem;
+  max-width: 74rem;
+  margin-inline: auto;
+  text-align: left;
+}
+
+.site[data-family='cinematic_full_bleed'] .statementTitle {
+  max-width: 13ch;
+  margin: 0.9rem 0 0;
+  font-size: clamp(2.7rem, 6vw, 5.6rem);
+  line-height: 0.93;
+  text-align: left;
+}
+
+.site[data-family='cinematic_full_bleed'] .statement .prose {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--colour-muted-text);
+}
+
+.site[data-family='cinematic_full_bleed'] .statement .marginNote {
+  max-width: 38ch;
+  margin: 1.4rem 0 0;
+  border-color: var(--colour-border);
+}
+
+.site[data-family='cinematic_full_bleed'] .statementMedia {
+  max-width: 86rem;
+  margin: 3rem auto 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .statementMedia .mediaFrame {
+  aspect-ratio: 16 / 8.5;
+}
+
+/* Sequence: establishing frame, offset portrait, close detail — a composition, not three copies. */
+.site[data-family='cinematic_full_bleed'] .sequence {
+  padding: 0;
+  background: var(--colour-background);
+}
+
+.site[data-family='cinematic_full_bleed'] .sequence > .sectionHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1.2rem;
+  padding: clamp(4rem, 8vw, 7rem) var(--site-margin-mobile) 2.4rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.4rem;
+  padding-inline: var(--site-margin-mobile);
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate {
+  margin: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .mediaFrame {
+  aspect-ratio: 4 / 5;
+  min-height: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+  aspect-ratio: 16 / 9;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+  width: 78%;
+  margin-left: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) .mediaFrame {
+  aspect-ratio: 4 / 5;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) {
+  width: 88%;
+  margin-right: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) .mediaFrame {
+  aspect-ratio: 3 / 2;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequenceGrid .caption {
+  margin: 0;
+  padding: 0.7rem 0 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--colour-text) 18%, transparent);
+  color: color-mix(in srgb, var(--colour-text) 66%, transparent);
+  font-size: 0.7rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .sequence > .sectionNote {
+  margin: 2.4rem var(--site-margin-mobile) 0;
+  padding-top: 0.8rem;
+  border-color: var(--colour-border);
+}
+
+/* Desktop triptych. A single centred column left the caption of one plate sitting level with the top
+   of the next, and two thirds of the width empty beside each frame. The three plates now share one
+   12-column field: an establishing 16:9 frame, a portrait hung low at the right, and a 3:2 detail
+   aligned to the second row. The captions align to their own plate, and the section is shorter. */
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    column-gap: var(--site-gutter);
+    row-gap: clamp(2.2rem, 4vw, 3.6rem);
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) {
+    grid-column: 1 / span 8;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+    aspect-ratio: 16 / 9;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    grid-column: 9 / span 4;
+    width: auto;
+    margin: clamp(3rem, 7vw, 6.5rem) 0 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) .mediaFrame {
+    aspect-ratio: 4 / 5;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) {
+    grid-column: 5 / span 8;
+    width: auto;
+    margin: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) .mediaFrame {
+    aspect-ratio: 3 / 2;
+  }
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .statement {
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statementInner {
+    grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.82fr);
+    align-items: end;
+    column-gap: clamp(3rem, 6vw, 6rem);
+    row-gap: 2rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statementTitle {
+    margin-top: 1.1rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statementMedia .mediaFrame {
+    aspect-ratio: 16 / 7.4;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequence > .sectionHead {
+    padding-inline: var(--site-margin);
+    padding-bottom: 2.8rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: clamp(1rem, 2vw, 1.8rem);
+    row-gap: 2.4rem;
+    padding-inline: var(--site-margin);
+    align-items: start;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) {
+    grid-column: 1 / 11;
+    grid-row: 1;
+    width: auto;
+    margin: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+    aspect-ratio: 16 / 7.6;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    grid-column: 6 / 13;
+    grid-row: 2;
+    z-index: 2;
+    width: auto;
+    margin: -4.5rem 0 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) .mediaFrame {
+    aspect-ratio: 4 / 5;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) {
+    grid-column: 1 / 8;
+    grid-row: 3;
+    width: auto;
+    margin: -3.5rem 0 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) .mediaFrame {
+    aspect-ratio: 3 / 2;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .caption {
+    margin-top: 0.6rem;
+  }
+}
+
+/* Register: a compact, comparable index with a sticky preview on large screens. */
+.site[data-family='cinematic_full_bleed'] .indexSection {
+  padding-inline: var(--site-margin-mobile);
+  background: var(--colour-background);
+}
+
+.site[data-family='cinematic_full_bleed'] .indexSection .sectionHead {
+  max-width: var(--site-max);
+  margin-inline: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout {
+  max-width: var(--site-max);
+  margin: 1rem auto 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexList {
+  margin-top: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) 6.2rem;
+  align-items: start;
+  gap: 0.8rem;
+  min-height: 0;
+  padding: 1.2rem 0;
+  overflow: visible;
+  border-top: 1px solid color-mix(in srgb, var(--colour-text) 18%, transparent);
+  background: transparent;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow::after {
+  display: none;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexNumber {
+  position: static;
+  color: color-mix(in srgb, var(--colour-support) 78%, var(--colour-text));
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody {
+  width: auto;
+  padding: 0;
+  color: var(--colour-text);
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody h3 {
+  margin-top: 0.35rem;
+  font-size: clamp(1.8rem, 6vw, 2.7rem);
+  line-height: 0.96;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody p {
+  max-width: 42ch;
+  margin-top: 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow[data-active] .indexNumber {
+  color: var(--colour-support);
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexThumb {
+  position: relative;
+  inset: auto;
+  width: 6.2rem;
+  height: 7.7rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--colour-text) 8%, var(--colour-background));
+}
+
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexThumb .plate,
+.site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexThumb .mediaFrame {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .indexPreview {
+  display: none;
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .indexSection {
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.72fr);
+    align-items: start;
+    gap: clamp(3rem, 6vw, 7rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow {
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+    padding: 1.45rem 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody h3 {
+    font-size: clamp(2rem, 3.7vw, 3.6rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexThumb {
+    display: none;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreview {
+    position: sticky;
+    top: 6.5rem;
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--colour-text) 7%, var(--colour-background));
+    isolation: isolate;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewFrame {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transition: opacity 420ms ease, clip-path var(--scene-duration, 760ms) var(--scene-ease, ease);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewFrame[data-active] {
+    z-index: 2;
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewFrame .plate,
+  .site[data-family='cinematic_full_bleed'] .indexPreviewFrame .mediaFrame {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewFrame img {
+    filter: saturate(0.82) contrast(1.03) brightness(0.86);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewMeta {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1rem 0.85rem;
+    color: var(--colour-text);
+    background: linear-gradient(180deg, transparent, rgb(5 8 6 / 0.82));
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreviewMeta span:last-child {
+    max-width: 19ch;
+    text-align: right;
+  }
+}
+
+/* Chapter: copy and image are a spread, not a poster with a caption. */
+.site[data-family='cinematic_full_bleed'] .chapter {
+  display: grid;
+  gap: 1.6rem;
+  min-height: 0;
+  padding-inline: var(--site-margin-mobile);
+  align-items: start;
+  background: var(--colour-background);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterCopy {
+  position: relative;
+  z-index: 2;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  color: var(--colour-text);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterHeading {
+  gap: 0.9rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterNumber {
+  font-size: clamp(2rem, 4vw, 3.8rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapter h2 {
+  max-width: 14ch;
+  margin: 1rem 0 1.4rem;
+  font-size: clamp(2.5rem, 5.4vw, 5rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapter .prose {
+  max-width: 48ch;
+  color: color-mix(in srgb, var(--colour-text) 80%, transparent);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  order: -1;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--colour-text) 7%, var(--colour-background));
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia .plate,
+.site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+  height: 100%;
+  aspect-ratio: 4 / 5;
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia::after {
+  background: linear-gradient(180deg, transparent 62%, rgb(5 8 6 / 0.38));
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia img {
+  filter: saturate(0.84) contrast(1.03) brightness(0.92);
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia img[src$='.svg'] {
+  object-fit: contain;
+  padding: 1.2rem;
+  background: var(--colour-surface);
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .chapter {
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+    column-gap: clamp(3rem, 6vw, 6.5rem);
+    align-items: center;
+    min-height: 36rem;
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterCopy {
+    position: sticky;
+    top: 7rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia {
+    order: 0;
+    min-height: 34rem;
+    max-height: 72svh;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+    min-height: 34rem;
+    max-height: 72svh;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapter .sectionNote {
+    max-width: 42ch;
+  }
+}
+
+/* Gallery: a composed contact sheet with three deliberate weights. */
+.site[data-family='cinematic_full_bleed'] .gallery {
+  padding-top: clamp(4rem, 8vw, 7rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.4rem;
+  padding-inline: var(--site-margin-mobile);
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .plate {
+  margin: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .mediaFrame {
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(2) {
+  width: 78%;
+  margin-left: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(2) .mediaFrame {
+  aspect-ratio: 4 / 5;
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(3) {
+  width: 88%;
+}
+
+.site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(3) .mediaFrame {
+  aspect-ratio: 3 / 2;
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .gallery {
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .galleryGrid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: clamp(1rem, 2vw, 1.8rem);
+    row-gap: 2rem;
+    padding-inline: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(1) {
+    grid-column: 1 / 8;
+    width: auto;
+    margin: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(2) {
+    grid-column: 8 / 13;
+    width: auto;
+    margin: 5rem 0 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(3) {
+    grid-column: 2 / 8;
+    width: auto;
+    margin: -1.5rem 0 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .galleryGrid .plate:nth-child(4) {
+    grid-column: 8 / 12;
+    width: auto;
+    margin: 2rem 0 0;
+  }
+}
+
+
+/* Details: a sticky proposition and a quiet ledger. */
+.site[data-family='cinematic_full_bleed'] .details {
+  display: grid;
+  gap: 1.6rem;
+  padding-inline: var(--site-margin-mobile);
+  background: var(--colour-surface);
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsHead,
+.site[data-family='cinematic_full_bleed'] .detailsList,
+.site[data-family='cinematic_full_bleed'] .detailsAction {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsHead {
+  gap: 0.9rem;
+  margin-bottom: 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsHead h2 {
+  max-width: 12ch;
+  font-size: clamp(2.4rem, 5.2vw, 4.8rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsList {
+  margin: 0;
+  border-top: 1px solid var(--colour-border);
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsList > div {
+  padding: 0.95rem 0;
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsList dt {
+  width: 6.8rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsList dd {
+  font-size: clamp(1.05rem, 1.7vw, 1.32rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .detailsAction {
+  margin-top: 1rem;
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .details {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    column-gap: clamp(3rem, 7vw, 8rem);
+    align-items: start;
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .detailsHead {
+    position: sticky;
+    top: 7rem;
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .detailsList {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .detailsAction {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .details > .sectionNote {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Process: a sequence track with clear numbered pauses. */
+.site[data-family='cinematic_full_bleed'] .process {
+  padding-inline: var(--site-margin-mobile);
+  background: var(--colour-surface);
+}
+
+.site[data-family='cinematic_full_bleed'] .processList {
+  display: grid;
+  gap: 1.4rem;
+  margin-top: 2rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .processList li {
+  padding: 1.2rem 0 0;
+  border-top: 1px solid var(--colour-border);
+}
+
+.site[data-family='cinematic_full_bleed'] .stepNumber {
+  font-size: 2rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .processList h3 {
+  margin: 0.45rem 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 400;
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .process {
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .processList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.4rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .processList li {
+    min-height: 12rem;
+  }
+}
+
+/* Invitation: the end of the walk, not a detached brochure panel. */
+.site[data-family='cinematic_full_bleed'] .cta {
+  overflow: hidden;
+  padding-inline: var(--site-margin-mobile);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--colour-support) 10%, transparent), transparent 58%),
+    var(--colour-surface);
+}
+
+.site[data-family='cinematic_full_bleed'] .ctaInner {
+  max-width: 68rem;
+}
+
+.site[data-family='cinematic_full_bleed'] .cta h2 {
+  max-width: 15ch;
+  margin: 1rem auto 1.6rem;
+  font-size: clamp(2.8rem, 6.4vw, 6.4rem);
+}
+
+.site[data-family='cinematic_full_bleed'] .ctaBody > p {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+.site[data-family='cinematic_full_bleed'] .cta .actions {
+  justify-content: center;
+}
+
+.site[data-family='cinematic_full_bleed'] .ctaNote {
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+
+/* Final composition pass: keep the editorial image beside the argument, not below it. */
+.site[data-family='cinematic_full_bleed'] .statementMedia .mediaFrame {
+  aspect-ratio: 16 / 8;
+}
+
+.site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+  aspect-ratio: 4 / 3;
+}
+
+@media (max-width: 63.99rem) {
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+    aspect-ratio: 16 / 8.4;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    width: 68%;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) {
+    width: 82%;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow {
+    grid-template-columns: 2rem minmax(0, 1fr) 5.2rem;
+    gap: 0.7rem;
+    padding: 0.95rem 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexThumb {
+    width: 5.2rem;
+    height: 6.6rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody h3 {
+    font-size: clamp(1.55rem, 5.2vw, 2.2rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody p {
+    margin-top: 0.5rem;
+    font-size: 0.76rem;
+    line-height: 1.5;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(19rem, 0.72fr);
+    column-gap: clamp(3rem, 6vw, 6rem);
+    align-items: end;
+    padding-inline: var(--site-margin);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) .statementInner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.6rem;
+    max-width: 46rem;
+    margin: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) .statementTitle {
+    font-size: clamp(2.8rem, 5.3vw, 5rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) .statementMedia {
+    width: 100%;
+    margin: 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) .statementMedia .mediaFrame {
+    aspect-ratio: 4 / 5;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) > .sectionNote {
+    grid-column: 1 / -1;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .statement:not(:has(.statementMedia)) .statementInner {
+    grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.8fr);
+    align-items: end;
+    column-gap: clamp(3rem, 6vw, 6rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) {
+    grid-column: 1 / 10;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+    aspect-ratio: 16 / 6.8;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    grid-column: 7 / 12;
+    margin-top: -3rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) {
+    grid-column: 1 / 7;
+    margin-top: -2.5rem;
+  }
+}
+
+
+/* Compact mobile composition: shorter image bands, more page-to-page rhythm. */
+@container site (max-width: 47.99rem) {
+  .site[data-family='cinematic_full_bleed'] .hero {
+    min-height: 100svh;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(1) .mediaFrame {
+    aspect-ratio: 16 / 7.8;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    width: 50%;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapter h2 {
+    font-size: clamp(2.2rem, 8vw, 3rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapter .prose {
+    font-size: 0.95rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .plate,
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+    height: auto;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+    aspect-ratio: 16 / 8.4;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexSection .sectionHead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 0.9rem;
+    margin-bottom: 1.8rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexSection .sectionHead h2 {
+    font-size: clamp(2rem, 7vw, 2.6rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexSection .sectionHead .count {
+    justify-self: start;
+    margin-top: 0.2rem;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexRow {
+    padding: 0.85rem 0;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexLayout[data-interactive] .indexBody h3 {
+    font-size: clamp(1.45rem, 5vw, 1.9rem);
+  }
+
+  .site[data-family='cinematic_full_bleed'] .cta h2 {
+    font-size: clamp(2.5rem, 10vw, 3.4rem);
+  }
+}
+
+@container site (min-width: 64rem) {
+  .site[data-family='cinematic_full_bleed'] .statement:has(.statementMedia) .statementMedia .mediaFrame {
+    aspect-ratio: 4 / 4.4;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(2) {
+    grid-column: 8 / 12;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .chapterMedia .mediaFrame {
+    aspect-ratio: 16 / 11;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .sequenceGrid .plate:nth-child(3) .mediaFrame {
+    aspect-ratio: 16 / 9;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .indexPreview {
+    aspect-ratio: 1 / 1;
+  }
+
+  .site[data-family='cinematic_full_bleed'] .cta {
+    padding-block: 3.5rem;
+  }
+}
+

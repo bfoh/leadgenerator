@@ -10,7 +10,21 @@ import type { SectorProfile } from './creative-direction';
 import type { BlueprintAction, SiteTone } from './website-blueprint';
 
 /** A named visual slot resolved against the approved asset set. */
-export type AssetRole = 'hero' | 'portrait' | 'detail' | 'scene' | 'context' | 'drawing' | 'drawing-alt' | 'texture';
+export type AssetRole =
+  | 'hero'
+  | 'portrait'
+  | 'detail'
+  | 'scene'
+  | 'context'
+  | 'drawing'
+  | 'drawing-alt'
+  | 'texture'
+  | 'arrival'
+  | 'garden'
+  | 'threshold'
+  | 'table'
+  | 'room-alt'
+  | 'house';
 
 export interface EditorialPlate {
   assetRole: AssetRole;
@@ -18,6 +32,7 @@ export interface EditorialPlate {
   credit?: string;
   index?: string;
   emphasis?: 'portrait' | 'landscape' | 'square' | 'wide' | 'full';
+  focal?: 'centre' | 'top' | 'bottom' | 'left' | 'right';
   placeholder?: boolean;
 }
 

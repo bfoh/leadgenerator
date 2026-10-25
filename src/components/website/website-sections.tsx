@@ -1,21 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import { Fragment, useState, type CSSProperties } from 'react';
 import { pageHref, type BlueprintAction, type BlueprintSection, type MediaPlate } from '@/lib/domain/website-blueprint';
 import styles from './website.module.css';
 import { SiteAction } from './website-shell';
-import { toneClass, type WebsiteRenderContext } from './types';
+import { artDirectionFor, motionAttributes, toneClass, type WebsiteRenderContext } from './types';
 
 function SectionShell({
+  context,
   section,
   children,
   className = '',
-  reveal = true,
 }: {
+  context: WebsiteRenderContext;
   section: BlueprintSection;
   children: React.ReactNode;
   className?: string;
-  reveal?: boolean;
 }) {
   return (
     <section
@@ -23,10 +24,31 @@ function SectionShell({
       className={`${styles.section} ${styles[toneClass(section.tone)]} ${className}`.trim()}
       data-kind={section.kind}
       data-variant={section.variant}
-      data-reveal={reveal || undefined}
+      {...motionAttributes(context.blueprint, section)}
     >
       {children}
     </section>
+  );
+}
+
+/**
+ * Splits a heading into word masks without changing its accessible text. The masks are inline
+ * elements inside the heading; assistive technology reads the same sentence, and selecting the text
+ * still copies the original words.
+ */
+function Words({ text, className = '' }: { text: string; className?: string }) {
+  const words = text.split(/\s+/).filter(Boolean);
+  return (
+    <span className={className}>
+      {words.map((word, index) => (
+        <Fragment key={`${word}-${index}`}>
+          <span className={styles.wordMask}>
+            <span className={styles.wordInner} style={{ '--word-index': index } as CSSProperties}>{word}</span>
+          </span>
+          {index < words.length - 1 ? ' ' : null}
+        </Fragment>
+      ))}
+    </span>
   );
 }
 
@@ -49,12 +71,14 @@ export function ImagePlate({
   priority = false,
   parallax = false,
   bare = false,
+  sizes,
 }: {
   context: WebsiteRenderContext;
   plate: MediaPlate;
   priority?: boolean;
   parallax?: boolean;
   bare?: boolean;
+  sizes?: string;
 }) {
   const asset = context.assets.get(plate.assetId);
   const source = context.media.get(plate.assetId);
@@ -65,7 +89,7 @@ export function ImagePlate({
     <figure
       className={`${styles.plate} ${bare ? styles.plateBare : ''}`}
       data-span={plate.span}
-      data-motion={context.blueprint.direction.motionDirection}
+      data-focal={plate.focal}
       data-parallax={parallax || undefined}
     >
       <div className={styles.mediaFrame}>
@@ -74,6 +98,8 @@ export function ImagePlate({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={source.src}
+            srcSet={source.srcSet}
+            sizes={sizes ?? source.sizes}
             alt={source.alt || asset?.alt || ''}
             width={source.width}
             height={source.height}
@@ -111,7 +137,7 @@ function Actions({ context, primary, secondary }: { context: WebsiteRenderContex
 
 function Hero({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'hero' }> }) {
   return (
-    <SectionShell section={section} className={styles.hero} reveal={false}>
+    <SectionShell context={context} section={section} className={styles.hero}>
       {section.assetId && (
         <div className={styles.heroMedia} aria-hidden={section.variant === 'cinematic-frame' ? true : undefined}>
           <ImagePlate
@@ -119,6 +145,7 @@ function Hero({ context, section }: { context: WebsiteRenderContext; section: Ex
             plate={{ assetId: section.assetId, span: 'full' }}
             priority
             parallax={context.blueprint.direction.compositionFamily === 'asymmetric_offset'}
+            sizes="100vw"
             bare
           />
         </div>
@@ -128,7 +155,9 @@ function Hero({ context, section }: { context: WebsiteRenderContext; section: Ex
           <Eyebrow>{section.eyebrow}</Eyebrow>
           <h1 className={styles.heroLines} aria-label={section.lines.join(' ')}>
             {section.lines.map((line, index) => (
-              <span key={`${line}-${index}`} aria-hidden="true">{line}</span>
+              <span className={styles.heroLineMask} key={`${line}-${index}`} aria-hidden="true">
+                <span className={styles.heroLineInner} style={{ '--line-index': index } as CSSProperties}>{line}</span>
+              </span>
             ))}
           </h1>
           <p className={styles.heroLead}>{section.lead}</p>
@@ -154,11 +183,15 @@ function Hero({ context, section }: { context: WebsiteRenderContext; section: Ex
 
 function Statement({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'statement' }> }) {
   return (
-    <SectionShell section={section} className={styles.statement}>
+    <SectionShell context={context} section={section} className={styles.statement}>
       <div className={styles.statementInner}>
         <div className={styles.statementCopy}>
           <Eyebrow>{section.label}</Eyebrow>
-          {section.title && <h2 className={styles.statementTitle}>{section.title}</h2>}
+          {section.title && (
+            <h2 className={styles.statementTitle}>
+              <Words text={section.title} />
+            </h2>
+          )}
           <div className={styles.prose}>
             {section.body.map((paragraph) => (
               <p key={paragraph.slice(0, 48)}>{paragraph}</p>
@@ -184,11 +217,15 @@ function Statement({ context, section }: { context: WebsiteRenderContext; sectio
 
 function Sequence({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'sequence' }> }) {
   return (
-    <SectionShell section={section} className={styles.sequence}>
+    <SectionShell context={context} section={section} className={styles.sequence}>
       <div className={styles.sectionHead}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
-          {section.title && <h2>{section.title}</h2>}
+          {section.title && (
+            <h2>
+              <Words text={section.title} />
+            </h2>
+          )}
         </div>
         <span className={styles.count}>{String(section.items.length).padStart(2, '0')} plates</span>
       </div>
@@ -209,52 +246,89 @@ function Sequence({ context, section }: { context: WebsiteRenderContext; section
 }
 
 function IndexSectionView({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'index' }> }) {
+  const plan = artDirectionFor(context.blueprint);
+  const previewEntries = section.entries.filter((entry) => Boolean(entry.assetId));
+  const interactive = plan.layout.indexMode === 'sticky-preview' && previewEntries.length > 1;
+  const [activeAsset, setActiveAsset] = useState(0);
+  const activate = (assetId: string | undefined) => {
+    if (!interactive || !assetId) return;
+    const index = previewEntries.findIndex((entry) => entry.assetId === assetId);
+    if (index >= 0) setActiveAsset(index);
+  };
+
   return (
-    <SectionShell section={section} className={styles.indexSection}>
+    <SectionShell context={context} section={section} className={`${styles.indexSection} ${styles.indexSectionInteractive}`}>
       <div className={styles.sectionHead}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
-          <h2>{section.title}</h2>
+          <h2>
+            <Words text={section.title} />
+          </h2>
           {section.description && <p className={styles.headDescription}>{section.description}</p>}
         </div>
         {section.countLabel && <span className={styles.count}>{section.countLabel}</span>}
       </div>
-      <ol className={styles.indexList}>
-        {section.entries.map((entry) => (
-          <li key={`${entry.number}-${entry.title}`} className={styles.indexRow}>
-            <span className={styles.indexNumber}>{entry.number}</span>
-            <div className={styles.indexBody}>
-              {entry.tag && <span className={styles.tag}>{entry.tag}</span>}
-              <h3>
-                {entry.pageSlug ? (
-                  <Link
-                    href={pageHref(context.basePath, entry.pageSlug)}
-                    onClick={(event) => {
-                      if (context.onNavigate) {
-                        event.preventDefault();
-                        context.onNavigate(entry.pageSlug!);
-                      }
-                    }}
-                  >
-                    {entry.title}
-                  </Link>
-                ) : (
-                  entry.title
-                )}
-              </h3>
-              <ul className={styles.indexMeta} aria-label="Entry metadata">
-                {entry.meta.map((meta) => <li key={meta}>{meta}</li>)}
-              </ul>
-              {entry.summary && <p>{entry.summary}</p>}
-            </div>
-            {entry.assetId && (
-              <div className={styles.indexThumb}>
-                <ImagePlate context={context} plate={{ assetId: entry.assetId, span: 'portrait' }} bare />
+      <div className={styles.indexLayout} data-index-mode={plan.layout.indexMode} data-interactive={interactive || undefined}>
+        <ol className={styles.indexList}>
+          {section.entries.map((entry) => (
+            <li
+              key={`${entry.number}-${entry.title}`}
+              className={styles.indexRow}
+              data-active={interactive && entry.assetId === previewEntries[activeAsset]?.assetId ? '' : undefined}
+              onMouseEnter={() => activate(entry.assetId)}
+              onFocus={() => activate(entry.assetId)}
+            >
+              <span className={styles.indexNumber}>{entry.number}</span>
+              <div className={styles.indexBody}>
+                {entry.tag && <span className={styles.tag}>{entry.tag}</span>}
+                <h3>
+                  {entry.pageSlug ? (
+                    <Link
+                      href={pageHref(context.basePath, entry.pageSlug)}
+                      onClick={(event) => {
+                        if (context.onNavigate) {
+                          event.preventDefault();
+                          context.onNavigate(entry.pageSlug!);
+                        }
+                      }}
+                    >
+                      {entry.title}
+                    </Link>
+                  ) : (
+                    entry.title
+                  )}
+                </h3>
+                <ul className={styles.indexMeta} aria-label="Entry metadata">
+                  {entry.meta.map((meta) => <li key={meta}>{meta}</li>)}
+                </ul>
+                {entry.summary && <p>{entry.summary}</p>}
               </div>
-            )}
-          </li>
-        ))}
-      </ol>
+              {entry.assetId && (
+                <div className={styles.indexThumb}>
+                  <ImagePlate context={context} plate={{ assetId: entry.assetId, span: 'portrait' }} sizes="6rem" bare />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+        {interactive && (
+          <div className={styles.indexPreview} aria-hidden="true">
+            {previewEntries.map((entry, index) => (
+              <div
+                className={styles.indexPreviewFrame}
+                data-active={index === activeAsset || undefined}
+                key={entry.assetId}
+              >
+                <ImagePlate context={context} plate={{ assetId: entry.assetId!, span: 'portrait' }} sizes="(min-width: 64rem) 34vw, 26vw" bare />
+              </div>
+            ))}
+            <div className={styles.indexPreviewMeta}>
+              <span>{previewEntries[activeAsset]?.number}</span>
+              <span>{previewEntries[activeAsset]?.title}</span>
+            </div>
+          </div>
+        )}
+      </div>
       {section.note && <SectionNote>{section.note}</SectionNote>}
     </SectionShell>
   );
@@ -262,13 +336,15 @@ function IndexSectionView({ context, section }: { context: WebsiteRenderContext;
 
 function Chapter({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'chapter' }> }) {
   return (
-    <SectionShell section={section} className={styles.chapter}>
+    <SectionShell context={context} section={section} className={styles.chapter}>
       <div className={styles.chapterCopy}>
         <div className={styles.chapterHeading}>
           {section.number && <span className={styles.chapterNumber}>{section.number}</span>}
           <Eyebrow>{section.label}</Eyebrow>
         </div>
-        <h2>{section.title}</h2>
+        <h2>
+          <Words text={section.title} />
+        </h2>
         <div className={styles.prose}>
           {section.body.map((paragraph) => <p key={paragraph.slice(0, 48)}>{paragraph}</p>)}
         </div>
@@ -293,13 +369,15 @@ function Chapter({ context, section }: { context: WebsiteRenderContext; section:
   );
 }
 
-function Process({ section }: { section: Extract<BlueprintSection, { kind: 'process' }> }) {
+function Process({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'process' }> }) {
   return (
-    <SectionShell section={section} className={styles.process}>
+    <SectionShell context={context} section={section} className={styles.process}>
       <div className={styles.sectionHead}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
-          <h2>{section.title}</h2>
+          <h2>
+            <Words text={section.title} />
+          </h2>
         </div>
         <span className={styles.count}>{String(section.steps.length).padStart(2, '0')} moves</span>
       </div>
@@ -319,11 +397,15 @@ function Process({ section }: { section: Extract<BlueprintSection, { kind: 'proc
 
 function Gallery({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'gallery' }> }) {
   return (
-    <SectionShell section={section} className={styles.gallery}>
+    <SectionShell context={context} section={section} className={styles.gallery}>
       <div className={styles.sectionHead}>
         <div>
           <Eyebrow>{section.label}</Eyebrow>
-          {section.title && <h2>{section.title}</h2>}
+          {section.title && (
+            <h2>
+              <Words text={section.title} />
+            </h2>
+          )}
         </div>
         <span className={styles.count}>{String(section.items.length).padStart(2, '0')} plates</span>
       </div>
@@ -339,10 +421,12 @@ function Gallery({ context, section }: { context: WebsiteRenderContext; section:
 
 function Details({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'details' }> }) {
   return (
-    <SectionShell section={section} className={styles.details}>
+    <SectionShell context={context} section={section} className={styles.details}>
       <div className={styles.detailsHead}>
         <Eyebrow>{section.label}</Eyebrow>
-        <h2>{section.title}</h2>
+        <h2>
+          <Words text={section.title} />
+        </h2>
         {section.body && <p>{section.body}</p>}
       </div>
       <dl className={styles.detailsList}>
@@ -368,11 +452,13 @@ function Details({ context, section }: { context: WebsiteRenderContext; section:
 
 function Cta({ context, section }: { context: WebsiteRenderContext; section: Extract<BlueprintSection, { kind: 'cta' }> }) {
   return (
-    <SectionShell section={section} className={styles.cta}>
+    <SectionShell context={context} section={section} className={styles.cta}>
       <div className={styles.ctaInner}>
         <div>
           <Eyebrow>{section.eyebrow}</Eyebrow>
-          <h2>{section.title}</h2>
+          <h2>
+            <Words text={section.title} />
+          </h2>
         </div>
         <div className={styles.ctaBody}>
           <p>{section.body}</p>
@@ -397,7 +483,7 @@ export function SectionView({ context, section }: { context: WebsiteRenderContex
     case 'chapter':
       return <Chapter context={context} section={section} />;
     case 'process':
-      return <Process section={section} />;
+      return <Process context={context} section={section} />;
     case 'gallery':
       return <Gallery context={context} section={section} />;
     case 'details':

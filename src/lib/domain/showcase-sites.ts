@@ -46,7 +46,7 @@ interface ShowcaseConfig {
   slug: string;
   conceptKey: string;
   editorial: WebsiteEditorial;
-  roleAssets: Record<AssetRole, string>;
+  roleAssets: Partial<Record<AssetRole, string>>;
   tagline: string;
   description: string;
   accent: string;
@@ -78,14 +78,20 @@ const CONFIGS: Record<string, ShowcaseConfig> = {
     conceptKey: 'arrival',
     editorial: ADWOA_EDITORIAL,
     roleAssets: {
-      hero: 'adwoa-room-evening',
+      arrival: 'adwoa-room-evening',
+      threshold: 'adwoa-room-evening',
+      house: 'adwoa-room-evening',
+      hero: 'adwoa-threshold',
       portrait: 'adwoa-room-window',
-      detail: 'adwoa-room-detail',
-      scene: 'adwoa-house-interior',
+      detail: 'adwoa-light-study',
+      scene: 'adwoa-garden',
       context: 'adwoa-cape-coast',
       drawing: 'adwoa-house-plan',
       'drawing-alt': 'adwoa-light-study',
-      texture: 'adwoa-room-detail',
+      texture: 'adwoa-table',
+      garden: 'adwoa-garden',
+      table: 'adwoa-table',
+      'room-alt': 'adwoa-room-alt',
     },
     tagline: 'Arrive slowly.',
     description: 'A cinematic guest-house website for a fictional nine-room house a short walk from Cape Coast Castle.',

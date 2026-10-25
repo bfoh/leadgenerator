@@ -358,9 +358,20 @@ composition family, then switches on each section kind and variant. It never use
 `dangerouslySetInnerHTML`, never accepts a URL from the blueprint, and never fetches a remote resource.
 Actions resolve to an internal page, an in-page anchor or a prototype notice; the enquiry, booking and
 brief buttons open a labelled `<dialog>` instead of a form. Images are passed separately from the
-blueprint as file sources, so a saved version never stores a signed URL. Motion is CSS keyed to the
-direction's specification and disabled under `prefers-reduced-motion`; the header menu traps focus, closes
-on Escape and returns focus to its button.
+blueprint as file sources, so a saved version never stores a signed URL; where variants exist the plate
+carries a native `srcset`, and every plate has an explicit width, height and controlled focal crop.
+
+Since 3C.4R the motion is **executed, not described**. Each blueprint carries an `artDirection` plan
+(`src/lib/domain/website-art-direction.ts`): a layout decision (density, section spacing, media rhythm,
+index mode, sequence mode, section transition), an image treatment, and a scene recipe for each of the
+nine section kinds (heading, body, media and scroll behaviour, plus duration, easing, stagger and a
+bounded distance). `useWebsiteMotion` is the imperative boundary: an IntersectionObserver marks a scene
+as entered, one rAF-throttled passive scroll listener writes `--scene-progress` and `--scene-y`, and CSS
+owns every animated property. The layer is page-scoped — navigation disposes the observer and listeners,
+clears the inline custom properties and re-initialises against the new DOM — and
+`prefers-reduced-motion: reduce` disposes it entirely and exposes the static composition, as does a client
+without JavaScript. Older prototypes without a plan derive a deterministic one from their composition
+family and motion direction when they are parsed, so saved versions keep rendering.
 
 
 ## 6. Quality gates

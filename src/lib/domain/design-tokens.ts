@@ -162,7 +162,15 @@ export function buildPalette(input: {
   const text = ensureContrast(input.text, background, CONTRAST_REQUIREMENTS.normalText);
   const accent = normalizeHex(input.accent) ?? '#7A1F3D';
   const accentText = readableTextColour(accent);
-  const muted = ensureContrast(mixColours(text, background, 0.62), background, CONTRAST_REQUIREMENTS.normalText);
+  // Secondary ink appears on the page ground and on raised surfaces (`.toneSurface` sections, figure
+  // captions, notes). A surface is a shade away from the ground, so a colour measured only against the
+  // ground can lose the last fraction of a point on it — which is exactly how 4.62 became 4.35 in the
+  // showcase audit. Hold the target against both grounds instead of assuming they are equivalent.
+  const muted = ensureContrast(
+    ensureContrast(mixColours(text, background, 0.62), background, CONTRAST_REQUIREMENTS.normalText),
+    surface,
+    CONTRAST_REQUIREMENTS.normalText,
+  );
   const border = mixColours(text, background, 0.2);
   const support = ensureContrast(normalizeHex(input.support) ?? shiftLightness(accent, 0.3), background, CONTRAST_REQUIREMENTS.ui);
   const names = input.names ?? {};
@@ -196,6 +204,7 @@ export function contrastChecks(palette: readonly PaletteToken[]): ContrastCheck[
     { foreground: text, background, usage: 'Body text on the page ground', target: CONTRAST_REQUIREMENTS.normalText },
     { foreground: text, background: surface, usage: 'Body text on a raised surface', target: CONTRAST_REQUIREMENTS.normalText },
     { foreground: muted, background, usage: 'Secondary text and captions', target: CONTRAST_REQUIREMENTS.normalText },
+    { foreground: muted, background: surface, usage: 'Secondary text on a raised surface', target: CONTRAST_REQUIREMENTS.normalText },
     { foreground: accentText, background: accent, usage: 'Text on an accent button', target: CONTRAST_REQUIREMENTS.normalText },
     { foreground: support, background, usage: 'Support tone used for rules and large accents', target: CONTRAST_REQUIREMENTS.ui },
   ];

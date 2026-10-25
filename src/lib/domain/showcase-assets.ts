@@ -30,6 +30,8 @@ function photo(input: {
   licenceUrl: string;
   sourceUrl: string;
 }): BlueprintAsset {
+  const sourcePath = `/showcase/${input.site}/${input.fileName}`;
+  const stem = sourcePath.replace(/\.jpg$/i, '');
   return {
     id: input.id,
     fileName: input.fileName,
@@ -43,9 +45,16 @@ function photo(input: {
     licence: { name: input.licence, reference: 'Prototype use; publication not granted', expiresOn: null, url: input.licenceUrl },
     permission: 'prototype',
     sourceKind: 'licensed_concept',
-    sourcePath: `/showcase/${input.site}/${input.fileName}`,
+    sourcePath,
     sourceUrl: input.sourceUrl,
     checksum: null,
+    // Pre-generated from the source with no upscaling. The renderer emits a native srcset; a client
+    // without srcset support still receives the full image.
+    variants: [
+      { width: 640, src: `${stem}-640.jpg` },
+      { width: 1280, src: `${stem}-1280.jpg` },
+      ...(input.width >= 1600 ? [{ width: 1600, src: `${stem}-1600.jpg` }] : []),
+    ],
   };
 }
 
@@ -157,8 +166,8 @@ export const ADWOA_ASSETS: BlueprintAsset[] = [
     fileName: 'room-evening.jpg',
     width: 2000,
     height: 1333,
-    alt: 'A bedroom in warm, low light with a made bed and a timber headboard.',
-    caption: 'Concept image: the room at the hour guests arrive. Not the finished room.',
+    alt: 'A bedroom in warm lamplight, its glass doors open onto a planted courtyard.',
+    caption: 'Concept image: a room at dusk with the garden doors open. Not a photograph of Adwoa’s House.',
     credit: 'Unsplash contributor / Unsplash License',
     licence: 'Unsplash License',
     licenceUrl: unsplash,
@@ -170,38 +179,12 @@ export const ADWOA_ASSETS: BlueprintAsset[] = [
     fileName: 'room-window.jpg',
     width: 1800,
     height: 1350,
-    alt: 'A guest bedroom with pale bedding and curtains drawn across a large window.',
-    caption: 'Concept image: linen and the light from one window.',
+    alt: 'Heavy green drapes and lamplight in a carpeted room, with a tufted sofa in the foreground.',
+    caption: 'Concept image: heavy drapes and a low lamp. Not a room in this house.',
     credit: 'Unsplash contributor / Unsplash License',
     licence: 'Unsplash License',
     licenceUrl: unsplash,
     sourceUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427',
-  }),
-  photo({
-    id: 'adwoa-room-detail',
-    site: 'adwoas-house',
-    fileName: 'room-detail.jpg',
-    width: 1600,
-    height: 1067,
-    alt: 'A bed with layered pillows and a timber frame in a quiet interior.',
-    caption: 'A detail for the room page; room names and rates remain placeholders.',
-    credit: 'Unsplash contributor / Unsplash License',
-    licence: 'Unsplash License',
-    licenceUrl: unsplash,
-    sourceUrl: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461',
-  }),
-  photo({
-    id: 'adwoa-house-interior',
-    site: 'adwoas-house',
-    fileName: 'house-interior.jpg',
-    width: 2000,
-    height: 1333,
-    alt: 'A living room with a sofa, framed art and daylight from tall windows.',
-    caption: 'Concept image: the common room, a proposal for the walled garden side.',
-    credit: 'Unsplash contributor / Unsplash License',
-    licence: 'Unsplash License',
-    licenceUrl: unsplash,
-    sourceUrl: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea',
   }),
   photo({
     id: 'adwoa-cape-coast',
@@ -215,6 +198,58 @@ export const ADWOA_ASSETS: BlueprintAsset[] = [
     licence: 'CC BY-SA 2.0',
     licenceUrl: ccBySa2,
     sourceUrl: 'https://commons.wikimedia.org/wiki/File:Cape_Coast_Castle_-_Courtyard_-_Cape_Coast_-_Ghana_(4714472673).jpg',
+  }),
+  photo({
+    id: 'adwoa-garden',
+    site: 'adwoas-house',
+    fileName: 'garden-light.jpg',
+    width: 1333,
+    height: 2000,
+    alt: 'A pale room with a round table, a plant and an arc lamp beside tall boarded walls.',
+    caption: 'Concept image: plants and pale light. Not a recorded garden or service.',
+    credit: 'Unsplash contributor / Unsplash License',
+    licence: 'Unsplash License',
+    licenceUrl: unsplash,
+    sourceUrl: 'https://images.unsplash.com/photo-1519710164239-da123dc03ef4',
+  }),
+  photo({
+    id: 'adwoa-table',
+    site: 'adwoas-house',
+    fileName: 'table-light.jpg',
+    width: 2000,
+    height: 1333,
+    alt: 'A long dark table under a stair, in daylight from tall glazing.',
+    caption: 'Concept image: a long table under a stair. Not the house’s own furniture.',
+    credit: 'Unsplash contributor / Unsplash License',
+    licence: 'Unsplash License',
+    licenceUrl: unsplash,
+    sourceUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d',
+  }),
+  photo({
+    id: 'adwoa-threshold',
+    site: 'adwoas-house',
+    fileName: 'threshold-interior.jpg',
+    width: 2000,
+    height: 1333,
+    alt: 'A sitting room with a red chair and framed pictures, seen past a kitchen doorway.',
+    caption: 'Concept image: a room seen from its doorway. Not a photograph of Adwoa’s House.',
+    credit: 'Unsplash contributor / Unsplash License',
+    licence: 'Unsplash License',
+    licenceUrl: unsplash,
+    sourceUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267',
+  }),
+  photo({
+    id: 'adwoa-room-alt',
+    site: 'adwoas-house',
+    fileName: 'room-alt.jpg',
+    width: 2000,
+    height: 1333,
+    alt: 'A bright bedroom with white bedding, timber furniture and doors open to greenery.',
+    caption: 'Concept image: morning light through open doors. Room names, rates and amenities are unconfirmed.',
+    credit: 'Unsplash contributor / Unsplash License',
+    licence: 'Unsplash License',
+    licenceUrl: unsplash,
+    sourceUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b',
   }),
   drawing({
     id: 'adwoa-house-plan',
@@ -336,5 +371,9 @@ export function showcaseMedia(assets: readonly BlueprintAsset[]): BlueprintMedia
     width: asset.width ?? 1200,
     height: asset.height ?? 1500,
     alt: asset.alt,
+    srcSet: asset.variants?.length
+      ? [...asset.variants.map((variant) => `${variant.src} ${variant.width}w`), `${asset.sourcePath} ${asset.width ?? 2000}w`].join(', ')
+      : undefined,
+    sizes: '(min-width: 64rem) 56vw, 100vw',
   }));
 }

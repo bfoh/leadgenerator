@@ -9,8 +9,23 @@
 // persisted as an immutable prototype version (migration 015) rather than edited in place.
 
 import { z } from 'zod';
-import { type CompositionFamily, type DesignTokens } from './design-tokens';
+import { MOTION_DIRECTIONS, type CompositionFamily, type DesignTokens, type MotionDirection } from './design-tokens';
 import type { FontRoleBinding } from './bundled-fonts';
+import {
+  IMAGE_TREATMENTS,
+  INDEX_MODES,
+  LAYOUT_DENSITIES,
+  MEDIA_RHYTHMS,
+  MOTION_EASING_NAMES,
+  MOTION_EFFECTS,
+  MOTION_SCENES,
+  SCROLL_BEHAVIOURS,
+  SECTION_SPACING,
+  SEQUENCE_MODES,
+  artDirectionProblems,
+  buildArtDirection,
+  type BlueprintArtDirection,
+} from './website-art-direction';
 
 export const WEBSITE_BLUEPRINT_FORMAT = 'dof-website-blueprint/1';
 
@@ -41,6 +56,8 @@ export interface MediaPlate {
   credit?: string;
   index?: string;
   span: PlateSpan;
+  /** A controlled crop focus; no arbitrary object-position string crosses the boundary. */
+  focal?: 'centre' | 'top' | 'bottom' | 'left' | 'right';
   placeholder?: boolean;
 }
 
@@ -209,6 +226,8 @@ export interface BlueprintAsset {
   /** The licence evidence page; a reference is shown as text, never hotlinked. */
   sourceUrl: string | null;
   checksum: string | null;
+  /** Optional pre-generated responsive renditions. The renderer adds a native srcset when present. */
+  variants?: { width: number; src: string }[];
 }
 
 export interface BlueprintNavigation {
@@ -279,6 +298,8 @@ export interface WebsiteBlueprint {
   direction: BlueprintDirectionBinding;
   brandKit: { versionId: string; version: number; paletteNames: string[] };
   tokens: DesignTokens;
+  /** Optional on older immutable prototypes; new blueprints always carry an executable plan. */
+  artDirection?: BlueprintArtDirection;
   typography: BlueprintTypography;
   navigation: BlueprintNavigation;
   pages: BlueprintPage[];
@@ -303,6 +324,7 @@ const plateSchema = z.object({
   credit: z.string().trim().max(300).optional(),
   index: z.string().trim().max(20).optional(),
   span: z.enum(PLATE_SPANS),
+  focal: z.enum(['centre', 'top', 'bottom', 'left', 'right']).optional(),
   placeholder: z.boolean().optional(),
 });
 
@@ -489,6 +511,41 @@ const assetSchema = z.object({
   sourcePath: z.string().min(1),
   sourceUrl: z.string().url().nullable(),
   checksum: z.string().nullable(),
+  variants: z.array(z.object({ width: z.number().int().positive(), src: z.string().min(1) })).max(6).optional(),
+});
+
+const artDirectionSchema = z.object({
+  layout: z.object({
+    density: z.enum(LAYOUT_DENSITIES),
+    sectionSpacing: z.enum(SECTION_SPACING),
+    mediaRhythm: z.enum(MEDIA_RHYTHMS),
+    indexMode: z.enum(INDEX_MODES),
+    sequenceMode: z.enum(SEQUENCE_MODES),
+    sectionTransition: z.enum(['rule', 'tone-shift', 'overlap', 'none']),
+  }),
+  motion: z.object({
+    engine: z.literal('native-css-io-raf/1'),
+    pageTransition: z.enum(['veil', 'settle', 'none']),
+    durationMs: z.number().int().min(0).max(900),
+    easing: z.enum(MOTION_EASING_NAMES),
+    staggerMs: z.number().int().min(0).max(140),
+    distancePx: z.number().int().min(0).max(40),
+    scenes: z
+      .array(
+        z.object({
+          scene: z.enum(MOTION_SCENES),
+          heading: z.enum(MOTION_EFFECTS),
+          body: z.enum(MOTION_EFFECTS),
+          media: z.enum(MOTION_EFFECTS),
+          scroll: z.enum(SCROLL_BEHAVIOURS),
+        }),
+      )
+      .length(MOTION_SCENES.length),
+    reducedMotion: z.literal('static'),
+    note: z.string().min(1),
+  }),
+  imageTreatment: z.enum(IMAGE_TREATMENTS),
+  note: z.string().min(1),
 });
 
 const fontBindingSchema = z.object({
@@ -560,6 +617,7 @@ export const websiteBlueprintSchema = z.object({
     radius: z.object({ basePx: z.number(), note: z.string() }),
     border: z.object({ widthPx: z.number(), note: z.string() }),
   }),
+  artDirection: artDirectionSchema.optional(),
   typography: z.object({ display: fontBindingSchema, body: fontBindingSchema, warnings: z.array(z.string()), note: z.string() }),
   navigation: z.object({
     style: z.enum(['editorial-line', 'overlay-sequence', 'offset-rail']),
@@ -678,11 +736,19 @@ export function blueprintProblems(blueprint: WebsiteBlueprint, availableMedia: r
   if (!blueprint.typography.display.bundled && !blueprint.typography.display.fallbackReason) {
     problems.push('An unbundled display face needs a documented fallback.');
   }
+  problems.push(...artDirectionProblems(blueprint.artDirection));
   return problems;
 }
 
 export function parseWebsiteBlueprint(input: unknown): WebsiteBlueprint {
-  return websiteBlueprintSchema.parse(input) as WebsiteBlueprint;
+  const parsed = websiteBlueprintSchema.parse(input) as WebsiteBlueprint;
+  if (!parsed.artDirection) {
+    const motion = MOTION_DIRECTIONS.includes(parsed.direction.motionDirection as MotionDirection)
+      ? (parsed.direction.motionDirection as MotionDirection)
+      : 'refined_reveal';
+    parsed.artDirection = buildArtDirection(parsed.direction.compositionFamily as CompositionFamily, motion);
+  }
+  return parsed;
 }
 
 export interface BlueprintComparison {
