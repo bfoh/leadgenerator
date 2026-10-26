@@ -435,6 +435,263 @@ rows 2, 3, 4, 5, 8 and 9 describe a fresh upgrade and still differ on a live pro
 3. Is `BRAVE_SEARCH_API_KEY` set on the production project? `/api/status` still reports
    `webSearch.configured: false`.
 
+## 11. Release preparation, 26 October 2026 (read only)
+
+The owner reports TRUE for all five objects §3 found missing, so **R-1 is closed**: 008 and 010 are in
+production. This section is what was verified afterwards, from the working copy only. Nothing was
+applied, deployed, pushed, promoted or billed; no production credential was read and no paid call was
+made. Two capabilities were unavailable from this machine and are delegated to the owner below: the
+production SQL preflight (no `psql`, no database URL) and the Vercel project settings (no Vercel toolkit
+or CLI here — `vercel` is not installed, so the dashboard or `npx vercel` is the path).
+
+### 11.1 Candidate and branch containment
+
+| Item | Value |
+| --- | --- |
+| Branch | `feature/google-business-resource-collector` |
+| Release candidate | `b5bc773f214a9db9634aaf63c5a0e3392b36e24b` (`b5bc773`) |
+| Working tree | clean before this section was written |
+| `origin/main` | `99b9a30`; the candidate is 24 commits ahead, and local `main` is fully contained |
+| Branches not contained in the candidate | none — `feature/codex-creative-excellence` (`1b92744`), `feature/milestone-3c-1/3/4`, `feature/ghana-industry-taxonomy` and `main` each report 0 commits missing |
+
+So the candidate holds every committed Codex creative commit (`1845c34` → `1b92744`) and every Cline
+engineering commit (`497ba5e` → `b5bc773`) in one linear tree. `git merge --ff-only` onto `main` is
+still the integration, as §1 found.
+
+### 11.2 Reference data: 16 regions, 261 districts
+
+Proved by applying 001–016 to a PGlite replica and reading the seeded rows back (also asserted by
+`tests/db/late-migrations.test.ts` and `tests/db/migrations.test.ts`): **16 rows in `ghana_regions`,
+261 in `ghana_districts`, 16 distinct district regions**, and `after-migrations.sql` rows 32–33 read
+`Ghana districts seeded 261` / `Ghana regions seeded 16` = `ok`.
+
+To confirm on production, run this read-only block in the SQL editor:
+
+```sql
+select (select count(*) from public.ghana_regions) as regions,                       -- expect 16
+       (select count(*) from public.ghana_districts) as districts,                   -- expect 261
+       (select count(distinct region) from public.ghana_districts) as regions_used,   -- expect 16
+       (select count(*) from public.ghana_regions r
+         where not exists (select 1 from public.ghana_districts d where d.region = r.name)) as empty_regions; -- expect 0
+```
+
+### 11.3 The read-only 001–016 preflight
+
+Run it exactly as [PRODUCTION_MIGRATION_PREFLIGHT](PRODUCTION_MIGRATION_PREFLIGHT.md) §2–§10 says: a
+read-only role, or `PGOPTIONS='-c default_transaction_read_only=on'`, or the single statement pasted
+into the SQL editor. It writes nothing, and `tests/db/migrations.test.ts` proves that twice.
+
+Expected on production, taken from the full-chain replica. Note the scale: `create table public.` appears
+56 times across 001–016, so a complete chain has **56 public tables** — reconcile that with §3's
+"48 of 52" and record the number this run reports, because that is the number that matters.
+
+| Section | Row | Expected now |
+| --- | --- | --- |
+| chain | 001–016, sixteen rows | `present` for every row |
+| gates | `002 baseline present` | `yes` |
+| gates | `gaps in the installed chain` | `none` |
+| gates | `next file to apply` | `none - chain complete` |
+| impact | `files still to apply` | `0` |
+| objects | `businesses` | `RLS on · 4 policies · 8 triggers` |
+| objects | `ghana_districts`, `ghana_regions` | `RLS on · 1 policies · 0 triggers` each |
+| objects | `business_resource_entries` | `RLS on · 3 policies · 2 triggers` |
+| storage | `studio-assets bucket` | `<public>false</public>`, `<file_size_limit>26214400</file_size_limit>` |
+| storage | `studio-assets object policies` | `4` |
+
+The replica shows **RLS on for all 56 tables with at least one policy on every one**, and the four safety
+triggers that `after-migrations.sql` row 10 counts (`outreach_messages_send_policy`,
+`reply_classifications_guard`, `proposal_change_requests_guard`, `proposals_acceptance_guard`). The
+replica returns 33/33 `ok` on a clean chain; on production rows 2, 3, 4, 5, 8 and 9 are upgrade-shaped and
+may legitimately differ, because they count live workspaces, consent rows and queued messages.
+
+Object checks worth capturing with the same read-only run:
+
+```sql
+select count(*) as public_tables, count(*) filter (where relrowsecurity) as rls_on,
+       count(*) filter (where not relrowsecurity) as rls_off            -- expect 56 | 56 | 0
+  from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r';
+
+select c.relname from pg_class c
+ where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+   and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname); -- expect 0 rows
+
+select column_name, data_type from information_schema.columns
+ where table_schema = 'public' and table_name = 'businesses' and column_name = 'district_code';            -- expect text
+```
+
+R-4, the one remaining grant gap, is measurable with one more statement. 008, 010, 012 and 013 revoke
+`anon` explicitly; 014, 015 and 016 never do, so Supabase's default privileges leave `anon` holding
+table-level rights on six tables (`studio_creative_briefs`, `studio_creative_brief_reviews`,
+`studio_creative_directions`, `studio_creative_direction_reviews`, `studio_website_prototypes`,
+`business_resource_entries`). RLS is `to authenticated` on all six, so nothing is exposed today:
+
+```sql
+select table_name, string_agg(privilege_type, ',' order by privilege_type) as privileges
+  from information_schema.role_table_grants
+ where grantee = 'anon' and table_schema = 'public'
+ group by table_name order by table_name;
+```
+
+Keep that output with the release record; the follow-up revoke migration is still worth writing, and it
+is not a release blocker.
+
+### 11.4 Environment variables in Production (names only, never values)
+
+The release needs three separate configurations, and they are three separate decisions:
+
+| Capability | Names that must exist in the **Production** scope | Safe value now |
+| --- | --- | --- |
+| Core app | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` | unchanged |
+| Resource Collector | `GOOGLE_PLACES_API_KEY`, `RESOURCE_GOOGLE_ENABLED`, optional `PLACES_COST_PER_SEARCH_USD`, `PLACES_COST_PER_DETAILS_USD`, `PLACES_COST_PER_PHOTO_USD` | key present; keep `RESOURCE_GOOGLE_ENABLED=false` until §11.5 is done |
+| Social Business Discovery | `BRAVE_SEARCH_API_KEY`, `SOCIAL_DISCOVERY_ENABLED`, optional `DAILY_SOCIAL_DISCOVERY_QUOTA`, `BRAVE_COST_PER_SEARCH_USD` | key absent or blank as of the last probe; keep `SOCIAL_DISCOVERY_ENABLED=false` until then |
+| Website Studio | none — the engine is deterministic and reads no key | — |
+| Must stay unset | `DEMO_SERVER_TOOLS`, `SIMULATE_EXTERNAL_TOOLS`, `DISCOVERY_SYNTHETIC_PROVIDER`, `CREATIVE_DIRECTOR_AI` | unset or false |
+
+Ways to verify the names without exposing a value, cheapest first:
+
+1. **Runtime truth, nothing leaves the server.** `curl -s https://<domain>/api/status` returns booleans
+   only, and `webSearch.configured` is exactly `Boolean(BRAVE_SEARCH_API_KEY)`
+   (`src/lib/server/providers/web-search.ts:156`); `socialDiscovery.searchConfigured` repeats it. So
+   **`webSearch.configured: false` means the key is missing or blank in Production**, whatever the
+   dashboard shows. §2 recorded false; re-check it now, after 008/010.
+2. **Authenticated collector truth.** `GET /api/resources` (needs `studio.write`) returns
+   `{simulated, enabled, detailsMaxUsd, searchMaxUsd, photoMaxUsd}` from `resourceGoogleStatus()`;
+   `enabled` is true only when `RESOURCE_GOOGLE_ENABLED=true` **and** the Places key is non-empty.
+3. **Names, not values.** Dashboard → Project → Settings → Environment Variables, or
+   `npx vercel env ls production`, which lists names, scopes and dates and never decrypts a value.
+   Check the **scope**: a name that exists only in Preview/Development is invisible to the live
+   deployment, which is the likeliest explanation for a key that is "set" yet reports unconfigured.
+4. Local `.env.local` proves nothing about production: it holds a 31-character Brave value that differs
+   from the published sample in `.env.example`, and it points at the **production** Supabase project
+   (`nshuxeyrcxcnotldvhoh`), so it can neither confirm nor fix the Vercel scope.
+
+Changing a `NEXT_PUBLIC_*` value needs a **new build** (it is inlined at build time). Server-only keys
+take effect when a deployment starts.
+
+### 11.5 Google Places budgets and quotas before enabling the collector
+
+One switch enables live Google viewing, but three separate limits have to exist first.
+
+1. **Money budget, in the application.** `automation_settings.budgets` is jsonb, per organisation, with
+   keys `google_places`, `brave_search`, `anthropic` and `total`, each `{dailyUsd, monthlyUsd}` — a
+   number or `null` (`src/lib/automation/budget.ts:13-15`). Set it in Automation Center → Controls. A
+   workable starting shape:
+
+   ```json
+   { "google_places": { "dailyUsd": 5, "monthlyUsd": 60 }, "total": { "dailyUsd": 15, "monthlyUsd": 150 } }
+   ```
+
+   Read it back, read-only:
+
+   ```sql
+   select organization_id, budgets from public.automation_settings order by organization_id; -- one google_places row per org
+   ```
+
+   **The honest caveat (R-6):** `enforceBudget` returns immediately when no budget is configured
+   ("Budgets are optional for manual use", `src/lib/server/budget.ts`), so with an empty `budgets` object
+   the collector is capped by quotas alone. Setting the budget is what creates the money stop.
+2. **Request quotas, in the application, not the environment.** `resource-collector.ts` limits each
+   organisation per 24 hours to **30 details, 30 searches, 120 photos**
+   (`resource_places_details:sent`, `resource_places_search:sent`, `resource_places_photo:sent`). These
+   are code constants, not `DAILY_*` variables, and every call is user-initiated. Each one also writes a
+   `usage_records` row, which is the trail to read after the first live day:
+
+   ```sql
+   select operation, count(*) as calls, round(sum(estimated_cost_usd), 4) as estimated_usd
+     from public.usage_records where provider = 'google_places'
+      and created_at >= date_trunc('day', now()) group by operation order by operation;
+   ```
+3. **Provider quotas, in Google Cloud.** Places API (New) has its own per-minute and per-day quotas and a
+   billing account that this repository cannot see. Confirm the key is restricted to *Places API (New)*,
+   that quotas match the expected traffic, and that budget alerts exist.
+
+Order of operations, so no window exists where a paid switch is on without a cap: set the budget →
+confirm the read-back → set `RESOURCE_GOOGLE_ENABLED=true` → deploy → one user-initiated lookup → read
+the usage rows.
+
+### 11.6 The release suite, re-run on the candidate
+
+All commands run on `b5bc773` in this working copy, with the Supabase and provider credentials present
+in `.env.local` left untouched and no paid call made:
+
+| Command | Result |
+| --- | --- |
+| `npx vitest run` | **59 files, 931 tests passed** (295 s) |
+| `npx tsc --noEmit` | clean |
+| `npm run lint` | clean |
+| `npm run build`, with `NEXT_PUBLIC_SUPABASE_*` blanked | compiled, **23 static pages**, `check-client-bundle.mjs` passed (179 files, 5 key formats, no match) |
+| `git status --porcelain` | empty before and after the run |
+
+The isolation of that build matters for §11.7: `.next/server` and `.next/static` contain **zero**
+occurrences of the production project ref, while the pre-existing `.next/dev` cache from an earlier
+`next dev` run still contains 45 — which is why a preview must not reuse this directory
+([STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md) §4).
+
+### 11.7 A Preview deployment, and which database it would talk to
+
+Nothing was deployed. What follows is the configuration a preview must have, and the reason it is easy to
+get wrong.
+
+- **The database a preview uses is decided by the Preview scope, not by the branch.** `NEXT_PUBLIC_SUPABASE_URL`
+  and the publishable key are inlined at **build** time (`src/lib/supabase/config.ts`), so whatever the
+  Preview environment holds is baked into that deployment's browser bundle and server code. If Preview
+  holds the same values as Production — the default when a project sets one value for "all
+  environments" — the preview **is** production and the Resource Collector writes rows there. That is
+  R-5.
+- Three safe configurations, strongest first:
+  1. **Demo mode preview (no database at all).** Set the Preview scope to blank
+     `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+     and blank `GOOGLE_PLACES_API_KEY`, `BRAVE_SEARCH_API_KEY`, `ANTHROPIC_API_KEY`,
+     `SUPABASE_SERVICE_ROLE_KEY`, with `RESOURCE_GOOGLE_ENABLED` and `SOCIAL_DISCOVERY_ENABLED` unset.
+     The deployment then reports `mode: "demo"`, stores nothing server-side and cannot spend. This is the
+     configuration proved above: the build compiled and the bundle check passed with those names blank.
+  2. **Second Supabase project** (`STAGING_RESOURCE_COLLECTOR.md` §3–§4): the only way a preview can show
+     a *live* Google listing, because `googleCall()` refuses live calls in demo mode.
+  3. A Supabase preview branch, if the plan provides one, restored from a backup rather than from live.
+- Preview-scope names still worth setting to a safe value: `DEMO_SERVER_TOOLS=false`,
+  `SIMULATE_EXTERNAL_TOOLS=false`, `DISCOVERY_SYNTHETIC_PROVIDER=false`, and no `CRON_SECRET` unless the
+  worker is genuinely wanted there (a preview worker with a service-role key can write).
+- Commands for the owner, once the Preview scope is set (this requires a Vercel link and a push, both
+  currently unauthorised): `npx vercel link`, `npx vercel env ls preview`, then a preview build of this
+  commit. Record the URL and the project ref the deployment reports at `/api/status` before opening
+  anything that writes.
+- **Do not** point the local working copy at it: `.env.local` here resolves to the production project, so
+  a local `next dev`/`next start` from this directory is a production client. Use the worktree recipe in
+  `STAGING_RESOURCE_COLLECTOR.md` §4 with its own `.env.local`.
+
+### 11.8 What still blocks the release, and what does not
+
+| # | Item | Status |
+| --- | --- | --- |
+| 1 | 008 and 010 in production (R-1) | **closed** — the owner's five TRUE checks; §11.2–11.3 confirm what remains to record |
+| 2 | Production has never run this candidate (R-2) | **open by nature** — cleared only by the preview in §11.7 and the post-promote smoke test |
+| 3 | `BRAVE_SEARCH_API_KEY` in the Production scope (R-3) | **open** — last probe `webSearch.configured: false`. Without it, Social Business Discovery renders disabled and website search verification is unavailable; Google-only discovery still works |
+| 4 | Organisation budget rows (R-6) | **open decision** — the collector runs uncapped by money until `automation_settings.budgets` exists; §11.5 is the prerequisite for `RESOURCE_GOOGLE_ENABLED=true` |
+| 5 | `anon` table grants on six tables (R-4) | **known gap, not blocking** — RLS is `to authenticated`; a revoke migration follows the release |
+| 6 | `origin/main` is `99b9a30` and nothing is pushed | **blocked on your approval** — the integration is `git merge --ff-only`, and a preview needs the branch on the remote |
+| 7 | Adwoa's House creative approval | **pending, and not an engineering failure** — `docs/ACTIVE_CREATIVE_HANDOFF.md` records it as awaiting your review. The Studio is releasable without it: blueprints carry `publishReady: false` (`src/lib/domain/website-blueprint.ts:738` rejects anything else), so no prototype can publish itself |
+| 8 | Paid calls | **none made, none enabled** — `RESOURCE_GOOGLE_ENABLED` and `SOCIAL_DISCOVERY_ENABLED` stay false until you say otherwise |
+
+The Website Studio therefore has no technical blocker; it has a creative one. Shipping it and leaving the
+three showcases unpublished is the safe default until you approve the direction in a real browser.
+
+### 11.9 Release commit and rollback
+
+- **Release commit:** `b5bc773f214a9db9634aaf63c5a0e3392b36e24b` plus this section's documentation commit.
+  Code is identical between the two; the second changes only `docs/PRODUCTION_READINESS_AUDIT.md`.
+- **Database:** nothing further to apply. 008 and 010 are in, both are additive, and no rollback file
+  should be run for a code rollback — 010's own down file refuses while any business holds a district
+  without a town.
+- **Rollback:** promote the previous Vercel deployment and keep the schema. Capture its deployment id
+  **before** promoting (`npx vercel ls --prod`, or the dashboard's Deployments list), because that id is
+  the whole rollback. Then confirm `/api/status` reports the older deployment's shape (`socialDiscovery`
+  and `autonomousDiscovery` absent) to be sure the promotion took.
+- **Do not** run `supabase db push` afterwards without first recording the SQL-Editor applies:
+  `supabase migration repair --status applied 008 010`. The CLI is still not installed on this machine
+  and `supabase/config.toml` does not exist.
+- **Record with the release:** the preflight output (§11.3), the reference-data row (§11.2), the
+  `/api/status` output before and after, and the deployment id above.
+
 
 
 
