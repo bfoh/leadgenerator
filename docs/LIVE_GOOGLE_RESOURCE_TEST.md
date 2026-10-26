@@ -18,7 +18,9 @@ the workspace budget. The billed Google price is the highest SKU tier any reques
 - Place Photos, one click: `$7/1,000` (`$0.01`), and only if a photo is previewed.
 
 A full run that previews one photo is therefore about `$0.035`, and the prepared check reserves that
-worst case inside the `$0.15` live budget cap.
+worst case inside the live budget cap. The cap is whatever `LIVE_BUDGET_USD` resolves to at run time,
+and `.env.local` decides that, not the command line: see the precedence note in Part A before trusting
+the number printed by a run.
 
 ## Preconditions
 
@@ -38,7 +40,13 @@ worst case inside the `$0.15` live budget cap.
    PLACES_COST_PER_PHOTO_USD=0.01
    SIMULATE_EXTERNAL_TOOLS=false
    SOCIAL_DISCOVERY_ENABLED=false
+   LIVE_BUDGET_USD=0.15
    ```
+
+   `LIVE_BUDGET_USD` belongs in that file rather than on the command line: it is the one live-test
+   setting `.env.local` is most likely to already contain, and on this machine it overrides the shell
+   (see Part A). Keep it at `0.15`, or at least `0.03` for a details-only run and `0.05` with a photo;
+   the hard cap in `tests/live/budget.ts` is `0.5`.
 
    Leave every Supabase variable blank for Part A. Live collector calls are refused in demo mode by
    design (`Live collector calls require an authenticated workspace.`), so Part A calls the provider
@@ -63,6 +71,38 @@ database, vault or ZIP involvement.
 LIVE_INTEGRATION=1 LIVE_PLACES_PLACE_ID=<ChIJ...> LIVE_BUDGET_USD=0.15 \
   npx vitest run --config vitest.live.config.mts tests/live/resource-collector.live.test.ts
 ```
+
+### `LIVE_BUDGET_USD` on the command line is a fallback, not the cap
+
+`vitest.live.config.mts` reads every `NAME=value` line from `.env.local` and hands the map to Vitest's
+`test.env`, whose values take precedence over the same names exported by the shell. That is deliberate,
+so a stray shell variable cannot pick the account that pays. `tests/live/budget.ts` then reads
+`LIVE_BUDGET_USD` from `process.env` and clamps it to the `0.5` hard cap.
+
+So if `.env.local` already sets `LIVE_BUDGET_USD`, the value in the command above is ignored. On this
+machine the file sets `0.01`, below the `$0.025` details reservation, so `reserve()` returns false, both
+checks call `skip()` and the run exits **0** with two skipped tests. That spends nothing, but it also
+means "the run finished cleanly" can mean "the run never happened".
+
+Recognise it by the line the suite prints first:
+
+```
+Live resource checks reserved $0 of the $0.01 budget (worst case; actual usage is lower).
+```
+
+A real run prints the reserved amount, then one `console.log` of provider counts per check. A `$0` with
+an unfamiliar cap means the cap came from `.env.local`. Verified on 25 October 2026 without spending:
+with `LIVE_BUDGET_USD=0.99` in the shell and `0.01` in `.env.local`, a probe test under this config read
+`0.01`, while a name absent from `.env.local` (`LIVE_PLACES_PLACE_ID`) did survive from the shell.
+
+Two consequences beyond the budget:
+
+- A stale `LIVE_PLACES_PLACE_ID` or `LIVE_PLACES_PHOTO` left in `.env.local` wins the same way, which
+  would check the wrong business or spend a photo request unasked. Keep both out of the file and pass
+  the Place ID on the command line.
+- Do not "fix" a skip by editing `budget.ts` or the config for the run. Set `LIVE_BUDGET_USD` in
+  `.env.local`, or comment its stale `LIVE_*` lines out for the run, and restore the file afterwards. A
+  run counts as authorised only once the printed budget line shows the cap that was intended.
 
 Add `LIVE_PLACES_PHOTO=1` to spend one photo request as well; the check reuses the reference from the
 details call, so it never pays for a second lookup.
