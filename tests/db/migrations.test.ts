@@ -215,6 +215,80 @@ describe('pre-production inspection script', () => {
   });
 });
 
+describe('001–016 pre-apply inspection script', () => {
+  const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-001-016.sql');
+  /** The single statement, without the leading comment block, for running inside a read-only transaction. */
+  const body = preflight.slice(preflight.indexOf('with chain('));
+  const run = async (db: PGlite) => {
+    await db.exec('begin transaction read only');
+    try {
+      return Object.fromEntries((await rows<{ check: string; value: string }>(db, body)).map((r) => [r.check, r.value]));
+    } finally {
+      await db.exec('rollback');
+    }
+  };
+
+  it('runs read-only at 002, names 003 as the next file, and is one statement', async () => {
+    const db = await createDatabase({ skip: upgrades.map((f) => f.slice(0, 3)) });
+    const at002 = await run(db);
+    expect(at002['002 workspace model']).toBe('present');
+    expect(at002['003 automation infrastructure']).toBe('missing');
+    expect(at002['businesses']).toBe('0');
+    expect(at002['business_resource_entries']).toBe('missing');
+    expect(at002['studio-assets bucket']).toBe('Storage absent - 013 skips the bucket');
+    expect(at002['next file to apply']).toBe('003 automation infrastructure');
+    expect(at002['gaps in the installed chain']).toBe('none');
+    expect(at002['files still to apply']).toBe(String(upgrades.length));
+    // As pasted into the SQL editor it is exactly one statement, so the editor shows its result.
+    expect((await db.exec(preflight)).length).toBe(1);
+    await db.close();
+  });
+
+  it('reports the complete chain, the guarded ledger, and nothing left to apply', async () => {
+    const db = await createDatabase();
+    const all = await run(db);
+    expect(all['016 business resources']).toBe('present');
+    expect(all['business_resource_entries']).toBe('RLS on · 3 policies · 2 triggers');
+    expect(all['next file to apply']).toBe('none - chain complete');
+    expect(all['files still to apply']).toBe('0');
+    expect(all['gaps in the installed chain']).toBe('none');
+    await db.close();
+  });
+
+  it('flags a gap when a later object is installed but an earlier one is not', async () => {
+    const db = await createDatabase({ skip: ['010'] });
+    const gap = await run(db);
+    expect(gap['gaps in the installed chain']).toBe('010 region records');
+    expect(gap['next file to apply']).toBe('010 region records');
+    await db.close();
+  });
+
+  it('reads the private studio-assets bucket when the project has Storage', async () => {
+    const db = await createDatabase({
+      before: {
+        '013': (d) =>
+          d.exec(`
+            create schema if not exists storage;
+            create table if not exists storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+            create table if not exists storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+            create function storage.foldername(p text) returns text[] language sql immutable as $$ select string_to_array(p, '/') $$;
+            alter table storage.objects enable row level security;
+          `),
+      },
+    });
+    const withStorage = await run(db);
+    expect(withStorage['studio-assets bucket']).toContain('<id>studio-assets</id>');
+    expect(withStorage['studio-assets bucket']).toContain('<public>false</public>');
+    expect(withStorage['studio-assets object policies']).toBe('4');
+    await db.close();
+  });
+
+  it('contains nothing that writes outside string literals', () => {
+    const statements = code(body).replace(/'([^']|'')*'/g, "''");
+    expect(statements).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+  });
+});
+
 describe('after-migrations check', () => {
   const check = read(join(process.cwd(), 'supabase', 'checks'), 'after-migrations.sql');
   const results = async (db: PGlite) => (await db.exec(check))[0].rows as { check: string; result: string }[];

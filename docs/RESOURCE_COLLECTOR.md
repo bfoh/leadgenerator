@@ -107,8 +107,12 @@ deduplication, and making the no-website fixture genuinely omit its website fiel
 file verifies both. The reviewed production build and focused five-case browser run also passed
 after these corrections. Passing axe is not a
 complete screen-reader audit or WCAG certification. Cloud RLS was exercised on local PGlite, not on the
-production Supabase project. Live Google API/account billing and authenticated owner integrations have
-not been exercised.
+production Supabase project. The live Google provider was exercised once at module level on 25 October
+2026 (one Place Details request, HTTP 200, counts and attribution parsed, no listing content retained —
+see [LIVE_GOOGLE_RESOURCE_TEST](LIVE_GOOGLE_RESOURCE_TEST.md)); the listing has **not** yet been shown
+through the product's own UI, which needs cloud mode, and no authenticated owner integrations have been
+exercised. [STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md) is the remaining step.
+
 
 Evidence contains **mocked responses and original test assets**, not real Google listing photos:
 [desktop without website](evidence/resource-collector/desktop-no-website.jpg),

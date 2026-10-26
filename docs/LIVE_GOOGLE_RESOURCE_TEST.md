@@ -1,8 +1,39 @@
 # Controlled live Google resource test
 
-Prepared 25 October 2026 on `feature/google-business-resource-collector`. **Not executed.** No paid
-request was made, no live key was used, production Supabase was untouched and Social Discovery stays
-disabled. This is the procedure for one controlled run against one real Ghanaian business.
+Prepared 25 October 2026 on `feature/google-business-resource-collector`. **Part A ran once, later on 25
+October 2026**: one Place Details request, HTTP 200, counts parsed with no listing content retained, under
+a `$0.03` cap that reserved `$0.025` and left no room for a second paid call. No photo request was made,
+no search was made, production Supabase was untouched and Social Discovery stays disabled. **Part C has
+not run**: the listing has never been shown through the product's own UI, which needs cloud mode. Its
+prerequisites, cost and pass conditions are now in
+[STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md).
+
+## Run result (Part A, 25 October 2026)
+
+The operator's wrapper (`/tmp/live-place-details.sh`, outside the repository) swapped `.env.local` for a
+copy without Supabase variables, ran one filtered test, and restored the file byte-for-byte. The log
+recorded exactly one request:
+
+```
+[live-trace] request 1: GET https://places.googleapis.com/v1/places/ChIJ... -> HTTP 200
+Place Details ChIJ...: photos 1, author credits 1, author avatars 1, author profiles 1,
+  photo source links 1, hours 7, provider credits 0, website listed false, phone listed true
+Live resource checks reserved $0.025 of the $0.03 budget
+Tests 1 passed | 1 skipped
+```
+
+The log holds counts, the Place ID and URLs only — no name, address, phone, hours text or photo bytes —
+and lives in the private change record, not in this repository. Replay its summary with no network:
+
+```
+/tmp/live-place-details.sh --summary /tmp/live-place-details.log
+```
+
+The first version of that summary reported "Requests attempted 0" and "Assertions not passed" for this
+run, because Vitest colourises its reporter even through a pipe and every anchored `grep` missed. The
+wrapper now sets `NO_COLOR` and strips ANSI escapes into a clean copy before counting, counts only
+`^\[live-trace\] request ` lines, and reads the verdict from the `Tests` line; the same log now replays
+as `1` request, `200 x1`, assertions `passed`.
 
 ## What one run costs
 
@@ -125,7 +156,9 @@ The button path needs cloud mode, so it needs a Supabase database that is not pr
   and `supabase db reset` to apply 001-016 locally), or
 - a separate staging project the owner explicitly authorizes.
 
-Never point this at the production project. Steps once cloud mode is running:
+Never point this at the production project. [STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md)
+prepares that environment: which migrations the page needs, the Storage bucket, the auth settings, the
+isolated worktree and the budget stop. Steps once cloud mode is running:
 
 1. Sign in, open **Prospects**, and create or open one prospect for the chosen business. Migration 016
    is not needed for this part: Google viewing works without it, and the Place ID is stored in
