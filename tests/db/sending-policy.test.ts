@@ -253,8 +253,10 @@ describe('the send-policy trigger', () => {
     await policy(t);
     const m = await approvedMessage(t);
     await m.approve();
-    await expect(update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: days(8) })).rejects.toThrow(/up to 7 days ahead/);
-    expect(await update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: days(2) })).toMatchObject({ status: 'queued' });
+    // Schedules are relative to the frozen clock the trigger reads, not the wall clock: `days()` would
+    // drift out of the 7-day window a week after FIXED_MESSAGING_NOW and fail this test for the wrong reason.
+    await expect(update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: '2026-10-29 10:00:00+00' })).rejects.toThrow(/up to 7 days ahead/);
+    expect(await update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: '2026-10-23 10:00:00+00' })).toMatchObject({ status: 'queued' });
   });
 
   it('holds every send while the workspace is paused, and outside the sending window', async () => {
