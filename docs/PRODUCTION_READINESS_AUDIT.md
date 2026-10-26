@@ -653,8 +653,12 @@ get wrong.
   worker is genuinely wanted there (a preview worker with a service-role key can write).
 - Commands for the owner, once the Preview scope is set (this requires a Vercel link and a push, both
   currently unauthorised): `npx vercel link`, `npx vercel env ls preview`, then a preview build of this
-  commit. Record the URL and the project ref the deployment reports at `/api/status` before opening
-  anything that writes.
+  commit. ~~Record the URL and the project ref the deployment reports at `/api/status`~~ — **correction:**
+  `/api/status` reports `mode` but never the project ref. Prove the binding from the deployment's
+  `Content-Security-Policy` header: `connect-src` is built from `NEXT_PUBLIC_SUPABASE_URL` (`next.config.ts`),
+  so a demo build ends at `connect-src 'self'` and a production-bound one names the project's origin. See
+  [PRODUCTION_RELEASE_GATE](PRODUCTION_RELEASE_GATE.md) §4.4 for the full check, and §4.1 for a build that was
+  verified this way.
 - **Do not** point the local working copy at it: `.env.local` here resolves to the production project, so
   a local `next dev`/`next start` from this directory is a production client. Use the worktree recipe in
   `STAGING_RESOURCE_COLLECTOR.md` §4 with its own `.env.local`.
@@ -691,6 +695,23 @@ three showcases unpublished is the safe default until you approve the direction 
   and `supabase/config.toml` does not exist.
 - **Record with the release:** the preflight output (§11.3), the reference-data row (§11.2), the
   `/api/status` output before and after, and the deployment id above.
+
+## 12. The release gate (26 October 2026)
+
+The six closing tasks — Production variable names and scopes, the organisation budget, the 61-row preflight
+review, the demo-mode preview, the `anon` grant gap, and the checklist and rollback — are in
+[PRODUCTION_RELEASE_GATE](PRODUCTION_RELEASE_GATE.md). Nothing there has been run against Vercel, Supabase or
+Google; it stops at that document's go/no-go table.
+
+Three findings there correct statements above, and are applied in place rather than left to the reader:
+
+- **`/api/status` does not report the Supabase project ref** (§11.7, corrected in place). The
+  `Content-Security-Policy` header does, because `connect-src` is built from `NEXT_PUBLIC_SUPABASE_URL`.
+- **The chain creates 56 public tables and 148 policies**, not the "52" in §3. §11.3 and the gate document's
+  §3.2 are the authoritative figures; the 61-row preflight output in §3.2 was captured from the replica today.
+- **The `anon` gap (R-4) is closed by a tested, privileges-only revoke, not by a 017 migration.** A new migration
+  would change the 61-row preflight artefact this release is signed against, so the statement is recorded and
+  verified in the gate document §5 instead, with its reversal and its evidence.
 
 
 
