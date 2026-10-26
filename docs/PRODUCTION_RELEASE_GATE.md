@@ -142,6 +142,42 @@ Nothing in this section needs a value. Paste:
 
 That closes R-3 and decides whether the collector can be enabled on release night.
 
+### 1.6 Gate 1 execution record — 26 October 2026
+
+**Method.** This machine cannot see your Vercel project: there is no `.vercel/project.json`, no `vercel` binary on
+`PATH` or in `node_modules/.bin`, no `VERCEL_*` name in the environment, no `~/.vercel/auth.json`, and no Vercel
+toolkit on the Composio side. So the **scope** column must come from your dashboard or a CLI you authenticate;
+the **runtime** column below was measured directly, with unauthenticated GETs against
+`https://leadgenerator-beige-rho.vercel.app` (no credentials, no mutations, no paid calls).
+
+| Name | Runtime evidence from the live deployment | Verdict |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `/login` CSP: `connect-src 'self' https://nshuxeyrcxcnotldvhoh.supabase.co`; `mode:"cloud"` | present, bound to `nshuxeyrcxcnotldvhoh` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `…_ANON_KEY` | `mode:"cloud"`, and `/api/campaigns` answers **401, not 500** | one of the two is present (which one: dashboard) |
+| `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET` | `automation.backgroundWorker: true`; `/api/cron/automation` **401, not 503** | both present |
+| `ANTHROPIC_API_KEY` | `ai.configured: true`, `model: "claude-sonnet-5-5"` | present (`ANTHROPIC_MODEL` set or defaulting) |
+| `GOOGLE_PLACES_API_KEY` | `discovery[0].configured: true`, `isDemo: false`, `estimatedCostUsd {search:0.035, details:0.02}` | **present — changed since the 24 Oct audit** |
+| `BRAVE_SEARCH_API_KEY` | `webSearch.configured: false`; `research.search {configured:false, provider:null}` | absent or blank — R-3 stands |
+| `RESOURCE_GOOGLE_ENABLED` | not readable: `/api/resources` and `/api/resources/original` both **404** | dashboard only |
+| `SOCIAL_DISCOVERY_ENABLED` | not readable: the served `/api/status` has no `socialDiscovery` key | dashboard only |
+| `SIMULATE_EXTERNAL_TOOLS` | `research.simulated: false`, `contacts.simulated: false` | not truthy |
+| `DEMO_SERVER_TOOLS` | unprovable here: `serverTools` is true whenever cloud mode is on, or when `DEMO_SERVER_TOOLS` is set | dashboard only |
+| `DISCOVERY_SYNTHETIC_PROVIDER` | no synthetic provider in `discovery[]` | unset |
+| quota overrides | `quotas {discovery:50, aiReports:20, websiteChecks:300, webSearch:100}` | defaults, no override names |
+
+**Which build is live.** The served `/api/status` omits `autonomousDiscovery` (`66a383f`) and `socialDiscovery`
+(`071ce4b`); `/api/studio/assets`, `/api/studio/inspect` and both `/api/resources*` return 404; `/api/campaigns`
+returns 401, so it exists. Production is therefore a `main` build between `99b9a30` and `0873bd2` — **25 commits
+behind the candidate**, with none of the Studio, Collector or Social Discovery routes deployed. `main` is a strict
+ancestor of HEAD (25 ahead, 0 behind), so the release is a fast-forward. Exact commit and deployment id: gate 5.
+
+**One live cost item, found while checking.** `enforceBudget` returns early when the budgets object has no keys
+(`src/lib/server/budget.ts`, `loadBudgets` → `enforceBudget`), and `main`'s `/api/discover` wraps Places in it
+after only the 50/day quota (`enforceQuota(ctx,'discovery_search',…)` then `enforceBudget(...)`, and the same pair
+for `discovery_details`). With the key now live and budgets empty, the **existing** Discover page can spend
+today: 50 searches ($1.75) + 50 details ($1.00) = **$2.75 per workspace per day**, uncapped across workspaces.
+Gate 2 closes it. Nothing in gate 1 changes it.
+
 ---
 
 ## 2. Google Places budgets: set, read back, and prove the stop works for free
