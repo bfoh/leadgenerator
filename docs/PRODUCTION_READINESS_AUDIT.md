@@ -215,8 +215,8 @@ the two `businesses` checks, or the seven index names, so there is nothing to ov
   (`region is not null or city is not null`), which every row satisfies because `city` was `NOT
   NULL` until this file. The district trigger fires only on insert or on updates that touch
   `district_code`/`region`. Row counts and values are unchanged.
-* Pre-flight rows 3 and 4 below are the only way either constraint could fail; the replica proves
-  the upgrade leaves `businesses`, `proposals`, `inbound_messages` and `proposal_versions` byte-for-byte
+* Pre-flight block 3 below is the only way either constraint could fail; the replica proves the
+  upgrade leaves `businesses`, `proposals`, `inbound_messages` and `proposal_versions` byte-for-byte
   identical (all columns compared as `jsonb`, `district_code` excepted).
 
 ### 10.3 Permissions, RLS and triggers the files install
