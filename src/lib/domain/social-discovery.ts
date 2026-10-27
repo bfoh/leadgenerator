@@ -448,7 +448,7 @@ export function simulatedSocialCandidates(input: SocialDiscoveryRequest): Social
       platform,
       handle: platform === 'tiktok' ? `@${handle}` : handle,
       profileUrl: profileUrlFor(platform, handle),
-      displayName: `${subject.replace(/\b\w/g, (c) => c.toUpperCase())} ${place} (fictional demo)`,
+      displayName: `${subject.replace(/\b\w/g, (c) => c.toUpperCase())} ${place} ${index + 1} (fictional demo)`,
       snippet: `Fictional ${SOCIAL_DISCOVERY_LABELS[platform]} profile for ${place}, used to practise the review step. Not a real business.`,
       sourceQuery: `simulated:${platform}`,
       location: { region: input.region, city: input.city, country: input.country },

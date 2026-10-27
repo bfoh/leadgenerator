@@ -30,8 +30,14 @@ const socialSearchSchema = z
 
 export async function POST(req: NextRequest) {
   try {
-    const ctx = await requireContext(req, 'discovery.run', { count: 10, windowMs: 60_000 });
     const status = socialDiscoveryStatus();
+    // The rate limit protects the paid provider quota. A simulated search touches no provider and
+    // costs nothing (demo and browser tests), so it must not throttle a practice session.
+    const ctx = await requireContext(
+      req,
+      'discovery.run',
+      status.simulated ? { count: 10_000, windowMs: 60_000 } : { count: 10, windowMs: 60_000 },
+    );
     if (!status.enabled) {
       throw new HttpError(
         503,

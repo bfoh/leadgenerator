@@ -8,12 +8,13 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Checkbox, Field, FormError, Input, Select, Textarea } from '@/components/ui/field';
 import { Notice, PageSkeleton } from '@/components/ui/misc';
 import { StudioAssetVault } from '@/components/studio/asset-vault';
+import { SocialResearchPanel } from '@/components/resources/social-research';
 import { addResourceEntry, downloadWebsiteResourceKit, openResourceVault } from '@/lib/data/resource-services';
 import { RESOURCE_CATEGORIES, resourceConflicts, websiteResourceCandidates, type GoogleResourceListing, type ResourceEntry, type ResourceEntryInsert, type WebsiteResources } from '@/lib/domain/business-resources';
 import type { Business } from '@/lib/domain/types';
 import { errorMessage, safeHref } from '@/lib/utils';
 import { api } from '@/lib/workspace/api';
-import { useAction, useBusiness, useResourceCollectorSchema, useResourceEntries, useStudioProjects } from '@/lib/workspace/hooks';
+import { useAction, useBusiness, useResourceCollectorSchema, useResourceEntries, useSocialResearchSchema, useStudioProjects } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 
 type GoogleStatus = { enabled: boolean; simulated: boolean; detailsMaxUsd: number; searchMaxUsd: number; photoMaxUsd: number };
@@ -39,6 +40,7 @@ function Workspace({ business }: { business: Business }) {
   const { data: projects = [] } = useStudioProjects(business.id);
   const { data: entries = [] } = useResourceEntries(business.id);
   const schema = useResourceCollectorSchema();
+  const socialSchema = useSocialResearchSchema();
   const project = projects.find((p) => p.status !== 'archived') ?? null;
   const open = useAction((ctx) => openResourceVault(ctx, business));
   const exportKit = useAction((ctx) => downloadWebsiteResourceKit(ctx, business.id, project), { onSuccess: (result) => download(result.zip, result.filename) });
@@ -50,6 +52,7 @@ function Workspace({ business }: { business: Business }) {
     <Notice title="Build manually or continue in Studio" tone="info">Collect and export resources without a Brand Kit, creative direction or generated website. Google previews stay out of the download; only approved files and independently verified entries with export rights are included.</Notice>
     <GoogleViewer business={business} entries={entries} website={website} editable={can('studio.write')} />
     <WebsiteViewer business={business} editable={can('studio.write')} onResult={setWebsite} />
+    <SocialResearchPanel business={business} editable={can('studio.write')} available={socialSchema.data === true} />
     {schema.data === false && <Notice title="Independent resource ledger unavailable" tone="warning">Migration 016 is needed to save independent entries. Google viewing and the existing Asset Vault remain available. No migration is applied automatically.</Notice>}
     <ResourceEntries business={business} entries={entries} editable={can('studio.write') && schema.data === true} />
     <section aria-label="Authorized assets">

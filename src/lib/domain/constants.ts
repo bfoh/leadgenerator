@@ -135,7 +135,7 @@ export const BUDGET_LABELS = labels<BudgetSignal>({
   strong: 'Strong (stated by business)',
 });
 
-export const SOURCE_KINDS = ['manual', 'directory', 'search', 'direct_submission', 'referral', 'places_reference', 'provider_discovery', 'legacy_seed'] as const;
+export const SOURCE_KINDS = ['manual', 'directory', 'search', 'direct_submission', 'referral', 'places_reference', 'provider_discovery', 'social_profile', 'legacy_seed'] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export const SOURCE_KIND_LABELS = labels<SourceKind>({
   manual: 'Manual research',
@@ -145,6 +145,7 @@ export const SOURCE_KIND_LABELS = labels<SourceKind>({
   referral: 'Referral',
   places_reference: 'Google Places reference (ID only)',
   provider_discovery: 'Permitted discovery provider',
+  social_profile: 'Observed social profile',
   legacy_seed: 'v1–v3 seed research',
 });
 

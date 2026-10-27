@@ -1,6 +1,6 @@
--- READ ONLY pre-apply inspection for the whole chain 001–016, including the storage side of 013 and the
--- 016 resource ledger. Prepared 26 October 2026 for the Resource Collector staging review; NOT yet run
--- against production.
+-- READ ONLY pre-apply inspection for the whole chain 001–017, including the storage side of 013, the
+-- 016 resource ledger and the 017 social research tables. Prepared 26 October 2026 for the Resource
+-- Collector staging review; NOT yet run against production.
 --
 -- One SELECT that calls no writing function: no DDL, no DML, no `set`, no temp table. It is safe to
 -- paste into the production SQL editor or to run through psql inside a read-only transaction. It changes
@@ -36,7 +36,8 @@ with chain(ord, name, marker, meaning) as (
     (13, '013 Studio asset vault', 'public.studio_assets', 'Vault, event history, Brand Kits, approvals, private studio-assets bucket.'),
     (14, '014 Studio creative direction', 'public.studio_creative_directions', 'Creative briefs, directions and reviews.'),
     (15, '015 Studio website prototypes', 'public.studio_website_prototypes', 'Prototype versions bound to a direction and a Brand Kit.'),
-    (16, '016 business resources', 'public.business_resource_entries', 'Independent, permissioned resource facts for one prospect.')
+    (16, '016 business resources', 'public.business_resource_entries', 'Independent, permissioned resource facts for one prospect.'),
+    (17, '017 social research intelligence', 'public.business_social_sources', 'Permitted social profile references and research observations (needs 002).')
 ),
 installed as (
   select ord, name, marker, meaning, to_regclass(marker) is not null as present from chain
@@ -58,7 +59,9 @@ objects(name, short, meaning) as (
     ('public.studio_brand_kits', 'studio_brand_kits', '013: versioned Brand Kit behind every concept.'),
     ('public.studio_creative_directions', 'studio_creative_directions', '014: direction bound to a Brand Kit version.'),
     ('public.studio_website_prototypes', 'studio_website_prototypes', '015: prototype versions; publishReady stays false.'),
-    ('public.business_resource_entries', 'business_resource_entries', '016: independent resource ledger; Google content is refused at the boundary.')
+    ('public.business_resource_entries', 'business_resource_entries', '016: independent resource ledger; Google content is refused at the boundary.'),
+    ('public.business_social_sources', 'business_social_sources', '017: social profile references with a retention basis and verification status.'),
+    ('public.business_research_observations', 'business_research_observations', '017: observations with a source and a verified state; no platform content.')
 )
 select section, "check", value, meaning from (
   -- 1. Which migrations are installed, by an object each one creates.

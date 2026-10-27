@@ -56,6 +56,10 @@ export const useStudioSchema = () => useStoreQuery(['studio-schema'], (s) => s.s
 export const useStudioProjects = (businessId?: string) => useStoreQuery(['studio-projects', businessId ?? 'all'], (s) => s.listStudioProjects(businessId));
 export const useResourceEntries = (businessId: string) => useStoreQuery(['resource-entries', businessId], (s) => s.listResourceEntries(businessId));
 export const useResourceCollectorSchema = () => useStoreQuery(['resource-schema'], (s) => s.resourceCollectorAvailable());
+/** Whether migration 017 (social sources, research observations) is applied. */
+export const useSocialResearchSchema = () => useStoreQuery(['social-research-schema'], (s) => s.socialResearchAvailable());
+export const useSocialSources = (businessId?: string) => useStoreQuery(['social-sources', businessId ?? 'all'], (s) => s.listSocialSources(businessId));
+export const useResearchObservations = (businessId?: string) => useStoreQuery(['research-observations', businessId ?? 'all'], (s) => s.listResearchObservations(businessId));
 export const useStudioProject = (id: string) => useStoreQuery(['studio-project', id], (s) => s.getStudioProject(id));
 export const useStudioObservations = (projectId?: string) => useStoreQuery(['studio-observations', projectId ?? 'all'], (s) => s.listStudioObservations(projectId));
 export const useStudioReviews = (projectId?: string) => useStoreQuery(['studio-reviews', projectId ?? 'all'], (s) => s.listStudioReviews(projectId));

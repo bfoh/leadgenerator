@@ -440,7 +440,7 @@ export function BusinessFormDialog({
               <Select {...p} value={text(form.sourceKind)} onChange={(e) => set('sourceKind', e.target.value as FormInput['sourceKind'])}>
                 {SOURCE_KINDS.filter(
                   (s) =>
-                    s !== 'provider_discovery' &&
+                    (s !== 'provider_discovery' && s !== 'social_profile' || form.sourceKind === s) &&
                     (s !== 'legacy_seed' || form.sourceKind === 'legacy_seed'),
                 ).map((s) => (
                   <option key={s} value={s}>

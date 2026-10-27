@@ -1,4 +1,10 @@
 import { resourceEntrySchema, type ResourceEntry } from '@/lib/domain/business-resources';
+import {
+  researchObservationInsertSchema,
+  socialSourceInsertSchema,
+  type BusinessSocialSource,
+  type ResearchObservation,
+} from '@/lib/domain/social-research';
 // Cloud-mode persistence through Supabase's Data API. Row Level Security is the authorization
 // boundary; this class maps camelCase domain objects to snake_case columns and errors to StoreError
 // messages people can act on. Every query is also scoped to the store's organization, so the class
@@ -48,7 +54,7 @@ import type {
   StudioCreativeDirectionReview,
 } from '@/lib/domain/creative-direction';
 import type { StudioWebsitePrototype } from '@/lib/domain/website-prototype';
-import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, SOCIAL_RESEARCH_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -66,8 +72,11 @@ export function storeError(error: PostgrestError | null, fallback = 'The request
   if (!error) return new StoreError(fallback);
   switch (error.code) {
     case '42501':
+      // Guard triggers raise 42501 with a readable explanation; a role failure does not.
+      if (/immutable|only moves forward|cannot be changed|revocation|verification status/i.test(error.message)) return new StoreError(error.message, 'invalid');
       return new StoreError('Your role does not allow this action.', 'forbidden');
     case '23505':
+      if (/business_social_sources_profile_uidx/.test(error.message)) return new StoreError('This profile is already linked to a prospect.', 'conflict');
       if (/suppressions_active_idx/.test(error.message)) return new StoreError('This contact is already on the suppression list.', 'conflict');
       if (/contact_points_value_key/.test(error.message)) return new StoreError('This contact detail is already recorded for the prospect.', 'conflict');
       if (/outreach_messages_dedupe_idx/.test(error.message)) return new StoreError('The same text is already queued or sent to this recipient.', 'conflict');
@@ -521,6 +530,45 @@ export class SupabaseStore implements DataStore {
     return this.insert<ResourceEntry>('business_resource_entries', resourceEntrySchema.parse(input));
   };
   revokeResourceEntry: DataStore['revokeResourceEntry'] = async (id) => this.patch<ResourceEntry>('business_resource_entries', id, { revokedAt: new Date().toISOString() });
+
+  async socialResearchAvailable() {
+    const { error } = await this.sb.from('business_social_sources').select('id', { head: true }).eq('organization_id', this.organizationId).limit(1);
+    if (error && MISSING.has(error.code)) return false;
+    if (error) throw storeError(error);
+    return true;
+  }
+  async listSocialSources(businessId?: string) {
+    if (!(await this.socialResearchAvailable())) return [];
+    return this.all<BusinessSocialSource>('business_social_sources', (q) =>
+      (businessId ? q.eq('business_id', businessId) : q).order('captured_at', { ascending: false }),
+    );
+  }
+  createSocialSource: DataStore['createSocialSource'] = async (input) => {
+    if (!(await this.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
+    return this.insert<BusinessSocialSource>('business_social_sources', socialSourceInsertSchema.parse(input));
+  };
+  updateSocialSourceVerification: DataStore['updateSocialSourceVerification'] = async (id, patch) => {
+    if (!(await this.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
+    return this.patch<BusinessSocialSource>('business_social_sources', id, patch);
+  };
+  revokeSocialSource: DataStore['revokeSocialSource'] = async (id) => {
+    if (!(await this.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
+    return this.patch<BusinessSocialSource>('business_social_sources', id, { revokedAt: new Date().toISOString() });
+  };
+  async listResearchObservations(businessId?: string) {
+    if (!(await this.socialResearchAvailable())) return [];
+    return this.all<ResearchObservation>('business_research_observations', (q) =>
+      (businessId ? q.eq('business_id', businessId) : q).order('captured_at', { ascending: false }),
+    );
+  }
+  createResearchObservation: DataStore['createResearchObservation'] = async (input) => {
+    if (!(await this.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
+    return this.insert<ResearchObservation>('business_research_observations', researchObservationInsertSchema.parse(input));
+  };
+  revokeResearchObservation: DataStore['revokeResearchObservation'] = async (id) => {
+    if (!(await this.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
+    return this.patch<ResearchObservation>('business_research_observations', id, { revokedAt: new Date().toISOString() });
+  };
 
   async listStudioProjects(businessId?: string) {
     if (!(await this.studioSchemaAvailable())) return [];

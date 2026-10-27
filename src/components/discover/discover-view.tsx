@@ -16,9 +16,19 @@ import {
   type SocialDiscoveryPlatform,
 } from '@/lib/domain/social-discovery';
 import type { UsageInsert } from '@/lib/domain/types';
+import { SOCIAL_INTAKE_LABELS, nameFromHandle, type SocialIntakeOutcome } from '@/lib/domain/social-intake';
+import {
+  SOCIAL_RETENTION_BASES,
+  SOCIAL_RETENTION_BASIS_HELP,
+  SOCIAL_RETENTION_BASIS_LABELS,
+  provenanceForBasis,
+  type SocialRetentionBasis,
+} from '@/lib/domain/social-research';
+import type { BulkSocialIntakeResult, SocialIntakeResult } from '@/lib/data/social-intake-services';
+import { addSocialSourceToBusiness, bulkAddSocialCandidates } from '@/lib/data/social-intake-services';
 import { cn, errorMessage, formatDateTime, safeHref } from '@/lib/utils';
 import { ApiError, api, recordCharge, useServerStatus, type ProviderInfo, type ServerStatus } from '@/lib/workspace/api';
-import { useBusinesses, useUsage } from '@/lib/workspace/hooks';
+import { useAction, useBusinesses, useUsage } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { BusinessFormDialog } from '@/components/prospects/business-form-dialog';
 import { CategorySelector } from '@/components/discover/category-selector';
@@ -139,6 +149,10 @@ function Discover({
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState<{ message: string; retryable: boolean } | null>(null);
   const [socialTracking, setSocialTracking] = useState<SocialCandidate | null>(null);
+  const [socialSelected, setSocialSelected] = useState<Set<string>>(() => new Set());
+  const [socialBasis, setSocialBasis] = useState<SocialRetentionBasis | ''>('');
+  const [socialIntake, setSocialIntake] = useState<BulkSocialIntakeResult | null>(null);
+  const [socialProgress, setSocialProgress] = useState<{ done: number; total: number } | null>(null);
   const socialRequestId = useRef(0);
 
   const [results, setResults] = useState<DiscoveryResult[] | null>(null);
@@ -179,6 +193,62 @@ function Discover({
   const complianceNote = complianceForCategory(category);
   const countryInfo = findCountry(country);
 
+  const bulkAdd = useAction(
+    (ctx, selected: SocialCandidate[], basis: SocialRetentionBasis | null) =>
+      bulkAddSocialCandidates(
+        ctx,
+        {
+          candidates: selected,
+          basis,
+          category: category.trim() || 'Other',
+          country,
+          region: region || null,
+          city: city.trim() || null,
+          neighborhood: neighborhood.trim() || null,
+        },
+        (done, total) => setSocialProgress({ done, total }),
+      ),
+    {
+      success: (result) =>
+        `${result.summary.added} added · ${result.summary.already_exists} existing · ${result.summary.needs_permitted_source} need a permitted source · ${result.summary.needs_review} need review`,
+    },
+  );
+
+  const linkSocialSource = useAction(
+    (ctx, candidate: SocialCandidate, businessId: string) =>
+      addSocialSourceToBusiness(ctx, {
+        businessId,
+        platform: candidate.platform,
+        handle: candidate.handle.replace(/^@/, '').toLowerCase(),
+        profileUrl: candidate.profileUrl,
+        provenance: provenanceForBasis('first_party_observation'),
+        retentionBasis: 'first_party_observation',
+        verificationStatus: 'observed',
+        verificationEvidence: null,
+      }),
+    { success: 'Social profile linked to the new prospect' },
+  );
+
+  function resetSocialIntake() {
+    setSocialSelected(new Set());
+    setSocialIntake(null);
+    setSocialProgress(null);
+  }
+
+  async function runBulkIntake() {
+    if (!socialResults || !socialSelected.size) return;
+    const selected = socialResults.filter((candidate) => socialSelected.has(candidate.profileUrl));
+    if (!selected.length) return;
+    setSocialIntake(null);
+    setSocialProgress({ done: 0, total: selected.length });
+    const result = await bulkAdd.run(selected, socialBasis || null);
+    setSocialProgress(null);
+    if (result) {
+      setSocialIntake(result);
+      setSocialSelected(new Set());
+    }
+  }
+
   async function run(body: SearchBody, mode: 'search' | 'more') {
     const id = ++requestId.current;
     setLoading(mode);
@@ -210,6 +280,8 @@ function Discover({
     const id = ++socialRequestId.current;
     setSocialLoading(true);
     setSocialError(null);
+    setSocialResults(null);
+    resetSocialIntake();
     try {
       const res = await api.post<SocialSearchResponse>('/api/discover/social', {
         country,
@@ -241,6 +313,7 @@ function Discover({
     setFilter('all');
     setSocialResults(null);
     setSocialError(null);
+    resetSocialIntake();
     if (searchGoogle) {
       run(
         {
@@ -602,6 +675,25 @@ function Discover({
               retrievedAt={socialRetrievedAt}
               canTrack={can('prospects.write')}
               onReview={setSocialTracking}
+              selected={socialSelected}
+              onToggle={(candidate) =>
+                setSocialSelected((previous) => {
+                  const next = new Set(previous);
+                  if (next.has(candidate.profileUrl)) next.delete(candidate.profileUrl);
+                  else next.add(candidate.profileUrl);
+                  return next;
+                })
+              }
+              onSelectAll={() =>
+                setSocialSelected(new Set(socialResults.filter((candidate) => candidate.verification !== 'wrong_business').map((candidate) => candidate.profileUrl)))
+              }
+              onDeselectAll={() => setSocialSelected(new Set())}
+              basis={socialBasis}
+              onBasisChange={setSocialBasis}
+              onBulkAdd={() => void runBulkIntake()}
+              running={bulkAdd.pending}
+              progress={socialProgress}
+              intake={socialIntake}
             />
           )}
         </div>
@@ -646,7 +738,7 @@ function Discover({
           open
           onOpenChange={(o) => !o && setSocialTracking(null)}
           initial={{
-            name: socialTracking.displayName,
+            name: socialTracking.simulated ? socialTracking.displayName : nameFromHandle(socialTracking.handle),
             category,
             country,
             region,
@@ -665,13 +757,17 @@ function Discover({
                 'This business does not exist. Add it only to practise the workflow.'
               ) : (
                 <>
-                  A social profile is not an independent business record, and search results are not saved. Confirm the name, location and contact details from the
-                  business’s own website, signboard or a directory, add that source link, and keep this profile as a research note only.
+                  A social profile is not an independent business record. The search result itself is never saved; the name is derived from the handle,
+                  so confirm it from the business’s own website, signboard or a directory. Add that source link; the profile is then kept as an unresolved
+                  reference.
                 </>
               )}
             </Notice>
           }
-          onSaved={() => setSocialTracking(null)}
+          onSaved={(saved) => {
+            if (socialTracking) void linkSocialSource.run(socialTracking, saved.id);
+            setSocialTracking(null);
+          }}
         />
       )}
     </>
@@ -861,20 +957,51 @@ const VERIFICATION_LABELS: Record<SocialCandidateVerification, { label: string; 
   wrong_business: { label: 'Looks like another business', tone: 'danger' },
 };
 
+const INTAKE_TONE: Record<SocialIntakeOutcome, 'success' | 'neutral' | 'warning' | 'danger'> = {
+  added: 'success',
+  already_exists: 'neutral',
+  needs_permitted_source: 'warning',
+  needs_review: 'warning',
+  not_eligible: 'danger',
+};
+
 function SocialResults({
   candidates,
   simulated,
   retrievedAt,
   canTrack,
   onReview,
+  selected,
+  onToggle,
+  onSelectAll,
+  onDeselectAll,
+  basis,
+  onBasisChange,
+  onBulkAdd,
+  running,
+  progress,
+  intake,
 }: {
   candidates: SocialCandidate[];
   simulated: boolean;
   retrievedAt: string | null;
   canTrack: boolean;
   onReview: (candidate: SocialCandidate) => void;
+  selected: ReadonlySet<string>;
+  onToggle: (candidate: SocialCandidate) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
+  basis: SocialRetentionBasis | '';
+  onBasisChange: (basis: SocialRetentionBasis | '') => void;
+  onBulkAdd: () => void;
+  running: boolean;
+  progress: { done: number; total: number } | null;
+  intake: BulkSocialIntakeResult | null;
 }) {
   const reviewable = candidates.filter((c) => c.verification !== 'wrong_business').length;
+  const selectedCount = candidates.filter((c) => selected.has(c.profileUrl)).length;
+  const outcomes = new Map<string, SocialIntakeResult>((intake?.results ?? []).map((result) => [result.profileUrl, result]));
+  const summary = intake?.summary ?? null;
   return (
     <Card className="overflow-hidden" data-testid="social-results">
       <CardBody className="space-y-1.5 border-b border-border">
@@ -887,6 +1014,92 @@ function SocialResults({
         </div>
         <p className="text-xs text-subtle">{SOCIAL_DISCOVERY_NOTICE}</p>
       </CardBody>
+
+      {canTrack && candidates.length > 0 && (
+        <div className="space-y-3 border-b border-border bg-surface-muted/30 px-4 py-3" data-testid="social-bulk-controls">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-subtle">
+            <span className="font-medium text-muted">
+              {selectedCount} of {reviewable} selected
+            </span>
+            <Button size="sm" variant="ghost" disabled={running || selectedCount === reviewable} onClick={onSelectAll}>
+              Select all
+            </Button>
+            <Button size="sm" variant="ghost" disabled={running || !selectedCount} onClick={onDeselectAll}>
+              Deselect all
+            </Button>
+          </div>
+          <Field
+            label="Why may these profile links be kept?"
+            hint={
+              basis
+                ? SOCIAL_RETENTION_BASIS_HELP[basis]
+                : 'A search result alone does not permit storing a profile. Without a basis, live results come back as “Needs permitted source”. Simulated fictional profiles are exempt.'
+            }
+          >
+            {(props) => (
+              <Select {...props} value={basis} disabled={running} onChange={(e) => onBasisChange(e.target.value as SocialRetentionBasis | '')}>
+                <option value="">Choose a basis…</option>
+                {SOCIAL_RETENTION_BASES.map((option) => (
+                  <option key={option} value={option}>
+                    {SOCIAL_RETENTION_BASIS_LABELS[option]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Button size="sm" variant="primary" loading={running} disabled={!selectedCount} onClick={onBulkAdd}>
+              Add selected to CRM ({selectedCount})
+            </Button>
+            <span className="text-xs text-subtle">Up to 20 results per batch. Every result is checked against existing prospects.</span>
+            {progress && (
+              <span className="text-xs text-muted" role="status">
+                Processing {progress.done} / {progress.total}…
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {summary && (
+        <div className="space-y-2 border-b border-border px-4 py-3" data-testid="social-intake-summary" aria-live="polite">
+          <p className="text-sm font-medium">Batch result</p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <li>
+              <span className="font-semibold tabular">{summary.added}</span> added
+            </li>
+            <li>
+              <span className="font-semibold tabular">{summary.already_exists}</span> existing
+            </li>
+            <li>
+              <span className="font-semibold tabular">{summary.needs_permitted_source}</span> need permitted source
+            </li>
+            <li>
+              <span className="font-semibold tabular">{summary.needs_review}</span> need manual review
+            </li>
+            {summary.not_eligible > 0 && (
+              <li>
+                <span className="font-semibold tabular">{summary.not_eligible}</span> not eligible
+              </li>
+            )}
+          </ul>
+          {summary.needs_permitted_source > 0 && (
+            <p className="text-xs text-subtle">Choose a retention basis above, then add the remaining results again. Nothing from the search result itself is stored.</p>
+          )}
+          {intake && intake.results.some((result) => result.businessId) && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {intake.results
+                .filter((result) => result.businessId)
+                .map((result) => (
+                  <Link key={`${result.profileUrl}-${result.outcome}`} href={`/prospects/${result.businessId}`} className="text-accent underline">
+                    {result.businessName} →
+                  </Link>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {candidates.length === 0 ? (
         <EmptyState
           icon={Search}
@@ -896,7 +1109,16 @@ function SocialResults({
       ) : (
         <ul className="divide-y divide-border" aria-live="polite">
           {candidates.map((c) => (
-            <SocialResultRow key={c.profileUrl} candidate={c} canTrack={canTrack} onReview={() => onReview(c)} />
+            <SocialResultRow
+              key={c.profileUrl}
+              candidate={c}
+              canTrack={canTrack}
+              onReview={() => onReview(c)}
+              selected={selected.has(c.profileUrl)}
+              onToggle={() => onToggle(c)}
+              disabled={running}
+              result={outcomes.get(c.profileUrl) ?? null}
+            />
           ))}
         </ul>
       )}
@@ -904,13 +1126,39 @@ function SocialResults({
   );
 }
 
-function SocialResultRow({ candidate: c, canTrack, onReview }: { candidate: SocialCandidate; canTrack: boolean; onReview: () => void }) {
+function SocialResultRow({
+  candidate: c,
+  canTrack,
+  onReview,
+  selected,
+  onToggle,
+  disabled,
+  result,
+}: {
+  candidate: SocialCandidate;
+  canTrack: boolean;
+  onReview: () => void;
+  selected: boolean;
+  onToggle: () => void;
+  disabled: boolean;
+  result: SocialIntakeResult | null;
+}) {
   const badge = VERIFICATION_LABELS[c.verification];
   const Icon = c.platform === 'instagram' ? AtSign : c.platform === 'facebook' ? Users : Music2;
   const blocked = c.verification === 'wrong_business';
   const profile = safeHref(c.profileUrl);
   return (
     <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start">
+      {!blocked && (
+        <input
+          type="checkbox"
+          className="mt-1 size-4 shrink-0 rounded border-border accent-[var(--accent)]"
+          aria-label={`Select ${c.handle}`}
+          checked={selected}
+          disabled={disabled}
+          onChange={onToggle}
+        />
+      )}
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <Icon className="size-3.5 shrink-0 text-subtle" aria-hidden />
@@ -939,8 +1187,14 @@ function SocialResultRow({ candidate: c, canTrack, onReview }: { candidate: Soci
             Search: <span className="font-mono">{c.sourceQuery}</span>
           </span>
         </div>
+        {result && (
+          <p className="break-words text-xs text-muted" data-testid={`intake-outcome-${result.handle}`}>
+            {result.reason}
+          </p>
+        )}
       </div>
-      <div className="shrink-0">
+      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        {result && <Badge tone={INTAKE_TONE[result.outcome]}>{SOCIAL_INTAKE_LABELS[result.outcome]}</Badge>}
         {blocked ? (
           <span className="text-xs text-subtle">Not this business</span>
         ) : canTrack ? (

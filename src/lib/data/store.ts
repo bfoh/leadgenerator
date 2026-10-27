@@ -1,4 +1,11 @@
 import type { ResourceEntry, ResourceEntryInsert } from '@/lib/domain/business-resources';
+import type {
+  BusinessSocialSource,
+  ResearchObservation,
+  ResearchObservationInsert,
+  SocialSourceInsert,
+  SocialVerificationStatus,
+} from '@/lib/domain/social-research';
 // Persistence contract shared by demo mode (LocalStore) and cloud mode (SupabaseStore).
 // Business rules live in services.ts, not in implementations.
 
@@ -229,6 +236,21 @@ export interface DataStore {
   listResourceEntries(businessId: string): Promise<ResourceEntry[]>;
   createResourceEntry(input: ResourceEntryInsert): Promise<ResourceEntry>;
   revokeResourceEntry(id: string): Promise<ResourceEntry>;
+  /** False when the cloud database has not had migration 017 (social sources, research observations). */
+  socialResearchAvailable(): Promise<boolean>;
+  /** Active and revoked links, newest capture first. Optional business filter for one prospect. */
+  listSocialSources(businessId?: string): Promise<BusinessSocialSource[]>;
+  createSocialSource(input: SocialSourceInsert): Promise<BusinessSocialSource>;
+  /** Forward-only; the database guard refuses a downgrade or a changed profile identity. */
+  updateSocialSourceVerification(
+    id: string,
+    patch: { verificationStatus: SocialVerificationStatus; verificationEvidence: string },
+  ): Promise<BusinessSocialSource>;
+  revokeSocialSource(id: string): Promise<BusinessSocialSource>;
+  /** Observations with provenance and a status; revoked entries are excluded from kits. */
+  listResearchObservations(businessId?: string): Promise<ResearchObservation[]>;
+  createResearchObservation(input: ResearchObservationInsert): Promise<ResearchObservation>;
+  revokeResearchObservation(id: string): Promise<ResearchObservation>;
   listStudioAssets(projectId?: string): Promise<StudioAsset[]>;
   getStudioAsset(id: string): Promise<StudioAsset | null>;
   createStudioAsset(input: StudioAssetInsert): Promise<StudioAsset>;
@@ -326,3 +348,6 @@ export const CREATIVE_DIRECTION_MIGRATION_REQUIRED =
 
 export const WEBSITE_PROTOTYPE_MIGRATION_REQUIRED =
   'Apply database migration 015 (supabase/migrations/015_studio_website_prototypes.sql) to save rendered website prototype versions.';
+
+export const SOCIAL_RESEARCH_MIGRATION_REQUIRED =
+  'Apply database migration 017 (supabase/migrations/017_social_research_intelligence.sql) to link social sources and record research observations.';

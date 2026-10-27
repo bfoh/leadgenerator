@@ -1,4 +1,11 @@
 import { resourceEntrySchema, type ResourceEntry } from '@/lib/domain/business-resources';
+import {
+  canAdvanceVerification,
+  researchObservationInsertSchema,
+  socialSourceInsertSchema,
+  type BusinessSocialSource,
+  type ResearchObservation,
+} from '@/lib/domain/social-research';
 // Demo-mode persistence in browser storage. Emulates the database behaviours that matter to the
 // workflow (audit trail, proposal locking and versioning, report versioning, cascades) so demo and
 // cloud mode behave the same.
@@ -166,6 +173,9 @@ interface DemoState {
   /** Added with rendered prototypes (migration 015); filled in on load for older demo data. */
   studioWebsitePrototypes: StudioWebsitePrototype[];
   resourceEntries: ResourceEntry[];
+  /** Added with social resource intelligence (migration 017); filled in on load for older demo data. */
+  socialSources: BusinessSocialSource[];
+  researchObservations: ResearchObservation[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -190,6 +200,8 @@ const AUDITED: (keyof Tables)[] = [
   'studioProjects',
   'studioAssets',
   'resourceEntries',
+  'socialSources',
+  'researchObservations',
   'studioAssetReferences',
   'studioBrandKits',
 ];
@@ -210,6 +222,8 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   studioProjects: 'studio_projects',
   studioAssets: 'studio_assets',
   resourceEntries: 'business_resource_entries',
+  socialSources: 'business_social_sources',
+  researchObservations: 'business_research_observations',
   studioAssetReferences: 'studio_asset_references',
   studioBrandKits: 'studio_brand_kits',
   studioCreativeBriefs: 'studio_creative_briefs',
@@ -268,6 +282,8 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     studioCreativeDirectionReviews: [],
     studioWebsitePrototypes: [],
     resourceEntries: [],
+    socialSources: [],
+    researchObservations: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -397,6 +413,8 @@ export class LocalStore implements DataStore {
           parsed.studioCreativeDirectionReviews ??= [];
           parsed.studioWebsitePrototypes ??= [];
           parsed.resourceEntries ??= [];
+          parsed.socialSources ??= [];
+          parsed.researchObservations ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -563,6 +581,8 @@ export class LocalStore implements DataStore {
       // Migration 012: a concept and its evidence live and die with the prospect they were built for.
       const studioIds = new Set(this.state.studioProjects.filter((p) => p.businessId === id).map((p) => p.id));
       this.remove('resourceEntries', (e) => e.businessId === id);
+      this.remove('socialSources', (s) => s.businessId === id);
+      this.remove('researchObservations', (o) => o.businessId === id);
       this.remove('studioObservations', (o) => studioIds.has(o.projectId));
       this.remove('studioReviews', (r) => studioIds.has(r.projectId));
       // Migration 013: the vault, its history and the Brand Kit live and die with the concept.
@@ -1442,6 +1462,74 @@ export class LocalStore implements DataStore {
     if (!existing || existing.revokedAt) throw new StoreError('Active resource entry not found', 'not_found');
     return this.update('resourceEntries', id, { revokedAt: new Date().toISOString() });
   });
+
+  // ── Social sources and research observations (migration 017) ──
+  async socialResearchAvailable() {
+    return true;
+  }
+  async listSocialSources(businessId?: string) {
+    return clone(
+      this.state.socialSources
+        .filter((s) => !businessId || s.businessId === businessId)
+        .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt)),
+    );
+  }
+  createSocialSource: DataStore['createSocialSource'] = (input) =>
+    this.commit(() => {
+      const parsed = socialSourceInsertSchema.parse(input);
+      if (!this.state.businesses.some((b) => b.id === parsed.businessId)) throw new StoreError('Prospect not found', 'not_found');
+      if (this.state.socialSources.some((s) => !s.revokedAt && s.platform === parsed.platform && s.handle === parsed.handle)) {
+        throw new StoreError('This profile is already linked to a prospect.', 'conflict');
+      }
+      const at = this.now();
+      return this.insert('socialSources', {
+        ...parsed,
+        capturedBy: this.userId,
+        capturedAt: at,
+        verifiedAt: parsed.verificationStatus === 'observed' ? null : at,
+        revokedAt: null,
+      });
+    });
+  updateSocialSourceVerification: DataStore['updateSocialSourceVerification'] = (id, patch) =>
+    this.commit(() => {
+      const existing = this.state.socialSources.find((s) => s.id === id);
+      if (!existing || existing.revokedAt) throw new StoreError('Active social source not found', 'not_found');
+      if (!canAdvanceVerification(existing.verificationStatus, patch.verificationStatus)) {
+        throw new StoreError('Verification status only moves forward.', 'invalid');
+      }
+      if (patch.verificationEvidence.trim().length < 15) throw new StoreError('Say who confirmed the profile, when and how.', 'invalid');
+      return this.update('socialSources', id, {
+        verificationStatus: patch.verificationStatus,
+        verificationEvidence: patch.verificationEvidence.trim(),
+        verifiedAt: this.now(),
+      });
+    });
+  revokeSocialSource: DataStore['revokeSocialSource'] = (id) =>
+    this.commit(() => {
+      const existing = this.state.socialSources.find((s) => s.id === id);
+      if (!existing || existing.revokedAt) throw new StoreError('Active social source not found', 'not_found');
+      return this.update('socialSources', id, { revokedAt: this.now() });
+    });
+
+  async listResearchObservations(businessId?: string) {
+    return clone(
+      this.state.researchObservations
+        .filter((o) => !businessId || o.businessId === businessId)
+        .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt)),
+    );
+  }
+  createResearchObservation: DataStore['createResearchObservation'] = (input) =>
+    this.commit(() => {
+      const parsed = researchObservationInsertSchema.parse(input);
+      if (!this.state.businesses.some((b) => b.id === parsed.businessId)) throw new StoreError('Prospect not found', 'not_found');
+      return this.insert('researchObservations', { ...parsed, capturedBy: this.userId, capturedAt: this.now(), revokedAt: null });
+    });
+  revokeResearchObservation: DataStore['revokeResearchObservation'] = (id) =>
+    this.commit(() => {
+      const existing = this.state.researchObservations.find((o) => o.id === id);
+      if (!existing || existing.revokedAt) throw new StoreError('Active research observation not found', 'not_found');
+      return this.update('researchObservations', id, { revokedAt: this.now() });
+    });
 
   async listStudioAssets(projectId?: string) {
     return clone(this.state.studioAssets.filter((a) => !projectId || a.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
