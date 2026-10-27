@@ -199,7 +199,15 @@ export async function approveStudioAsset(ctx: ServiceContext, project: StudioPro
   await requireVault(ctx);
   const problems = assetApprovalProblems(asset);
   if (problems.length) throw new StoreError(problems[0], 'invalid');
-  const updated = await ctx.store.updateStudioAsset(asset.id, { status: 'approved', reviewNote: note.trim() || null });
+  // The row must satisfy `studio_asset_approved` (status approved ⇒ approved_at set) and record who
+  // decided. The demo store stamps those columns for rows it keeps in memory, but the cloud store
+  // writes only what it is given, so the decision carries its own time and reviewer for both.
+  const updated = await ctx.store.updateStudioAsset(asset.id, {
+    status: 'approved',
+    approvedAt: now(),
+    approvedBy: ctx.userId,
+    reviewNote: note.trim() || null,
+  });
   await recordEvent(ctx, project, updated, 'approved', note.trim() || 'Approved');
   await log(ctx, project.businessId, 'studio', `Asset approved: ${asset.fileName}`, { projectId: project.id, assetId: asset.id });
   return updated;
@@ -210,7 +218,13 @@ export async function rejectStudioAsset(ctx: ServiceContext, project: StudioProj
   await requireVault(ctx);
   if (reason.trim().length < 3) throw new StoreError('Explain why the asset was rejected.', 'invalid');
   if (asset.status === 'superseded') throw new StoreError('A replaced asset cannot be rejected.', 'conflict');
-  const updated = await ctx.store.updateStudioAsset(asset.id, { status: 'rejected', rejectedReason: reason.trim(), reviewNote: reason.trim() });
+  const updated = await ctx.store.updateStudioAsset(asset.id, {
+    status: 'rejected',
+    rejectedAt: now(),
+    rejectedBy: ctx.userId,
+    rejectedReason: reason.trim(),
+    reviewNote: reason.trim(),
+  });
   await recordEvent(ctx, project, updated, 'rejected', reason.trim());
   await log(ctx, project.businessId, 'studio', `Asset rejected: ${asset.fileName}`, { projectId: project.id, assetId: asset.id, reason: reason.trim() });
   return updated;
@@ -223,6 +237,8 @@ export async function revokeStudioAsset(ctx: ServiceContext, project: StudioProj
   if (asset.status !== 'approved') throw new StoreError('Only an approved asset can have its permission revoked.', 'conflict');
   const updated = await ctx.store.updateStudioAsset(asset.id, {
     status: 'revoked',
+    revokedAt: now(),
+    revokedBy: ctx.userId,
     revokedReason: reason.trim(),
     reviewNote: reason.trim(),
     publishPermission: 'denied',

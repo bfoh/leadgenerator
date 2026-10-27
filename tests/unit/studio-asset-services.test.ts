@@ -5,10 +5,11 @@ import * as svc from '@/lib/data/services';
 import * as studio from '@/lib/data/studio-services';
 import * as vault from '@/lib/data/studio-asset-services';
 import type { ServiceContext } from '@/lib/data/services';
+import { StoreError } from '@/lib/data/store';
 import type { BusinessForm } from '@/lib/domain/schemas';
 import { DEFAULT_SETTINGS } from '@/lib/domain/settings';
 import type { StudioProject } from '@/lib/domain/studio';
-import { brandKitSummary, emptyBrandKitContent, type BrandKitContent, type StudioAsset } from '@/lib/domain/studio-assets';
+import { brandKitSummary, emptyBrandKitContent, type BrandKitContent, type StudioAsset, type StudioAssetPatch } from '@/lib/domain/studio-assets';
 import type { Business } from '@/lib/domain/types';
 import { FASHION_BUSINESS, SITE_URL } from './studio-fixtures';
 
@@ -392,6 +393,97 @@ describe('the approved pack', () => {
     expect(pack.manifest.approvedBrandKit?.version).toBe(1);
     expect(pack.manifest.note).toMatch(/does not grant permission/);
     expect((await vault.approvedBrandKit(ctx, project))?.version.version).toBe(1);
+  });
+});
+
+// Regression for the production failure "new row for relation \"studio_assets\" violates check
+// constraint \"studio_asset_approved\"": the service used to send only `status` and `reviewNote`.
+// The demo store hid it because it stamps `approvedAt` itself; the cloud store writes only what it
+// is given, so the row reached Postgres with a null approval time. This store behaves like the
+// cloud one: it forwards the patch untouched and applies the lifecycle checks the migration
+// declares, so a decision that forgets its time or reviewer fails here instead of in production.
+function cloudStore(base: ServiceContext) {
+  const writes: { id: string; patch: StudioAssetPatch }[] = [];
+  const store = new Proxy(base.store, {
+    get(target, key, receiver) {
+      if (key === 'updateStudioAsset') {
+        return async (id: string, patch: StudioAssetPatch) => {
+          writes.push({ id, patch: { ...patch } });
+          if (patch.status === 'approved' && !patch.approvedAt) {
+            throw new StoreError('new row for relation "studio_assets" violates check constraint "studio_asset_approved"', 'invalid');
+          }
+          if (patch.status === 'rejected' && !patch.rejectedAt) {
+            throw new StoreError('new row for relation "studio_assets" violates check constraint "studio_asset_rejected"', 'invalid');
+          }
+          if (patch.status === 'revoked' && !patch.revokedAt) {
+            throw new StoreError('new row for relation "studio_assets" violates check constraint "studio_asset_revoked"', 'invalid');
+          }
+          return target.updateStudioAsset(id, patch);
+        };
+      }
+      const value = Reflect.get(target, key, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+  return { ctx: { ...base, store }, writes };
+}
+
+describe('writing a decision the way the cloud store writes it', () => {
+  it('stamps the approval time and the reviewer, so studio_asset_approved is satisfied', async () => {
+    const cloud = cloudStore(ctx);
+    const asset = await vault.uploadStudioAsset(cloud.ctx, project, upload());
+    const approvedAsset = await vault.approveStudioAsset(cloud.ctx, project, asset, 'Owned by the business.');
+
+    expect(cloud.writes).toHaveLength(1);
+    const { patch } = cloud.writes[0];
+    expect(patch).toMatchObject({ status: 'approved', approvedBy: ctx.userId, reviewNote: 'Owned by the business.' });
+    expect(patch.approvedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(approvedAsset.status).toBe('approved');
+    expect(await activities()).toContain('Asset approved: nsroma-logo.png');
+    expect((await cloud.ctx.store.listStudioAssetEvents(project.id))[0]).toMatchObject({ action: 'approved', note: 'Owned by the business.' });
+    expect((await cloud.ctx.store.listStudioAssets(project.id))[0].status).toBe('approved');
+  });
+
+  it('refuses to approve without permission to keep a copy, and writes nothing', async () => {
+    const cloud = cloudStore(ctx);
+    const asset = await vault.uploadStudioAsset(cloud.ctx, project, upload({ storePermission: 'unknown' }));
+
+    await expect(vault.approveStudioAsset(cloud.ctx, project, asset, 'Fine.')).rejects.toThrow(/permission to keep/);
+    expect(cloud.writes).toEqual([]);
+    expect((await cloud.ctx.store.listStudioAssets(project.id))[0].status).toBe('candidate');
+  });
+
+  it('refuses to approve whose licence has expired, and writes nothing', async () => {
+    const cloud = cloudStore(ctx);
+    const asset = await vault.uploadStudioAsset(cloud.ctx, project, upload({ licenceName: 'Stock licence', licenceExpiresOn: '2020-01-01' }));
+
+    await expect(vault.approveStudioAsset(cloud.ctx, project, asset, 'Fine.')).rejects.toThrow(/expired on 2020-01-01/);
+    expect(cloud.writes).toEqual([]);
+    expect((await cloud.ctx.store.listStudioAssets(project.id))[0].status).toBe('candidate');
+  });
+
+  it('stops a second decision on an asset that is no longer a candidate', async () => {
+    const cloud = cloudStore(ctx);
+    const asset = await vault.uploadStudioAsset(cloud.ctx, project, upload());
+    await vault.approveStudioAsset(cloud.ctx, project, asset, 'First decision.');
+
+    await expect(vault.approveStudioAsset(cloud.ctx, project, { ...asset, status: 'approved' }, 'Again.')).rejects.toThrow(/Only a candidate/);
+    expect(cloud.writes).toHaveLength(1);
+  });
+
+  it('stamps the rejection and revocation times the same way', async () => {
+    const cloud = cloudStore(ctx);
+    const rejectedAsset = await vault.uploadStudioAsset(cloud.ctx, project, upload());
+    await vault.rejectStudioAsset(cloud.ctx, project, rejectedAsset, 'Not the right lockup.');
+    const replacement = await vault.uploadStudioAsset(cloud.ctx, project, upload({ fileName: 'nsroma-logo-alt.png' }));
+    const approvedAsset = await vault.approveStudioAsset(cloud.ctx, project, replacement, 'Owned.');
+    await vault.revokeStudioAsset(cloud.ctx, project, approvedAsset, 'The owner withdrew permission on 26 October.');
+
+    expect(cloud.writes.map((write) => write.patch.status)).toEqual(['rejected', 'approved', 'revoked']);
+    expect(cloud.writes[0].patch).toMatchObject({ rejectedBy: ctx.userId, rejectedReason: 'Not the right lockup.' });
+    expect(cloud.writes[0].patch.rejectedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(cloud.writes[2].patch).toMatchObject({ revokedBy: ctx.userId, exportPermission: 'denied', prototypePermission: 'denied' });
+    expect(cloud.writes[2].patch.revokedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 });
 

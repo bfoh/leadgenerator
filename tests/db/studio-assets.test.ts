@@ -244,6 +244,31 @@ describe('the asset record', () => {
     expect(approved.status).toBe('approved');
   });
 
+  // The production failure of 25 Oct 2026: the approval service updated the row with the new status
+  // alone, so Postgres refused it. The same statement fails here, and the statement the service now
+  // writes succeeds.
+  it('refuses an approval update that forgets its timestamp, and accepts the decision the service writes', async () => {
+    const projectId = await newProject();
+    const candidate = await insertAsset(projectId);
+
+    await expect(
+      as(db, OWNER, () => db.query(`update public.studio_assets set status = 'approved' where id = $1`, [candidate.id])),
+    ).rejects.toThrow(/studio_asset_approved/);
+
+    const [untouched] = await rows<Record<string, unknown>>(db, `select status, approved_at from public.studio_assets where id = $1`, [candidate.id]);
+    expect(untouched).toMatchObject({ status: 'candidate', approved_at: null });
+
+    await as(db, OWNER, () =>
+      db.query(`update public.studio_assets set status = 'approved', approved_at = now(), approved_by = $2 where id = $1`, [
+        candidate.id,
+        OWNER,
+      ]),
+    );
+    const [row] = await rows<Record<string, unknown>>(db, `select status, approved_at, approved_by from public.studio_assets where id = $1`, [candidate.id]);
+    expect(row).toMatchObject({ status: 'approved', approved_by: OWNER });
+    expect(row.approved_at).not.toBeNull();
+  });
+
   it('refuses the same private path twice in one concept, but allows it in another', async () => {
     const projectId = await newProject();
     const first = await insertAsset(projectId);
