@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { MIGRATIONS_DIR, as, asServiceRole, createDatabase, createUser, freezeMessagingClock, rows } from './harness';
+import { MIGRATIONS_DIR, as, asServiceRole, createDatabase, createUser, fixtureNow, freezeMessagingClock, rows } from './harness';
 
 // Exercises migration 006 (templates, eligibility decisions, the outbound queue, received messages
 // and webhook events) on PGlite: who may move a message between which statuses, approval and
@@ -41,6 +41,9 @@ async function update(actor: Actor, table: string, id: unknown, values: Row, d =
   const [row] = await run(actor, () => rows<Row>(d, `update public.${table} set ${cols.map((c, i) => `${c} = $${i + 2}`).join(', ')} where id = $1 returning *`, [id, ...Object.values(values)]), d);
   return row;
 }
+
+/** Queues a message on the fixture clock; a missing `scheduled_for` would be stamped from the wall clock. */
+const queue = (actor: Actor, id: unknown) => update(actor, 'outreach_messages', id, { status: 'queued', scheduled_for: fixtureNow() });
 
 async function business(name = `Biz ${Math.random().toString(36).slice(2, 7)}`, d = db, organization = org, user = OWNER) {
   return (await insert(user, 'businesses', { organization_id: organization, name, city: 'Accra' }, d)).id as string;
@@ -140,6 +143,8 @@ beforeAll(async () => {
   await freezeMessagingClock(db);
   const t = await insert(OWNER, 'message_templates', { organization_id: org, channel: 'email', name: 'Covered introduction', purpose: 'introduction', subject: 'Hello', body: 'Hello {{business_name}}' });
   await update(OWNER, 'message_templates', t.id, { status: 'approved' });
+  // A policy's expiry is checked against approved_at = now(), the record clock, so it stays relative to
+  // the wall clock; the policy clock only has to see it as unexpired, which it always will.
   await insert(OWNER, 'message_policies', { organization_id: org, name: 'Introductions', template_id: t.id, template_version: 1, channel: 'email', purpose: 'introduction', daily_cap: 50, expires_at: new Date(Date.now() + 90 * 86_400_000).toISOString() });
   covered = t.id as string;
 });
@@ -242,7 +247,7 @@ describe('outreach messages', () => {
 
   it('leave sending and delivery to the server', async () => {
     const { message } = await approved();
-    const queued = await update(SALES, 'outreach_messages', message.id, { status: 'queued' });
+    const queued = await queue(SALES, message.id);
     expect(queued.queued_at).not.toBeNull();
     for (const status of ['sending', 'sent', 'delivered', 'failed', 'blocked']) {
       await expect(update(OWNER, 'outreach_messages', message.id, { status })).rejects.toThrow(/recorded by the server/);
@@ -268,22 +273,22 @@ describe('outreach messages', () => {
 
   it('cannot be queued twice with the same text for the same recipient', async () => {
     const { message, businessId, point, email } = await approved();
-    const first = await update(SALES, 'outreach_messages', message.id, { status: 'queued' });
+    const first = await queue(SALES, message.id);
     expect(first.dedupe_key).toBe(hash(`${org}:email:${hash(`email:${email}`)}:${first.body_hash}`));
 
     const again = await draft(SALES, businessId, point.id, email, { body: message.body });
     const d = await insert(OWNER, 'eligibility_decisions', decisionFor(again, 'approval'));
     await update(OWNER, 'outreach_messages', again.id, { status: 'approved', decision_id: d.id });
-    await expect(update(SALES, 'outreach_messages', again.id, { status: 'queued' })).rejects.toThrow(/outreach_messages_dedupe_idx/);
+    await expect(queue(SALES, again.id)).rejects.toThrow(/outreach_messages_dedupe_idx/);
 
     await update(SALES, 'outreach_messages', first.id, { status: 'cancelled' });
-    expect(await update(SALES, 'outreach_messages', again.id, { status: 'queued' })).toMatchObject({ status: 'queued' });
+    expect(await queue(SALES, again.id)).toMatchObject({ status: 'queued' });
   });
 
   it('suppress the recipient after a bounce (that channel) or a complaint (every channel)', async () => {
     for (const outcome of ['bounced', 'complained'] as const) {
       const { message } = await approved();
-      const queued = await update(SALES, 'outreach_messages', message.id, { status: 'queued' });
+      const queued = await queue(SALES, message.id);
       await update('service', 'outreach_messages', message.id, { status: 'sending', dispatch_decision_id: (await dispatchDecision(queued)).id });
       await update('service', 'outreach_messages', message.id, { status: outcome, status_reason: `Provider reported ${outcome}`, provider: 'resend', provider_message_id: `re_${message.id}` });
       const [s] = await rows<Row>(db, 'select kind, channel, reason, source, hint from public.suppressions where value_hash = $1 and lifted_at is null', [message.recipient_hash]);

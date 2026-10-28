@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { MIGRATIONS_DIR, as, asServiceRole, createDatabase, createUser, freezeMessagingClock, rows } from './harness';
+import { MIGRATIONS_DIR, as, asServiceRole, createDatabase, createUser, fixtureDays, fixtureNow, freezeMessagingClock, rows } from './harness';
 
 // Exercises migration 007 on PGlite: the workspace sending policy and pause switch, approved-message
 // policies, deferred decisions and the send-policy trigger that enforces quiet hours, sending days,
@@ -21,7 +21,11 @@ let org: string;
 
 const hash = (key: string) => createHash('sha256').update(key).digest('hex');
 const run = <T>(actor: Actor, fn: () => Promise<T>) => (actor === 'service' ? asServiceRole(db, fn) : as(db, actor, fn));
-const days = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
+// Two clocks meet in this file. The policy clock (`messaging_now()`, frozen by each test) decides quiet
+// hours, sending days and the 7-day scheduling window; dates it is compared against come from
+// `fixtureDays`. The record clock (`now()`) stamps `approved_at` and validates `expires_at` against it,
+// so a policy's expiry belongs to that clock and stays relative to the wall clock.
+const expiryDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
 
 async function insert(actor: Actor, table: string, values: Row) {
   const cols = Object.keys(values);
@@ -46,7 +50,7 @@ async function template(purpose = 'introduction', approve = true) {
   return approve ? update(OWNER, 'message_templates', t.id, { status: 'approved' }) : t;
 }
 async function policy(t: Row, extra: Row = {}) {
-  return insert(OWNER, 'message_policies', { organization_id: org, name: 'Introductions', template_id: t.id, template_version: t.version, channel: t.channel, purpose: t.purpose, daily_cap: 50, expires_at: days(90), ...extra });
+  return insert(OWNER, 'message_policies', { organization_id: org, name: 'Introductions', template_id: t.id, template_version: t.version, channel: t.channel, purpose: t.purpose, daily_cap: 50, expires_at: expiryDays(90), ...extra });
 }
 
 /** A draft for a new (or given) recipient from template t, approved against a stored decision. */
@@ -107,7 +111,9 @@ function decision(m: Row, stage: string, extra: Row = {}): Row {
 /** Approves and queues the message, then moves it to sending as the server (the guarded step). */
 async function send(m: Row, approve: () => Promise<Row>) {
   await approve();
-  await update(OWNER, 'outreach_messages', m.id, { status: 'queued' });
+  // Queue on the fixture clock: a missing scheduled_for would otherwise be stamped from the wall
+  // clock by migration 006 and then measured against the trigger's frozen clock by migration 007.
+  await update(OWNER, 'outreach_messages', m.id, { status: 'queued', scheduled_for: fixtureNow() });
   const d = await insert('service', 'eligibility_decisions', decision(m, 'dispatch', { actor_id: OWNER, sandbox: true }));
   return update('service', 'outreach_messages', m.id, { status: 'sending', dispatch_decision_id: d.id });
 }
@@ -181,10 +187,10 @@ describe('workspace sending policy', () => {
 describe('approved-message policies', () => {
   it('cover one approved template version and are stamped by the database', async () => {
     const t = await template();
-    await expect(insert(SALES, 'message_policies', { organization_id: org, name: 'x', template_id: t.id, template_version: 1, channel: 'email', purpose: 'introduction', expires_at: days(30) })).rejects.toThrow(
+    await expect(insert(SALES, 'message_policies', { organization_id: org, name: 'x', template_id: t.id, template_version: 1, channel: 'email', purpose: 'introduction', expires_at: expiryDays(30) })).rejects.toThrow(
       /row-level security/,
     );
-    await expect(insert('service', 'message_policies', { organization_id: org, name: 'x', template_id: t.id, template_version: 1, channel: 'email', purpose: 'introduction', expires_at: days(30) })).rejects.toThrow(
+    await expect(insert('service', 'message_policies', { organization_id: org, name: 'x', template_id: t.id, template_version: 1, channel: 'email', purpose: 'introduction', expires_at: expiryDays(30) })).rejects.toThrow(
       /permission denied|set by people/,
     );
     const p = await policy(t, { template_version: 9, channel: 'whatsapp', purpose: 'follow_up', status: 'revoked', approved_by: SALES });
@@ -192,13 +198,13 @@ describe('approved-message policies', () => {
     await expect(policy(t)).rejects.toThrow(/message_policies_cover_idx/);
     await expect(policy(await template('introduction', false))).rejects.toThrow(/Only an approved template/);
     await expect(policy(await template('reply'))).rejects.toThrow(/need no message policy/);
-    await expect(policy(await template(), { expires_at: days(200) })).rejects.toThrow(/message_policies_expiry_check/);
+    await expect(policy(await template(), { expires_at: expiryDays(200) })).rejects.toThrow(/message_policies_expiry_check/);
   });
 
   it('keep their terms; pause, resume and a final revoke; never deleted', async () => {
     const t = await template();
     const p = await policy(t);
-    await expect(update(OWNER, 'message_policies', p.id, { expires_at: days(170) })).rejects.toThrow(/keeps its template, version, approver and expiry/);
+    await expect(update(OWNER, 'message_policies', p.id, { expires_at: expiryDays(170) })).rejects.toThrow(/keeps its template, version, approver and expiry/);
     await expect(update(OWNER, 'message_policies', p.id, { template_version: 2 })).rejects.toThrow(/keeps its template/);
     expect(await update(SALES, 'message_policies', p.id, { status: 'paused' })).toBeUndefined();
     expect(await update(ADMIN, 'message_policies', p.id, { status: 'paused', daily_cap: 5 })).toMatchObject({ status: 'paused', daily_cap: 5 });
@@ -239,7 +245,7 @@ describe('the send-policy trigger', () => {
     const p = await policy(t);
     const covered = await approvedMessage(t);
     await covered.approve();
-    await update(OWNER, 'outreach_messages', covered.message.id, { status: 'queued' });
+    await update(OWNER, 'outreach_messages', covered.message.id, { status: 'queued', scheduled_for: fixtureNow() });
     // Paused between approval and dispatch: the send is refused.
     await update(OWNER, 'message_policies', p.id, { status: 'paused' });
     const d = await insert('service', 'eligibility_decisions', decision(covered.message, 'dispatch', { actor_id: OWNER, sandbox: true }));
@@ -253,10 +259,10 @@ describe('the send-policy trigger', () => {
     await policy(t);
     const m = await approvedMessage(t);
     await m.approve();
-    // Schedules are relative to the frozen clock the trigger reads, not the wall clock: `days()` would
-    // drift out of the 7-day window a week after FIXED_MESSAGING_NOW and fail this test for the wrong reason.
-    await expect(update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: '2026-10-29 10:00:00+00' })).rejects.toThrow(/up to 7 days ahead/);
-    expect(await update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: '2026-10-23 10:00:00+00' })).toMatchObject({ status: 'queued' });
+    // Schedules are relative to the frozen clock the trigger reads (`messaging_now()`), not the wall
+    // clock, so both dates come from the fixture clock and stay on either side of its 7-day window.
+    await expect(update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: fixtureDays(8) })).rejects.toThrow(/up to 7 days ahead/);
+    expect(await update(OWNER, 'outreach_messages', m.message.id, { status: 'queued', scheduled_for: fixtureDays(2) })).toMatchObject({ status: 'queued' });
   });
 
   it('holds every send while the workspace is paused, and outside the sending window', async () => {

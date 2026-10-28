@@ -94,12 +94,43 @@ export async function rows<T = Record<string, unknown>>(db: PGlite, sql: string,
   return (await db.query<T>(sql, params)).rows;
 }
 
-/** Wednesday 10:00 Ghana time: inside the default sending window, whenever the suite runs. */
+/**
+ * Wednesday 10:00 Ghana time: inside the default sending window, whenever the suite runs. This is the
+ * clock the policy rules read through `messaging_now()`, and every date those rules compare is derived
+ * from it, so a fixture never drifts with the calendar. (The record clock, `now()`, still stamps
+ * `approved_at` and validates policy expiry; those fixtures stay relative to it.)
+ */
 export const FIXED_MESSAGING_NOW = '2026-10-21 10:00:00+00';
 
-/** Points the send-policy trigger's clock (migration 007) at a fixed time. */
+/** The instant the messaging fixtures currently treat as now; moved by `freezeMessagingClock`. */
+let frozenAt = FIXED_MESSAGING_NOW;
+
+/** Milliseconds for a fixture timestamp such as 2026-10-21 10:00:00+00. */
+export function fixtureInstant(at: string = frozenAt) {
+  const ms = Date.parse(at.trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+  if (Number.isNaN(ms)) throw new Error(`Not a fixture timestamp: ${at}`);
+  return ms;
+}
+
+/** A date `n` days from the fixture clock (or from `at`), as an ISO timestamp. */
+export function fixtureDays(n: number, at?: string) {
+  return new Date(fixtureInstant(at) + n * 86_400_000).toISOString();
+}
+
+/**
+ * The fixture clock as an ISO timestamp, for rows that carry their own time. A queued message needs
+ * it: migration 006 stamps a missing `scheduled_for` from the wall clock, while the migration 007
+ * trigger measures that column against `messaging_now()`. Stamping from the fixture clock keeps the
+ * two in step instead of letting the row drift out of the 7-day scheduling window.
+ */
+export function fixtureNow(at?: string) {
+  return new Date(fixtureInstant(at)).toISOString();
+}
+
+/** Points the send-policy trigger's clock (migration 007) at a fixed time, and moves the fixture clock. */
 export async function freezeMessagingClock(db: PGlite, at = FIXED_MESSAGING_NOW) {
   if (!/^[0-9: +-]+$/.test(at)) throw new Error('Pass a timestamp literal.');
   await db.exec(`create or replace function public.messaging_now() returns timestamptz language sql stable set search_path = '' as $$ select '${at}'::timestamptz $$`);
+  frozenAt = at;
 }
 
