@@ -150,10 +150,10 @@ history is recorded through the SQL editor and has no CLI history to reconcile. 
 script for a code rollback: it drops the two social tables.
 
 After the commit, run `supabase/checks/after-migrations.sql` read-only. Rows 1–23 must say `ok`, and
-rows 34–40 must change to `yes` for 017. Rows 24–33 report whichever earlier optional migrations are
-installed; `not applied` there is a recorded gap, not a 017 failure. The focused check below returns
-one row and no data. Expected after 017: all booleans true, `policies = 6`, `triggers = 4`, and the
-authenticated delete and truncate privileges false.
+rows 34–40 must read their expected value (`yes`, `6`, `4`, `false`, `true`). Rows 24–33 report
+whichever earlier optional migrations are installed; `not applied` there is a recorded gap, not a 017
+failure. The focused check below returns one row and no data. Expected after 017: all booleans true,
+`policies = 6`, `triggers = 4`, and the authenticated delete and truncate privileges false.
 
 ```sql
 select
@@ -177,7 +177,7 @@ select
     and not has_table_privilege('authenticated', 'public.business_research_observations', 'delete')
     and not has_table_privilege('authenticated', 'public.business_social_sources', 'truncate')
     and not has_table_privilege('authenticated', 'public.business_research_observations', 'truncate')
-    as members_cannot_delete;
+    as members_cannot_delete_or_truncate;
 ```
 
 If 017 is applied but the UI is not deployed, the existing application is unaffected: the new

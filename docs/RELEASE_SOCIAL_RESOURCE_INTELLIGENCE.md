@@ -45,15 +45,17 @@ commit;
 
 ## 3. Verify (read-only, no writes)
 
-- [ ] `supabase/checks/after-migrations.sql`: rows **1–23** say `ok`; rows **34–40** flip to `yes`
-      (017 tables installed, RLS on both, 6 policies, 4 triggers, members cannot delete or truncate,
-      source kind allows social profiles). Rows **24–33** report whichever earlier optional migration is
-      installed; `not applied` there is a recorded gap, not a 017 failure.
+- [ ] `supabase/checks/after-migrations.sql`: rows **1–23** say `ok`; rows **34–40** read their expected
+      value (`yes`, `6`, `4`, `false`, `true`) — 017 tables installed, RLS on both, 6 policies, 4
+      triggers, members cannot delete or truncate, source kind allows social profiles. Rows **24–33**
+      report whichever earlier optional migration is installed; `not applied` there is a recorded gap,
+      not a 017 failure.
 - [ ] If row **33** (`members can delete resource entries`) reads `true`, 016 has the same
       Supabase-default-privilege gap that 017 now closes for itself. RLS still refuses the delete;
       record it as a follow-up migration rather than re-running 016.
-- [ ] Focused 017 check (in SOCIAL_RESOURCE_INTELLIGENCE, "Post-migration check") returns **one row**
-      and no data: every boolean true, `policies = 6`, `triggers = 4`, `members_cannot_delete` true.
+- [ ] Focused 017 check (in SOCIAL_RESOURCE_INTELLIGENCE, "Applying 017 in production") returns **one
+      row** and no data: every boolean true, `policies = 6`, `triggers = 4`,
+      `members_cannot_delete_or_truncate` true.
 - [ ] `select count(*) from public.business_social_sources;` and the same for
       `business_research_observations` return `0`: the migration invents no records.
 
