@@ -15,6 +15,7 @@ import {
 import { SOCIAL_DISCOVERY_LABELS, parseSocialProfileUrl, type SocialCandidate } from '@/lib/domain/social-discovery';
 import {
   RESEARCH_CATEGORY_LABELS,
+  SOCIAL_RETENTION_BASES,
   SOCIAL_SOURCE_PROVENANCE_LABELS,
   canAdvanceVerification,
   researchObservationInsertSchema,
@@ -96,6 +97,9 @@ export async function bulkAddSocialCandidates(
 ): Promise<BulkSocialIntakeResult> {
   if (!input.candidates.length) throw new StoreError('Select at least one profile to add.', 'invalid');
   if (input.candidates.length > SOCIAL_INTAKE_LIMIT) throw new StoreError(`Add at most ${SOCIAL_INTAKE_LIMIT} profiles at a time.`, 'invalid');
+  if (input.basis !== null && !SOCIAL_RETENTION_BASES.includes(input.basis)) {
+    throw new StoreError('Choose a lawful retention basis first; an ordinary search result is not one.', 'invalid');
+  }
   if (!(await ctx.store.socialResearchAvailable())) throw new StoreError(SOCIAL_RESEARCH_MIGRATION_REQUIRED, 'unavailable');
 
   const [businesses, sources] = await Promise.all([ctx.store.listBusinesses(), ctx.store.listSocialSources()]);
@@ -149,6 +153,20 @@ export async function addSocialSourceToBusiness(ctx: ServiceContext, input: Soci
   const parsed = socialSourceInsertSchema.parse(input);
   const business = await ctx.store.getBusiness(parsed.businessId);
   if (!business) throw new StoreError('Prospect not found', 'not_found');
+  const existing = (await ctx.store.listSocialSources()).find(
+    (s) =>
+      !s.revokedAt &&
+      s.platform === parsed.platform &&
+      s.handle.replace(/^@/, '').toLowerCase() === parsed.handle,
+  );
+  if (existing) {
+    throw new StoreError(
+      existing.businessId === parsed.businessId
+        ? 'This profile is already linked to the prospect.'
+        : 'This profile is already linked to another prospect in this workspace.',
+      'conflict',
+    );
+  }
   const saved = await ctx.store.createSocialSource(parsed);
   const alreadyListed = business.socialProfiles.some((profile) => {
     const match = parseSocialProfileUrl(profile.url);

@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
-import { as, createDatabase, createUser, rows } from './harness';
+import { MIGRATIONS_DIR, as, createDatabase, createUser, rows } from './harness';
 
 // Social sources and research observations: organization isolation, database-enforced retention
 // shape, one-way revocation and forward-only verification. The tables hold references and metadata
@@ -87,6 +89,62 @@ it('protects the profile identity and moves verification forward only, with evid
   expect((await rows(db, "select * from public.audit_events where table_name='business_social_sources' and record_id=$1", [entry.id])).length).toBeGreaterThanOrEqual(3);
 });
 
+it('derives the starting status from the retention basis at the database boundary', async () => {
+  const insert = (handle: string, provenance: string, basis: string, status: string, evidence: string | null) =>
+    rows<{ verification_status: string; verified_at: string | null }>(
+      db,
+      `insert into public.business_social_sources(organization_id,business_id,platform,handle,profile_url,provenance,retention_basis,verification_status,verification_evidence)
+       values($1,$2,'instagram',$3,$4,$5,$6,$7,$8) returning verification_status, verified_at`,
+      [org, business, handle, `https://www.instagram.com/${handle}/`, provenance, basis, status, evidence],
+    );
+  // A first-party observation cannot arrive already owner-confirmed.
+  await expect(
+    as(db, OWNER, () => insert('statuscheck', 'independent_observation', 'first_party_observation', 'owner_confirmed', 'The owner confirmed this account on 26 October.')),
+  ).rejects.toThrow(/starts at the status/i);
+  // Nor can an observed profile carry verification evidence before it is verified.
+  await expect(
+    as(db, OWNER, () => insert('evidencecheck', 'independent_observation', 'first_party_observation', 'observed', 'Seen on the public profile on 26 October.')),
+  ).rejects.toThrow(/check constraint/i);
+  // Nor can its basis be relabelled as owner-supplied.
+  await expect(
+    as(db, OWNER, () => insert('basischeck', 'owner_supplied', 'first_party_observation', 'observed', null)),
+  ).rejects.toThrow(/check constraint/i);
+  // A basis that asserts owner confirmation may start confirmed, with evidence.
+  const [owner] = await as(db, OWNER, () =>
+    insert('ownercheck', 'owner_supplied', 'owner_supplied', 'owner_confirmed', 'The owner supplied this profile link on 26 October.'),
+  );
+  expect(owner.verification_status).toBe('owner_confirmed');
+  expect(owner.verified_at).not.toBeNull();
+});
+
+it('refuses Google pointers and social links mislabelled as independent observations', async () => {
+  const insert = (kind: string, url: string, category = 'product_service') =>
+    rows(
+      db,
+      `insert into public.business_research_observations(organization_id,business_id,category,statement,source_kind,source_url,status,evidence)
+       values($1,$2,$3,'A source link was observed',$4,$5,'observed',null)`,
+      [org, business, category, kind, url],
+    );
+  await expect(as(db, OWNER, () => insert('official_website', 'https://www.google.com/maps/place/Fictional+Bakery'))).rejects.toThrow(/check constraint/i);
+  // A trailing dot is the same host, so it cannot be used to slip a Google or social link through.
+  await expect(as(db, OWNER, () => insert('official_website', 'https://www.google.com./maps/place/Fictional+Bakery'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('licensed_directory', 'https://maps.google.com/?cid=123'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('business_owner', 'https://g.page/fictional-bakery'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('official_website', 'https://www.instagram.com/sample.bakery/'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('official_website', 'https://www.instagram.com./sample.bakery/'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('official_website', 'https://fb.com/sample.bakery'))).rejects.toThrow(/check constraint/i);
+  await expect(as(db, OWNER, () => insert('official_website', 'https://scontent.fbcdn.net/profile.jpg'))).rejects.toThrow(/check constraint/i);
+  // Userinfo hides the real host from a reader, so it is not a plain source link.
+  await expect(
+    as(db, OWNER, () => insert('official_website', 'https://www.fictionalbakery.example@evil.example/menu')),
+  ).rejects.toThrow(/check constraint/i);
+  await expect(
+    as(db, OWNER, () => insert('research_gap', 'https://www.google.com/search?q=bakery', 'missing_information')),
+  ).rejects.toThrow(/check constraint/i);
+  // The business's own website remains a valid independent source.
+  await expect(as(db, OWNER, () => insert('official_website', 'https://www.fictionalbakery.example/menu'))).resolves.toBeTruthy();
+});
+
 it('lets a viewer read but never create, verify or revoke a social source', async () => {
   const [entry] = await as(db, OWNER, () => source(org, business, 'instagram', 'viewercheck', 'https://www.instagram.com/viewercheck/'));
   expect((await as(db, VIEWER, () => rows(db, 'select * from public.business_social_sources where id=$1', [entry.id]))).length).toBe(1);
@@ -112,6 +170,46 @@ it('keeps research observations immutable and revocable in one direction', async
   await as(db, OWNER, () => db.query('update public.business_research_observations set revoked_at=now() where id=$1', [entry.id]));
   await expect(as(db, OWNER, () => db.query('update public.business_research_observations set revoked_at=null where id=$1', [entry.id]))).rejects.toThrow(/revoked/i);
   expect((await rows(db, "select * from public.audit_events where table_name='business_research_observations' and record_id=$1", [entry.id])).length).toBeGreaterThanOrEqual(2);
+});
+
+// The operator pastes the whole file into the SQL editor, so a second run has to converge rather than
+// fail or duplicate: same rows, same six policies, same four triggers, and the reviewed constraints
+// still refusing a row that skips a verification step.
+it('re-applies the whole file without losing records or duplicating its guards', async () => {
+  const [entry] = await as(db, OWNER, () => source(org, business, 'instagram', 'reruncheck', 'https://www.instagram.com/reruncheck/'));
+  const snapshot = () => rows<{ id: string; platform: string; handle: string; profile_url: string }>(
+    db,
+    'select id, platform, handle, profile_url from public.business_social_sources order by id',
+  );
+  const before = await snapshot();
+
+  await db.exec(readFileSync(join(MIGRATIONS_DIR, '017_social_research_intelligence.sql'), 'utf8'));
+
+  expect(await snapshot()).toEqual(before);
+  expect((await rows(db, 'select id from public.business_social_sources where id=$1', [entry.id]))).toHaveLength(1);
+  const counts = (
+    await rows<{ policies: number; triggers: number }>(
+      db,
+      `select
+         (select count(*)::int from pg_policies where schemaname = 'public'
+            and tablename in ('business_social_sources', 'business_research_observations')) as policies,
+         (select count(*)::int from pg_trigger
+            where tgrelid in (to_regclass('public.business_social_sources'), to_regclass('public.business_research_observations'))
+              and tgname in ('business_social_source_guard', 'business_social_source_audit',
+                             'business_research_observation_guard', 'business_research_observation_audit')) as triggers`,
+    )
+  )[0];
+  expect(counts).toEqual({ policies: 6, triggers: 4 });
+  await expect(
+    as(db, OWNER, () =>
+      rows(
+        db,
+        `insert into public.business_social_sources(organization_id,business_id,platform,handle,profile_url,provenance,retention_basis,verification_status,verification_evidence)
+         values($1,$2,'instagram','rerunevidence','https://www.instagram.com/rerunevidence/','independent_observation','first_party_observation','observed','Seen on the profile on 26 October.')`,
+        [org, business],
+      ),
+    ),
+  ).rejects.toThrow(/check constraint/i);
 });
 
 it('refuses an unknown source kind on prospects', async () => {

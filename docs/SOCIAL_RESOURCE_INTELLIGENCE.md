@@ -87,9 +87,13 @@ advancing it requires evidence and is forward-only (a correction is a new record
 
 1. `business_social_sources` — canonical profile URL, normalized handle, provenance, retention basis,
    verification status/evidence, capture time and one-way revocation. One active link per
-   `(organization, platform, handle)`.
+   `(organization, platform, handle)`, so the same profile cannot be attached to two prospects in
+   one workspace. The insert trigger derives the starting status from the retention basis and
+   refuses a status beyond it; an observed profile cannot arrive with verification evidence.
 2. `business_research_observations` — category, statement, source kind/URL, status, evidence and
    one-way revocation. A `missing_information` entry must be a `research_gap` and cannot be verified.
+   Google host checks include an optional trailing dot and reject userinfo in a source URL, so
+   `google.com.` or `fictional.example@evil.example` cannot pass as an independent source.
 3. A `social_profile` value on the businesses source-kind check.
 
 Both tables are organization-scoped, RLS-protected, audited through the existing
@@ -107,6 +111,74 @@ rest of the Resource Collector keeps working. In demo mode the tables are part o
 The read-only preflight `supabase/checks/preflight-001-016.sql` now inspects 017 as well; its filename
 is kept so existing runbooks and audit notes still point at it.
 
+## Applying 017 in production (owner-run, not performed)
+
+**Nothing in this section has been applied.** It is the reviewed sequence for the owner to run after
+approval; it is not an instruction to run it now. Migration 017 is additive except for the
+`businesses_source_kind_check` replacement, which keeps every existing source kind and only adds
+`social_profile`.
+
+Prerequisites, all recorded in the change record:
+
+1. A current production backup or point-in-time-recovery window, and a quiet request window.
+2. The preflight output above, with `002 baseline present` = `yes`, `gaps in the installed chain` =
+   `none`, and no installed table showing `RLS OFF`. On the 25 October audit, production was missing
+   **008** and **010**; those two must be applied, in order, before 017. A gap blocks this migration.
+3. A successful rehearsal of the same three files — 008, 010 and 017 — on the throwaway staging
+   project ([STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md)).
+
+In the Supabase SQL editor, as a workspace owner, one file per transaction:
+
+```sql
+begin;
+-- Paste the complete contents of supabase/migrations/017_social_research_intelligence.sql here.
+commit;
+```
+
+The file is guarded and re-runnable: `if not exists`, `drop policy if exists`, and `create or replace
+function`. If any statement fails, run `rollback;`, fix the cause, and start the file again from the
+top. Re-running the final file over itself converges, but a database that already holds an *earlier
+draft* of 017 does not: `create table if not exists` skips the table, and with it every constraint
+added later in review (the verification, evidence and source-kind checks). For that case run
+`supabase/rollback/017_social_research_intelligence_down.sql` first — it keeps captured prospects by
+relabelling them `manual` — then apply this file. Do not use `supabase db push`; this project's
+history is recorded through the SQL editor and has no CLI history to reconcile. Do not run the down
+script for a code rollback: it drops the two social tables.
+
+After the commit, run `supabase/checks/after-migrations.sql` read-only. Rows 1–23 must say `ok`, and
+rows 34–40 must change to `yes` for 017. Rows 24–33 report whichever earlier optional migrations are
+installed; `not applied` there is a recorded gap, not a 017 failure. The focused check below returns
+one row and no data. Expected after 017: all booleans true, `policies = 6`, `triggers = 4`, and the
+authenticated delete privileges false.
+
+```sql
+select
+  to_regclass('public.business_social_sources') is not null as social_sources_table,
+  to_regclass('public.business_research_observations') is not null as observations_table,
+  (select bool_and(relrowsecurity) from pg_class
+    where oid in (to_regclass('public.business_social_sources'),
+                  to_regclass('public.business_research_observations'))) as rls_on_both,
+  (select count(*) from pg_policies
+    where schemaname = 'public'
+      and tablename in ('business_social_sources', 'business_research_observations')) as policies,
+  (select count(*) from pg_trigger
+    where tgrelid in (to_regclass('public.business_social_sources'),
+                      to_regclass('public.business_research_observations'))
+      and tgname in ('business_social_source_guard', 'business_social_source_audit',
+                     'business_research_observation_guard', 'business_research_observation_audit')) as triggers,
+  (select pg_get_constraintdef(oid) like '%social_profile%' from pg_constraint
+    where conrelid = 'public.businesses'::regclass
+      and conname = 'businesses_source_kind_check') as source_kind_allows_social_profile,
+  not has_table_privilege('authenticated', 'public.business_social_sources', 'delete')
+    and not has_table_privilege('authenticated', 'public.business_research_observations', 'delete')
+    as members_cannot_delete;
+```
+
+If 017 is applied but the UI is not deployed, the existing application is unaffected: the new
+tables are additive and the panel's migration check simply reports them as available. Deploy only
+after the post-migration checks pass and the demo/browser smoke test has been repeated against the
+authorized staging environment.
+
 ## Website Resource Kit
 
 The kit now includes, for the one prospect:
@@ -119,9 +191,12 @@ The kit now includes, for the one prospect:
 
 It still excludes Google listing content, previews, website candidates that are not approved files,
 revoked entries, search titles/snippets/rankings, social images and expired or revoked assets. CRM
-contact details and contact-channel observations are withheld unless an export-permitted independent
-resource entry covers them; the manifest reports them as `withheldContactObservations`. The kit does
-not require a Brand Kit, Creative Direction or generated website.
+contact details, contact-channel observations and any observation whose statement, evidence or source
+URL contains a phone number or email are withheld unless an export-permitted independent resource entry
+covers them; verification evidence stays readable with those details redacted. A social reference whose
+handle or canonical URL is itself a phone number is withheld too. The manifest reports those counts as
+`withheldContactSources` and `withheldContactObservations`. The kit does not require a Brand Kit,
+Creative Direction or generated website.
 
 ## Tests
 
@@ -129,10 +204,11 @@ not require a Brand Kit, Creative Direction or generated website.
   profile/name protection, retries, simulated profiles, source linking, forward-only verification,
   the 20-result cap, and absence of search copy in browser storage.
 - `tests/unit/social-research.test.ts` — schema canonicalisation, honest statuses, panel groups and
-  missing checklist, kit inclusion and revocation exclusion.
-- `tests/db/social-sources.test.ts` — RLS and organization isolation, canonical URL constraints,
-  unique active links, immutable identity, forward-only verification, evidence rules, one-way
-  revocation and audit rows.
+  missing checklist, kit inclusion and revocation exclusion, contact-detail withholding from
+  statements, evidence and source links, and evidence redaction.
+- `tests/db/social-sources.test.ts` — RLS and organization isolation, canonical URL constraints
+  (including trailing-dot and userinfo bypasses), unique active links, immutable identity,
+  forward-only verification, evidence rules, one-way revocation and audit rows.
 - `tests/e2e/social-discovery.spec.ts` — bulk selection and intake, summary, automatic profile linking,
   kit download, retry without duplicates, and the no-basis live result.
 - `tests/e2e/social-intake-responsive.spec.ts` — phone widths 360/390/768 with no horizontal scroll.

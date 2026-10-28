@@ -9,7 +9,7 @@
 -- Requires migration 002, like supabase/checks/preflight.sql: the counts below read 002-era tables.
 -- Rows for later migrations use catalogs (to_regclass, pg_policies, pg_trigger) or storage rows, so a
 -- project that has only 002 returns 'missing' rather than failing. Sections:
---   1 chain        which of 001–016 are installed (object markers, not CLI history)
+--   1 chain        which of 001–017 are installed (object markers, not CLI history)
 --   2 database     role, privilege, version, size, extensions, Storage, current load
 --   3 objects      RLS, policy and trigger shape of every table this chain owns
 --   4 storage      the private studio-assets bucket and its four object policies

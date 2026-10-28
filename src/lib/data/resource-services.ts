@@ -1,5 +1,11 @@
 import { resourceEntrySchema, restrictedResourceUrl, type ResourceEntryInsert } from '@/lib/domain/business-resources';
-import { socialResearchBrief } from '@/lib/domain/social-research';
+import {
+  containsContactDetails,
+  observationHasContactDetails,
+  redactContactDetails,
+  socialResearchBrief,
+  socialSourceHasContactDetails,
+} from '@/lib/domain/social-research';
 import { createZip } from '@/lib/domain/zip';
 import type { Business } from '@/lib/domain/types';
 import type { StudioProject } from '@/lib/domain/studio';
@@ -39,9 +45,22 @@ export async function downloadWebsiteResourceKit(ctx: ServiceContext, businessId
   ]);
   const activeSources = socialSources.filter((s) => !s.revokedAt);
   const activeObservations = observations.filter((o) => !o.revokedAt);
-  // A contact-channel observation is a research lead, not an export licence for a phone number or
-  // email. It stays in the collector; the kit needs an export-permitted independent entry for it.
-  const exportableObservations = activeObservations.filter((o) => o.category !== 'contact_channel');
+  // A research note is not an export licence for a phone number or email. Contact-channel
+  // observations are leads, not export material, and a number anywhere else in a note is withheld
+  // too: the collector keeps it, while the kit needs an export-permitted independent entry for it.
+  const exportableObservations = activeObservations.filter(
+    (o) => o.category !== 'contact_channel' && !observationHasContactDetails(o),
+  );
+  // A verification note can contain the phone number used to confirm a profile. Keep the evidence
+  // readable, but redact the contact details rather than publishing them in the ZIP. A handle that
+  // is itself a phone number makes the whole reference contact material, so that source is withheld.
+  const exportableSources = activeSources
+    .filter((s) => !socialSourceHasContactDetails(s))
+    .map((s) =>
+      s.verificationEvidence && containsContactDetails(s.verificationEvidence)
+        ? { ...s, verificationEvidence: redactContactDetails(s.verificationEvidence) }
+        : s,
+    );
   const pack = project ? await exportStudioAssetPack(ctx, project, true) : null;
   const hashes = new Set<string>();
   const assets = (pack?.manifest.assets ?? []).filter((a) => { if (hashes.has(a.sha256)) return false; hashes.add(a.sha256); return true; });
@@ -55,9 +74,10 @@ export async function downloadWebsiteResourceKit(ctx: ServiceContext, businessId
   ];
   const manifest = { format: 'dof-website-resource-kit/1', generatedAt: new Date().toISOString(), businessId,
     resources, assets, excludedEntries: allResources.length - resources.length,
-    socialSources: activeSources, researchObservations: exportableObservations,
+    socialSources: exportableSources, researchObservations: exportableObservations,
     excludedSocialSources: socialSources.length - activeSources.length,
     excludedResearchObservations: observations.length - activeObservations.length,
+    withheldContactSources: activeSources.length - exportableSources.length,
     withheldContactObservations: activeObservations.length - exportableObservations.length,
     excludedAssets: pack?.excluded ?? 0, deduplicatedAssets: (pack?.manifest.assets.length ?? 0) - assets.length,
     policy: 'Google listing content, photo references and previews are excluded. Social entries are profile references and permitted metadata only: no search-result titles, snippets, rankings, profile content or images are included. Website candidates are excluded until supplied as authorized files and approved. Export is not publication permission.' };
@@ -67,10 +87,10 @@ export async function downloadWebsiteResourceKit(ctx: ServiceContext, businessId
     'Social entries are links and observations with a stated source and status. They are not proof of ownership, operating status or contact consent, and no social image is included.', '',
     '## Missing resources', ...missing.map((m) => `- ${m}`), '', 'Publication requires a separate review of every file and claim.'].join('\n');
   files.push({ name: 'business-resources.json', data: encode(JSON.stringify(resources, null, 2)) }, { name: 'manifest.json', data: encode(JSON.stringify(manifest, null, 2)) },
-    { name: 'social-sources.json', data: encode(JSON.stringify(activeSources, null, 2)) },
+    { name: 'social-sources.json', data: encode(JSON.stringify(exportableSources, null, 2)) },
     { name: 'research-observations.json', data: encode(JSON.stringify(exportableObservations, null, 2)) },
-    { name: 'RESEARCH-BRIEF.md', data: encode(socialResearchBrief(business, activeSources, activeObservations)) },
+    { name: 'RESEARCH-BRIEF.md', data: encode(socialResearchBrief(business, exportableSources, exportableObservations)) },
     { name: 'MISSING-RESOURCES.md', data: encode(missing.map((m) => `- ${m}`).join('\n')) }, { name: 'DEVELOPMENT-BRIEF.md', data: encode(brief) });
-  await log(ctx, businessId, 'studio', `Website Resource Kit exported: ${assets.length} authorized files, ${resources.length} independent entries, ${activeSources.length} social references`, { assets: assets.length, resources: resources.length, socialSources: activeSources.length, researchObservations: activeObservations.length });
-  return { zip: createZip(files), filename: `${slug(business.name)}-website-resource-kit.zip`, manifest };
+  await log(ctx, businessId, 'studio', `Website Resource Kit exported: ${assets.length} authorized files, ${resources.length} independent entries, ${exportableSources.length} social references`, { assets: assets.length, resources: resources.length, socialSources: exportableSources.length, researchObservations: exportableObservations.length });
+  return { zip: createZip(files), filename: `${slug(redactContactDetails(business.name))}-website-resource-kit.zip`, manifest };
 }

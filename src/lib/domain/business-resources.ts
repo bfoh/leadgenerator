@@ -7,16 +7,34 @@ export const RESOURCE_CATEGORIES = ['identity', 'contact', 'location', 'social',
 export type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
 
 /**
- * Google and social-platform content cannot become independent source material. `business.site` is
- * the retired Google Business Profile website host: a page there can look like an independent site
- * while remaining Google-supplied content, so it is refused with the other Google hosts.
+ * Google-supplied material cannot become independent source material. `business.site` is the
+ * retired Google Business Profile website host: a page there can look like an independent site while
+ * remaining Google content. A URL that cannot be parsed, or that is not plain http(s), is treated as
+ * restricted rather than guessed at.
  */
-export function restrictedResourceUrl(raw: string): boolean {
+const GOOGLE_HOSTS =
+  /(^|\.)(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|goo\.gle|g\.co|g\.page|maps\.app\.goo\.gl|ggpht\.com|business\.site|share\.google)$/;
+const SOCIAL_HOSTS = /(^|\.)(facebook\.com|fb\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)$/;
+
+/** A trailing dot is the same DNS host; strip it so it cannot evade the host checks. */
+const normalizedHostname = (url: URL) => url.hostname.toLowerCase().replace(/\.+$/, '');
+
+export function googleHostedUrl(raw: string): boolean {
   try {
     const u = new URL(raw);
-    const h = u.hostname.toLowerCase();
-    return !['https:', 'http:'].includes(u.protocol) || Boolean(u.username || u.password) ||
-      /(^|\.)(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|maps\.app\.goo\.gl|ggpht\.com|business\.site|facebook\.com|fbcdn\.net|instagram\.com|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)$/.test(h);
+    return (
+      !['https:', 'http:'].includes(u.protocol) ||
+      Boolean(u.username || u.password) ||
+      GOOGLE_HOSTS.test(normalizedHostname(u))
+    );
+  } catch { return true; }
+}
+
+/** Google or a social platform: neither can be an independent, export-permitted source. */
+export function restrictedResourceUrl(raw: string): boolean {
+  if (googleHostedUrl(raw)) return true;
+  try {
+    return SOCIAL_HOSTS.test(normalizedHostname(new URL(raw)));
   } catch { return true; }
 }
 

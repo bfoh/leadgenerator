@@ -215,7 +215,7 @@ describe('pre-production inspection script', () => {
   });
 });
 
-describe('001–016 pre-apply inspection script', () => {
+describe('001–017 pre-apply inspection script', () => {
   const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-001-016.sql');
   /** The single statement, without the leading comment block, for running inside a read-only transaction. */
   const body = preflight.slice(preflight.indexOf('with chain('));
@@ -235,6 +235,8 @@ describe('001–016 pre-apply inspection script', () => {
     expect(at002['003 automation infrastructure']).toBe('missing');
     expect(at002['businesses']).toBe('0');
     expect(at002['business_resource_entries']).toBe('missing');
+    expect(at002['017 social research intelligence']).toBe('missing');
+    expect(at002['business_social_sources']).toBe('missing');
     expect(at002['studio-assets bucket']).toBe('Storage absent - 013 skips the bucket');
     expect(at002['next file to apply']).toBe('003 automation infrastructure');
     expect(at002['gaps in the installed chain']).toBe('none');
@@ -249,6 +251,9 @@ describe('001–016 pre-apply inspection script', () => {
     const all = await run(db);
     expect(all['016 business resources']).toBe('present');
     expect(all['business_resource_entries']).toBe('RLS on · 3 policies · 2 triggers');
+    expect(all['017 social research intelligence']).toBe('present');
+    expect(all['business_social_sources']).toBe('RLS on · 3 policies · 2 triggers');
+    expect(all['business_research_observations']).toBe('RLS on · 3 policies · 2 triggers');
     expect(all['next file to apply']).toBe('none - chain complete');
     expect(all['files still to apply']).toBe('0');
     expect(all['gaps in the installed chain']).toBe('none');
@@ -302,7 +307,7 @@ describe('after-migrations check', () => {
     try {
       expect(await db.exec(check)).toHaveLength(1);
       const ok = await results(db);
-      expect(ok).toHaveLength(33);
+      expect(ok).toHaveLength(40);
       expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
     } finally {
       await db.exec('rollback');

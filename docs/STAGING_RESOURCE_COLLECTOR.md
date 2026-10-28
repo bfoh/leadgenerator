@@ -75,12 +75,14 @@ Steps:
 
 ```bash
 # One file, one transaction, in order. Each is additive and re-runnable.
-for f in 002_workspace_model 003_automation_infrastructure 012_studio_brand_intelligence 013_studio_asset_vault 016_business_resources; do
+# If this project already holds a draft of 017, run rollback/017_..._down.sql first: CREATE TABLE
+# IF NOT EXISTS would skip the table and every constraint added to it since that draft.
+for f in 002_workspace_model 003_automation_infrastructure 012_studio_brand_intelligence 013_studio_asset_vault 016_business_resources 017_social_research_intelligence; do
   psql "$STAGING_DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 -f "supabase/migrations/$f.sql" || break
 done
 ```
 
-Then, read-only, in the staging SQL editor: `supabase/checks/preflight-001-016.sql` — expect `002/003/012/013/016
+Then, read-only, in the staging SQL editor: `supabase/checks/preflight-001-016.sql` — expect `002/003/012/013/016/017
 present`, the rest `missing` (that is correct on this project), the bucket row dumping
 `<id>studio-assets</id><public>false</public>` with `file_size_limit` `26214400`, four
 `studio_assets_storage_%` policies, and `gaps in the installed chain` = `none` — a gap here would mean a

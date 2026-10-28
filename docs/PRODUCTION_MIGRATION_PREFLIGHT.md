@@ -1,21 +1,21 @@
-# Production migration preflight, 001–016 (read only)
+# Production migration preflight, 001–017 (read only)
 
 Prepared 26 October 2026 on `feature/google-business-resource-collector`. **Nothing was applied.** No
 migration ran against any hosted project, no backup was restored, no `supabase db push` and no CLI
 migration was used, and production Supabase was not modified. This is the inspection that must happen
 *before* an apply window, and it ends where the apply window begins.
 
-It covers the whole chain, 001 to 016, because the recorded production state stops at 008 and everything
+It covers the whole chain, 001 to 017, because the recorded production state stops at 008 and everything
 after it rests on prose rather than evidence:
 
 > 001–008 were applied by the owner through the SQL editor on 2026-10-23 and `after-migrations.sql`
-> passed 18 of 18. 009–016 appear in no production record; 011 is recorded as *not applied*;
-> 012–016 are drafts. There is no CLI history in the repository to confirm any of it
+> passed 18 of 18. 009–017 appear in no production record; 011 is recorded as *not applied*;
+> 012–017 are drafts. There is no CLI history in the repository to confirm any of it
 > ([MIGRATION_REVIEW_016](MIGRATION_REVIEW_016.md) §2, [MIGRATION_REVIEW](MIGRATION_REVIEW.md) §1).
 
 So the operator does not know where the chain actually stands, and one inspection is cheaper than four
 partial ones. `supabase/checks/preflight.sql` (001–008 era) still works; this file supersedes it for the
-full chain and adds the Storage bucket and the 016 ledger.
+full chain and adds the Storage bucket, the 016 ledger and the 017 social-research tables.
 
 ## 1. What this procedure is, and is not
 
@@ -79,7 +79,7 @@ through the sections in order; a failure in an earlier section makes the later o
 
 | Section | Rows | Pass condition | If it fails |
 | --- | --- | --- | --- |
-| `chain` | one per migration, 001–016 | `present` for every file already applied, `missing` for every file not yet applied | A `present` you did not expect means someone applied a file outside the documented path: stop and find out when |
+| `chain` | one per migration, 001–017 | `present` for every file already applied, `missing` for every file not yet applied | A `present` you did not expect means someone applied a file outside the documented path: stop and find out when |
 | `database` | role, privilege, version, size, extensions, Storage, load | `connected as` names the role (owner for the apply run; ideally a different one for this pass); `Supabase Storage schema` = `present`; `other sessions open` small; `requests or transactions running over 5 minutes` = `0` | `can create objects in public` = `yes` under a role you created for read-only use means the role is wrong. A non-zero long-request row means a busy window: wait. Storage `absent` means 013 will skip the bucket, so uploads cannot work |
 | `objects` | one per table the chain owns | every installed table shows `RLS on` with its policy and trigger counts, e.g. `RLS on · 3 policies · 2 triggers`; every table from an unapplied file shows `missing` | `RLS OFF` on an installed table is a security regression: stop and investigate before adding anything |
 | `storage` | the bucket and its policies | the bucket row dumps `id, public, file_size_limit, allowed_mime_types` with `public` false and `file_size_limit` `26214400`; four `studio_assets_storage_%` policies | `missing` after 013 was applied, or `public` true, blocks the vault and the ZIP |
@@ -118,6 +118,7 @@ apply itself is unchanged from [MIGRATION_REVIEW](MIGRATION_REVIEW.md) §3.
 | 014 | `studio_projects` present after 012 | 014 binds a direction to a project; ordering matters |
 | 015 | `studio_brand_kits` present after 013 | 015 binds a prototype to a Brand Kit version |
 | 016 | `businesses` composite key and 013 assets in place | 016 is additive; the ledger refuses Google-origin rows at the constraint level, so a failure here is a bug, not data |
+| 017 | 002 (businesses and organization members) is present; 016 is not a prerequisite | 017 is additive and independent of the Studio/Google chain. It changes only `businesses.source_kind`, then adds two guarded tables. Apply it after 016 for the shortest combined window, or alone on a 002 baseline; either way, verify the new RLS policies and triggers before deploying the UI |
 
 ## 6. Stop conditions
 
@@ -141,7 +142,7 @@ Stop before applying anything, and report instead, if any of these holds:
 3. Rehearse on the throwaway staging project first — [STAGING_RESOURCE_COLLECTOR](STAGING_RESOURCE_COLLECTOR.md)
    for the collector surface, [MIGRATION_REVIEW](MIGRATION_REVIEW.md) §3 step 3 for a full chain.
 4. Only then the apply window, one file per transaction, re-running this inspection after each file and
-   `supabase/checks/after-migrations.sql` at the end. Rollbacks exist for 003–016; 001 and 002 are
+   `supabase/checks/after-migrations.sql` at the end. Rollbacks exist for 003–017; 001 and 002 are
    restored from the backup.
 
 ## 8. Local evidence that already exists
@@ -152,9 +153,9 @@ inspection as far as a local database can:
 - the statement runs inside `begin transaction read only` at 002, on the complete chain, on the gap case
   and with a stubbed Storage schema;
 - as pasted, it is exactly one statement (`exec` returns one result), so the SQL editor will show it;
-- it reports `present`/`missing` for all sixteen markers, names `003 automation infrastructure` as the
+- it reports `present`/`missing` for all seventeen markers, names `003 automation infrastructure` as the
   next file at 002, `0` files still to apply on a complete chain, and `none` for gaps;
-- it flags a gap when 010 is skipped but 011–016 are applied;
+- it flags a gap when 010 is skipped but 011–017 are applied;
 - it reads the `studio-assets` bucket row and the four storage policies;
 - it contains no write keyword outside a string literal.
 

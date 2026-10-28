@@ -1478,7 +1478,7 @@ export class LocalStore implements DataStore {
     this.commit(() => {
       const parsed = socialSourceInsertSchema.parse(input);
       if (!this.state.businesses.some((b) => b.id === parsed.businessId)) throw new StoreError('Prospect not found', 'not_found');
-      if (this.state.socialSources.some((s) => !s.revokedAt && s.platform === parsed.platform && s.handle === parsed.handle)) {
+      if (this.state.socialSources.some((s) => !s.revokedAt && s.platform === parsed.platform && s.handle.replace(/^@/, '').toLowerCase() === parsed.handle)) {
         throw new StoreError('This profile is already linked to a prospect.', 'conflict');
       }
       const at = this.now();

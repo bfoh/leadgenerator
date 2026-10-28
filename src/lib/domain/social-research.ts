@@ -4,6 +4,7 @@
 // person's observations. Search titles, snippets, rankings, profile content and images never enter it.
 
 import { z } from 'zod';
+import { googleHostedUrl, restrictedResourceUrl } from './business-resources';
 import { SOCIAL_DISCOVERY_LABELS, parseSocialProfileUrl, profileUrlFor, type SocialDiscoveryPlatform } from './social-discovery';
 import type { Business } from './types';
 
@@ -134,13 +135,26 @@ export const socialSourceInsertSchema = z
     if (value.provenance !== PROVENANCE_FOR_BASIS[value.retentionBasis]) {
       ctx.addIssue({ code: 'custom', path: ['provenance'], message: 'The provenance does not match the retention basis.' });
     }
+    // A claimed basis and a claimed status are one claim. A first-party observation cannot arrive
+    // already "owner confirmed"; verification only advances afterwards, with evidence.
+    if (value.verificationStatus !== STATUS_FOR_BASIS[value.retentionBasis]) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['verificationStatus'],
+        message: 'A source starts at the status its retention basis supports; verification can only move forward afterwards.',
+      });
+    }
     if (value.verificationStatus !== 'observed' && (!value.verificationEvidence || value.verificationEvidence.length < 15)) {
       ctx.addIssue({ code: 'custom', path: ['verificationEvidence'], message: 'Say who confirmed the profile, when and how.' });
     }
     if (value.verificationStatus === 'observed' && value.verificationEvidence) {
       ctx.addIssue({ code: 'custom', path: ['verificationEvidence'], message: 'An observed profile is not yet verified; leave the evidence blank.' });
     }
-  });
+  })
+  // The database stores an undecorated, lower-case handle (migration 017 checks it). Normalising
+  // here keeps the store, the service-level duplicate check and the database's unique index aligned,
+  // so `@StoreDup` and `storedup` cannot become two different profiles.
+  .transform((value) => ({ ...value, handle: value.handle.replace(/^@/, '').toLowerCase() }));
 
 export const RESEARCH_OBSERVATION_CATEGORIES = [
   'identity',
@@ -228,6 +242,25 @@ export const researchObservationInsertSchema = z
     if (value.sourceUrl && !/^https?:\/\//i.test(value.sourceUrl)) {
       ctx.addIssue({ code: 'custom', path: ['sourceUrl'], message: 'Use a full http(s) source link.' });
     }
+    if (value.sourceKind === 'research_gap' && value.sourceUrl) {
+      ctx.addIssue({ code: 'custom', path: ['sourceUrl'], message: 'A research gap has no source link.' });
+    }
+    if (value.sourceKind === 'official_website' || value.sourceKind === 'licensed_directory') {
+      if (value.sourceUrl && restrictedResourceUrl(value.sourceUrl)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['sourceUrl'],
+          message: 'Use the business’s own website or a licensed source, not Google or a social platform.',
+        });
+      }
+    }
+    if (value.sourceKind === 'business_owner' && value.sourceUrl && googleHostedUrl(value.sourceUrl)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['sourceUrl'],
+        message: 'A Google listing is not an independent source; use the owner’s own link or leave it blank.',
+      });
+    }
     if (value.sourceKind === 'social_profile') {
       const parsed = value.sourceUrl ? parseSocialProfileUrl(value.sourceUrl) : null;
       if (!parsed) ctx.addIssue({ code: 'custom', path: ['sourceUrl'], message: 'Use a public Instagram, Facebook or TikTok profile URL.' });
@@ -242,6 +275,91 @@ export const researchObservationInsertSchema = z
     ...value,
     sourceUrl: value.sourceKind === 'social_profile' && value.sourceUrl ? (parseSocialProfileUrl(value.sourceUrl)?.profileUrl ?? value.sourceUrl) : value.sourceUrl,
   }));
+
+const EMAIL_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+const ENCODED_EMAIL_PATTERN = /[\w.+-]+%40[\w-]+(?:\.[\w.-]+)+/i;
+const PHONE_PATTERN = /\+?\d[\d\s().-]{6,}\d/g;
+const ENCODED_PHONE_PATTERN = /(?:%2B|\+)?\d[\d\s().%-]{6,}\d/gi;
+const ISO_DATE = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/gi;
+const TRAILING_URL_PUNCTUATION = /[.,;:!?)\]}]+$/;
+// A direct chat or messaging link is a contact channel even when the number is not in the URL
+// (for example `wa.me/message/...` or a Telegram username).
+const CONTACT_URL_HOSTS = /(^|\.)(wa\.me|api\.whatsapp\.com|whatsapp\.com|t\.me|telegram\.me|m\.me|messenger\.com)$/i;
+const digitCount = (value: string) => (value.match(/\d/g) ?? []).length;
+const phoneLike = (value: string) => digitCount(value) >= 8 && !ISO_DATE.test(value.trim());
+const safeDecode = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+const rawContact = (text: string) =>
+  EMAIL_PATTERN.test(text) || (text.match(PHONE_PATTERN) ?? []).some(phoneLike);
+const isContactUrl = (raw: string) => {
+  const candidate = raw.replace(TRAILING_URL_PUNCTUATION, '');
+  try {
+    const url = new URL(candidate);
+    if (!/^https?:$/.test(url.protocol)) return false;
+    const host = url.hostname.toLowerCase().replace(/\.+$/, '');
+    if (CONTACT_URL_HOSTS.test(host)) return true;
+    // A query string can carry an email or phone, including percent-encoded forms.
+    return rawContact(safeDecode(candidate));
+  } catch {
+    return false;
+  }
+};
+const hasContactUrl = (text: string) => (text.match(URL_PATTERN) ?? []).some(isContactUrl);
+
+/**
+ * A research note is not a contact export. Emails, phone-like numbers and direct messaging links are
+ * detected here so the Resource Kit can withhold the note or redact evidence; a false positive
+ * withholds a note, which is safer than publishing somebody's number in a ZIP.
+ */
+export function containsContactDetails(text: string): boolean {
+  const decoded = safeDecode(text);
+  return (
+    rawContact(text) ||
+    rawContact(decoded) ||
+    hasContactUrl(text) ||
+    hasContactUrl(decoded)
+  );
+}
+
+/** Redacts emails, phone-like numbers and contact links from evidence that otherwise stays readable. */
+export function redactContactDetails(text: string): string {
+  return text
+    .replace(URL_PATTERN, (url) => (isContactUrl(url) ? '[contact link withheld]' : url))
+    .replace(ENCODED_EMAIL_PATTERN, '[email withheld]')
+    .replace(new RegExp(EMAIL_PATTERN.source, 'g'), '[email withheld]')
+    .replace(ENCODED_PHONE_PATTERN, (match) => (phoneLike(match) ? '[phone withheld]' : match))
+    .replace(PHONE_PATTERN, (match) => (phoneLike(match) ? '[phone withheld]' : match));
+}
+
+/**
+ * An observation carries contact material when the statement, evidence or source URL does. The
+ * source URL is included because a `wa.me` link, a messaging handle or a query-string address is just
+ * as exportable as a number in the note itself.
+ */
+export function observationHasContactDetails(
+  observation: Pick<ResearchObservation, 'statement' | 'evidence' | 'sourceUrl'>,
+): boolean {
+  return containsContactDetails(
+    `${observation.statement} ${observation.evidence ?? ''} ${observation.sourceUrl ?? ''}`,
+  );
+}
+
+/**
+ * Some businesses use a phone number as their profile handle. The canonical URL then carries the
+ * number too, so the reference itself is contact material and cannot go into an export. The row
+ * stays in the collector, where the stated retention basis governs it.
+ */
+export function socialSourceHasContactDetails(
+  source: Pick<BusinessSocialSource, 'handle' | 'profileUrl'>,
+): boolean {
+  return containsContactDetails(`${source.handle} ${source.profileUrl}`);
+}
 
 /** Verification moves forward only; a downgrade is a new record, not an edit. */
 export function canAdvanceVerification(from: SocialVerificationStatus, to: SocialVerificationStatus): boolean {
@@ -446,7 +564,7 @@ export function missingResources(
 
 
 const briefLine = (item: SocialResearchItem) =>
-  `- **${item.label}:** ${item.value} — ${SOCIAL_VERIFICATION_META[item.status].label}; source: ${item.sourceLabel}${item.sourceUrl ? ` (${item.sourceUrl})` : ''}${item.note ? `; ${item.note}` : ''}`;
+  `- **${item.label}:** ${redactContactDetails(item.value)} — ${SOCIAL_VERIFICATION_META[item.status].label}; source: ${item.sourceLabel}${item.sourceUrl ? ` (${redactContactDetails(item.sourceUrl)})` : ''}${item.note ? `; ${redactContactDetails(item.note)}` : ''}`;
 
 /** Markdown research brief included in the Website Resource Kit. References only, never content. */
 export function socialResearchBrief(
@@ -456,11 +574,15 @@ export function socialResearchBrief(
   generatedAt = new Date(),
 ): string {
   const research = buildSocialResearch(business, sources, observations);
-  const contactObservationKeys = new Set(research.observations.filter((o) => o.category === 'contact_channel').map((o) => `observation-${o.id}`));
+  const withheldObservationKeys = new Set(
+    research.observations
+      .filter((o) => o.category === 'contact_channel' || observationHasContactDetails(o))
+      .map((o) => `observation-${o.id}`),
+  );
   const lines = [
     '# Social resource research brief',
     '',
-    `Business: ${business.name}`,
+    `Business: ${redactContactDetails(business.name)}`,
     `Generated: ${generatedAt.toISOString()}`,
     '',
     'Every item names its source and one of three states: Observed, Independently verified or Owner confirmed.',
@@ -470,15 +592,16 @@ export function socialResearchBrief(
   for (const group of research.groups) {
     lines.push(`## ${group.label}`, '');
     // Contact details and contact-channel observations need an export-permitted independent entry;
-    // a profile reference or a CRM note is not reuse permission for someone's phone or email.
+    // a profile reference or a CRM note is not reuse permission for someone's phone or email. Notes
+    // that merely mention a number are withheld too, even when their category looks harmless.
     const items =
       group.key === 'contact'
-        ? group.items.filter((item) => item.key === 'website' || (item.key.startsWith('observation-') && !contactObservationKeys.has(item.key)))
-        : group.items;
+        ? group.items.filter((item) => item.key === 'website' || (item.key.startsWith('observation-') && !withheldObservationKeys.has(item.key)))
+        : group.items.filter((item) => !withheldObservationKeys.has(item.key));
     if (!items.length) lines.push('_Nothing exportable recorded._');
     else lines.push(...items.map(briefLine));
     if (group.key === 'contact') {
-      lines.push('', '_Contact details recorded in the CRM and contact-channel observations are withheld from this kit: add them through an export-permitted independent resource entry._');
+      lines.push('', '_Contact details recorded in the CRM, contact-channel observations and any note containing a phone number or email are withheld from this kit: add them through an export-permitted independent resource entry._');
     }
     lines.push('');
   }

@@ -1,12 +1,13 @@
--- Right after applying 003–016 to a database with existing data. READ ONLY: one SELECT that calls no
+-- Right after applying 003–017 to a database with existing data. READ ONLY: one SELECT that calls no
 -- writing function, so it changes nothing; the SQL editor shows its result because it is the only
 -- statement. Every row should say ok: messages to businesses are blocked, every workspace is in
 -- Research only with the outbound stop engaged, opted-out businesses are suppressed, no consent was
 -- invented, and the append-only records and safety triggers are in place. Rows 3, 8 and 9 describe
 -- a fresh upgrade: once the team records consent, queues messages or changes the mode, they differ
--- by design. Rows 24–33 inspect the optional later migrations: 011 discovery, the 012–015 Studio
--- chain and the 016 resource ledger. An optional row that says 'not applied' is a recorded gap, not
--- a failure of the migrations that were applied. See docs/MIGRATION_REVIEW.md §3.
+-- by design. Rows 24–40 inspect the optional later migrations: 011 discovery, the 012–015 Studio
+-- chain, the 016 resource ledger and the 017 social research tables. An optional row that says
+-- 'not applied' is a recorded gap, not a failure of the migrations that were applied. See
+-- docs/MIGRATION_REVIEW.md §3.
 select "check", expected, actual, case when expected = actual then 'ok' else 'LOOK AT THIS' end as result
 from (
   select 1 as ord, 'messages to businesses are blocked' as "check", 'false' as expected, public.outbound_available()::text as actual
@@ -42,5 +43,12 @@ from (
   union all select 31, '016 resource ledger policies', '3', case when to_regclass('public.business_resource_entries') is null then 'not applied' else (select count(*)::text from pg_policies where schemaname = 'public' and tablename = 'business_resource_entries') end
   union all select 32, '016 resource ledger triggers', '2', case when to_regclass('public.business_resource_entries') is null then 'not applied' else (select count(*)::text from pg_trigger where tgrelid = to_regclass('public.business_resource_entries') and tgname in ('business_resource_guard', 'business_resource_audit')) end
   union all select 33, 'members can delete resource entries', 'false', case when to_regclass('public.business_resource_entries') is null then 'not applied' else has_table_privilege('authenticated', 'public.business_resource_entries', 'delete')::text end
+  union all select 34, '017 social research tables installed', 'yes', case when to_regclass('public.business_social_sources') is null or to_regclass('public.business_research_observations') is null then 'not applied' else 'yes' end
+  union all select 35, '017 social source references have RLS', 'true', case when to_regclass('public.business_social_sources') is null then 'not applied' else (select relrowsecurity::text from pg_class where relname = 'business_social_sources' and relnamespace = 'public'::regnamespace) end
+  union all select 36, '017 research observations have RLS', 'true', case when to_regclass('public.business_research_observations') is null then 'not applied' else (select relrowsecurity::text from pg_class where relname = 'business_research_observations' and relnamespace = 'public'::regnamespace) end
+  union all select 37, '017 social research policies', '6', case when to_regclass('public.business_social_sources') is null or to_regclass('public.business_research_observations') is null then 'not applied' else (select count(*)::text from pg_policies where schemaname = 'public' and tablename in ('business_social_sources', 'business_research_observations')) end
+  union all select 38, '017 social research triggers', '4', case when to_regclass('public.business_social_sources') is null or to_regclass('public.business_research_observations') is null then 'not applied' else (select count(*)::text from pg_trigger where tgrelid in (to_regclass('public.business_social_sources'), to_regclass('public.business_research_observations')) and tgname in ('business_social_source_guard', 'business_social_source_audit', 'business_research_observation_guard', 'business_research_observation_audit')) end
+  union all select 39, 'members can delete social research rows', 'false', case when to_regclass('public.business_social_sources') is null or to_regclass('public.business_research_observations') is null then 'not applied' else (has_table_privilege('authenticated', 'public.business_social_sources', 'delete') or has_table_privilege('authenticated', 'public.business_research_observations', 'delete'))::text end
+  union all select 40, 'source kind allows social profiles', 'true', case when not exists (select 1 from pg_constraint where conrelid = 'public.businesses'::regclass and conname = 'businesses_source_kind_check') then 'not applied' else (select pg_get_constraintdef(oid) like '%social_profile%' from pg_constraint where conrelid = 'public.businesses'::regclass and conname = 'businesses_source_kind_check')::text end
 ) checks
 order by ord;

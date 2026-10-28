@@ -27,6 +27,14 @@ create table if not exists public.business_social_sources (
     ('first_party_observation', 'owner_supplied', 'licensed_directory', 'official_website')),
   verification_status text not null check (verification_status in
     ('observed', 'independently_verified', 'owner_confirmed')),
+  -- The basis and the provenance are one claim. A "first-party observation" cannot be recorded as
+  -- owner-supplied, and a licensed directory cannot be relabelled as an independent observation.
+  constraint business_social_source_basis check (
+    (retention_basis = 'first_party_observation' and provenance = 'independent_observation') or
+    (retention_basis = 'owner_supplied' and provenance = 'owner_supplied') or
+    (retention_basis = 'licensed_directory' and provenance = 'licensed_directory') or
+    (retention_basis = 'official_website' and provenance = 'official_website')
+  ),
   verification_evidence text check (verification_evidence is null or char_length(btrim(verification_evidence)) between 15 and 1000),
   captured_by uuid references auth.users(id) on delete set null default auth.uid(),
   captured_at timestamptz not null default now(),
@@ -36,13 +44,14 @@ create table if not exists public.business_social_sources (
   foreign key (business_id, organization_id) references public.businesses(id, organization_id) on delete cascade,
   -- The URL has to be the platform's own public profile host, not a post, share link or redirector.
   constraint business_social_source_host check (
-    (platform = 'instagram' and profile_url ~* '^https://(www\.)?instagram\.com/[a-z0-9._-]{2,80}/?$') or
-    (platform = 'facebook' and profile_url ~* '^https://(www\.)?facebook\.com/[a-z0-9._-]{2,80}$') or
-    (platform = 'tiktok' and profile_url ~* '^https://(www\.)?tiktok\.com/@[a-z0-9._-]{2,80}$')
+    (platform = 'instagram' and profile_url ~* '^https://(www\.)?instagram\.com/[a-z0-9_][a-z0-9._-]{0,79}/?$') or
+    (platform = 'facebook' and profile_url ~* '^https://(www\.)?(facebook|fb)\.com/[a-z0-9_][a-z0-9._-]{0,79}$') or
+    (platform = 'tiktok' and profile_url ~* '^https://(www\.)?tiktok\.com/@[a-z0-9_][a-z0-9._-]{0,79}$')
   ),
-  -- An observed profile has no verification time; a verified one always names its evidence.
+  -- An observed profile has no verification time or evidence; a verified one always names its
+  -- evidence. The domain schema applies the same rule, and the database refuses a row that skips it.
   constraint business_social_source_verification check (
-    (verification_status = 'observed' and verified_at is null) or
+    (verification_status = 'observed' and verified_at is null and verification_evidence is null) or
     (verification_status in ('independently_verified', 'owner_confirmed') and verification_evidence is not null and verified_at is not null)
   )
 );
@@ -61,6 +70,17 @@ declare
   rank_new integer;
 begin
   if tg_op = 'INSERT' then
+    -- A basis that asserts a verified state starts there, and a first-party observation starts
+    -- observed. A row cannot claim a stronger starting state than its basis supports; verification
+    -- only advances later, through the update branch with evidence.
+    if new.verification_status <> (case new.retention_basis
+      when 'first_party_observation' then 'observed'
+      when 'owner_supplied' then 'owner_confirmed'
+      when 'licensed_directory' then 'independently_verified'
+      when 'official_website' then 'independently_verified'
+    end) then
+      raise exception 'A source starts at the status its retention basis supports.' using errcode = '23514';
+    end if;
     if new.verification_status <> 'observed' and new.verification_evidence is null then
       raise exception 'A verified social profile needs evidence.' using errcode = '23514';
     end if;
@@ -137,6 +157,26 @@ create table if not exists public.business_research_observations (
   -- A pointer to somebody's page must be a link; owner-supplied text may arrive without one.
   constraint business_research_observation_source check (
     source_kind in ('business_owner', 'research_gap') or source_url is not null
+  ),
+  -- A gap is the absence of a source, not a place to park a Google Maps link.
+  constraint business_research_observation_gap_source check (
+    source_kind <> 'research_gap' or source_url is null
+  ),
+  -- A URL with credentials hides the real host from a reader. The source URL is a link someone can
+  -- inspect, not a redirect with an embedded login or a social handle masquerading as userinfo.
+  constraint business_research_observation_plain_source check (
+    source_url is null or source_url !~* '^https?://[^/?#]*@'
+  ),
+  -- Google listing, Maps and Google-hosted site links are provider content, not an independent
+  -- observation. Only the profile URL on a social source kind is allowed to point at a platform.
+  -- The optional trailing dot matters: `google.com.` is the same host and must not evade the check.
+  constraint business_research_observation_not_google check (
+    source_url is null or source_url !~* '^https?://([a-z0-9-]+\.)*(google\.[a-z.]+|googleapis\.com|googleusercontent\.com|gstatic\.com|goo\.gl|goo\.gle|g\.co|g\.page|ggpht\.com|business\.site|share\.google)(\.?)([:/]|$)'
+  ),
+  -- An official website or a licensed directory is not a social profile in disguise.
+  constraint business_research_observation_official check (
+    source_kind not in ('official_website', 'licensed_directory') or source_url is null or
+    source_url !~* '^https?://([a-z0-9-]+\.)*(instagram\.com|facebook\.com|fb\.com|fbcdn\.net|cdninstagram\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com)(\.?)([:/]|$)'
   ),
   constraint business_research_observation_verified check (status = 'observed' or evidence is not null)
 );

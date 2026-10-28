@@ -6,6 +6,7 @@ import { assessSocialIntake, intakeBusinessName, nameFromHandle, summarizeIntake
 import type { SocialCandidate } from '@/lib/domain/social-discovery';
 import type { Business } from '@/lib/domain/types';
 import { addSocialSourceToBusiness, bulkAddSocialCandidates, confirmSocialSource } from '@/lib/data/social-intake-services';
+import type { SocialSourceInsert } from '@/lib/domain/social-research';
 import type { ServiceContext } from '@/lib/data/services';
 
 const candidate = (overrides: Partial<SocialCandidate> = {}): SocialCandidate => ({
@@ -199,6 +200,62 @@ describe('bulk intake service', () => {
       }),
     ).rejects.toThrow(/already linked/i);
     expect((await store.listSocialSources()).length).toBe(1);
+  });
+
+  it('refuses a duplicate profile at the store boundary even across prospects', async () => {
+    const { store } = context();
+    const [first, second] = await store.listBusinesses();
+    const input: SocialSourceInsert = {
+      businessId: first.id,
+      platform: 'instagram',
+      handle: 'storedup',
+      profileUrl: 'https://www.instagram.com/storedup/',
+      provenance: 'owner_supplied',
+      retentionBasis: 'owner_supplied',
+      verificationStatus: 'owner_confirmed',
+      verificationEvidence: 'The owner supplied this profile on 26 October.',
+    };
+    await store.createSocialSource(input);
+    await expect(store.createSocialSource({ ...input, businessId: second.id, handle: '@StoreDup' })).rejects.toThrow(/already linked/i);
+    expect(await store.listSocialSources()).toHaveLength(1);
+  });
+
+  it('names the other prospect when the service finds an existing workspace link', async () => {
+    const { store, ctx } = context();
+    const [first, second] = await store.listBusinesses();
+    await store.createSocialSource({
+      businessId: first.id,
+      platform: 'instagram',
+      handle: 'workspacedup',
+      profileUrl: 'https://www.instagram.com/workspacedup/',
+      provenance: 'owner_supplied',
+      retentionBasis: 'owner_supplied',
+      verificationStatus: 'owner_confirmed',
+      verificationEvidence: 'The owner supplied this profile on 26 October.',
+    });
+    await expect(
+      addSocialSourceToBusiness(ctx, {
+        businessId: second.id,
+        platform: 'instagram',
+        handle: '@WorkspaceDup',
+        profileUrl: 'https://www.instagram.com/workspacedup/',
+        provenance: 'owner_supplied',
+        retentionBasis: 'owner_supplied',
+        verificationStatus: 'owner_confirmed',
+        verificationEvidence: 'The owner supplied this profile on 26 October.',
+      }),
+    ).rejects.toThrow(/another prospect/i);
+    expect(await store.listSocialSources()).toHaveLength(1);
+  });
+
+  it('refuses an invented retention basis before writing anything', async () => {
+    const { store, ctx } = context();
+    const before = (await store.listBusinesses()).length;
+    await expect(
+      bulkAddSocialCandidates(ctx, { ...input([candidate()]), basis: 'search_result' as never }),
+    ).rejects.toThrow(/lawful retention basis/i);
+    expect((await store.listBusinesses()).length).toBe(before);
+    expect(await store.listSocialSources()).toEqual([]);
   });
 
   it('moves verification forward only and records the evidence', async () => {

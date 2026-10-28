@@ -14,7 +14,7 @@ import { extractPageFacts } from '@/lib/domain/page-signals';
 const entry = { businessId: '00000000-0000-4000-8000-000000000001', category: 'service' as const, label: 'Services', value: 'Original owner-authorized service description', sourceKind: 'business_owner' as const, sourceUrl: 'https://sample.example.org/permission', evidence: 'Owner email dated 25 October permits independent verification, storage and export.', independentlyVerified: true as const, exportPermission: 'granted' as const };
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('Independent resources and permitted downloads', () => {
-  it.each(['https://maps.google.com/place/test', 'https://lh3.googleusercontent.com/image', 'https://maps.app.goo.gl/test', 'https://fictionalbakery.business.site/', 'https://instagram.com/business', 'javascript:alert(1)', 'https://user:password@official.example.org'])('refuses restricted or unsafe independent source %s', (url) => {
+  it.each(['https://maps.google.com/place/test', 'https://maps.google.com./place/test', 'https://lh3.googleusercontent.com/image', 'https://maps.app.goo.gl/test', 'https://fictionalbakery.business.site/', 'https://instagram.com/business', 'https://instagram.com./business', 'https://www.facebook.com./business', 'javascript:alert(1)', 'https://user:password@official.example.org'])('refuses restricted or unsafe independent source %s', (url) => {
     expect(restrictedResourceUrl(url)).toBe(true);
     expect(resourceEntrySchema.safeParse({ ...entry, sourceUrl: url }).success).toBe(false);
   });
@@ -22,6 +22,8 @@ describe('Independent resources and permitted downloads', () => {
     expect(restrictedResourceUrl('https://notmybusiness.site/permission')).toBe(false);
     expect(restrictedResourceUrl('https://business.site.example.org/permission')).toBe(false);
     expect(restrictedResourceUrl('https://samplebakery.example.org/permission')).toBe(false);
+    // A trailing dot does not turn an independent host into a restricted one.
+    expect(restrictedResourceUrl('https://samplebakery.example.org./permission')).toBe(false);
   });
   it('requires independent verification, permission evidence and a non-Google source type', () => {
     expect(resourceEntrySchema.safeParse({ ...entry, sourceKind: 'google' }).success).toBe(false);
