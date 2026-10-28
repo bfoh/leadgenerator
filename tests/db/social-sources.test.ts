@@ -215,3 +215,32 @@ it('re-applies the whole file without losing records or duplicating its guards',
 it('refuses an unknown source kind on prospects', async () => {
   await expect(as(db, OWNER, () => rows(db, "insert into public.businesses(organization_id,name,city,source_kind) values($1,'Bad Provenance','Accra','instagram')", [org]))).rejects.toThrow(/check constraint/i);
 });
+
+it('takes back the delete and truncate Supabase grants on a new table', async () => {
+  // Supabase's default privileges grant every role everything on a table it creates, so a migration
+  // that only grants is still deletable and truncatable (truncate bypasses RLS). This database starts
+  // with those defaults, as a real project does, and the migration has to take them back.
+  const d = await createDatabase({
+    before: {
+      '017': async (setup) => {
+        await setup.exec('alter default privileges in schema public grant all on tables to anon, authenticated');
+      },
+    },
+  });
+  try {
+    const can = async (role: string, table: string, verb: string) =>
+      (await rows<{ allowed: boolean }>(d, 'select has_table_privilege($1, $2, $3) as allowed', [role, `public.${table}`, verb]))[0].allowed;
+    for (const table of ['business_social_sources', 'business_research_observations']) {
+      expect(await can('authenticated', table, 'select')).toBe(true);
+      expect(await can('authenticated', table, 'insert')).toBe(true);
+      expect(await can('authenticated', table, 'update')).toBe(true);
+      expect(await can('authenticated', table, 'delete')).toBe(false);
+      expect(await can('authenticated', table, 'truncate')).toBe(false);
+      expect(await can('anon', table, 'select')).toBe(false);
+      expect(await can('service_role', table, 'delete')).toBe(true);
+    }
+  } finally {
+    await d.close();
+  }
+});
+

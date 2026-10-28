@@ -131,6 +131,12 @@ create policy business_social_source_update on public.business_social_sources fo
 grant select, insert, update on public.business_social_sources to authenticated;
 grant select, insert, update, delete on public.business_social_sources to service_role;
 
+-- Supabase's default privileges grant every role everything on a new table, including delete and
+-- truncate (which bypasses RLS). A source is revoked, never deleted, so take those back from people;
+-- the worker keeps delete for retention and erasure jobs.
+revoke all on public.business_social_sources from anon;
+revoke delete, truncate on public.business_social_sources from authenticated;
+
 create table if not exists public.business_research_observations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -208,3 +214,7 @@ drop policy if exists business_research_observation_revoke on public.business_re
 create policy business_research_observation_revoke on public.business_research_observations for update to authenticated using (public.has_org_role(organization_id, array['owner','admin','researcher','sales'])) with check (public.has_org_role(organization_id, array['owner','admin','researcher','sales']));
 grant select, insert, update on public.business_research_observations to authenticated;
 grant select, insert, update, delete on public.business_research_observations to service_role;
+
+-- As for sources: an observation is revoked, never deleted, so people cannot delete or truncate it.
+revoke all on public.business_research_observations from anon;
+revoke delete, truncate on public.business_research_observations from authenticated;
