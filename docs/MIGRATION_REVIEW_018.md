@@ -174,9 +174,11 @@ change record.
   the gap is not mistaken for closed.
 - **The other five tables from 014–016 still have the `anon` gap**: `studio_creative_briefs`,
   `studio_creative_brief_reviews`, `studio_creative_directions`, `studio_creative_direction_reviews`
-  and `studio_website_prototypes`. 018 fixes only the ledger. The release-window statement in
-  `docs/PRODUCTION_RELEASE_GATE.md` §5.3 covers every table in one run and remains the recommended way
-  to close them; §5.4's verification query should then report five tables, not six.
+  and `studio_website_prototypes`. 018 fixes only the ledger. Migration 019
+  (`supabase/migrations/019_studio_privilege_hardening.sql`, reviewed in
+  [MIGRATION_REVIEW_019](MIGRATION_REVIEW_019.md) and **not applied**) closes them table by table, with the
+  DELETE/TRUNCATE half on the same five; the release-window statement in
+  `docs/PRODUCTION_RELEASE_GATE.md` §5.3 remains the project-wide alternative and would make 019 a no-op.
 - **The default privileges that created the gap are untouched.** Any future table created by a
   migration that grants without revoking starts permissive again. Only the `alter default privileges`
   half of §5.3 addresses that.

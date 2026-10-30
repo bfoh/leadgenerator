@@ -215,7 +215,7 @@ describe('pre-production inspection script', () => {
   });
 });
 
-describe('001–018 pre-apply inspection script', () => {
+describe('001–019 pre-apply inspection script', () => {
   const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-001-016.sql');
   /** The single statement, without the leading comment block, for running inside a read-only transaction. */
   const body = preflight.slice(preflight.indexOf('with chain('));
@@ -262,19 +262,38 @@ describe('001–018 pre-apply inspection script', () => {
     await db.close();
   });
 
-  it('reports 018 as the one file left when a project still hands members truncate', async () => {
+  it('reports 018 as the next file when a project still hands members truncate', async () => {
     // The 018 row is a privilege probe, not an object check: with Supabase's default privileges in place
     // and 016 applied, the ledger is there but members can still truncate it, so 018 is the file to run.
+    // 019 is skipped with it, because a later migration applied over an earlier missing one is a gap.
     const db = await createDatabase({
-      skip: ['018'],
-      before: { '016': (d) => d.exec('alter default privileges in schema public grant all on tables to anon, authenticated') },
+      skip: ['018', '019'],
+      before: { '014': (d) => d.exec('alter default privileges in schema public grant all on tables to anon, authenticated') },
     });
     const gap = await run(db);
     expect(gap['016 business resources']).toBe('present');
     expect(gap['018 resource ledger privileges']).toBe('missing');
+    expect(gap['019 Studio privilege hardening']).toBe('missing');
     expect(gap['next file to apply']).toBe('018 resource ledger privileges');
-    expect(gap['files still to apply']).toBe('1');
+    expect(gap['files still to apply']).toBe('2');
     expect(gap['gaps in the installed chain']).toBe('none');
+    await db.close();
+  });
+
+  it('names the five Studio tables while anon can still reach them, and closes them with 019', async () => {
+    const db = await createDatabase({
+      skip: ['019'],
+      before: { '014': (d) => d.exec('alter default privileges in schema public grant all on tables to anon, authenticated') },
+    });
+    const before019 = await run(db);
+    expect(before019['019 Studio privilege hardening']).toBe('missing');
+    expect(before019['Studio creative tables open to anonymous visitors']).toBe('5');
+    expect(before019['next file to apply']).toBe('019 Studio privilege hardening');
+    await db.exec(read(MIGRATIONS_DIR, '019_studio_privilege_hardening.sql'));
+    const after019 = await run(db);
+    expect(after019['019 Studio privilege hardening']).toBe('present');
+    expect(after019['Studio creative tables open to anonymous visitors']).toBe('0');
+    expect(after019['next file to apply']).toBe('none - chain complete');
     await db.close();
   });
 
@@ -325,7 +344,7 @@ describe('after-migrations check', () => {
     try {
       expect(await db.exec(check)).toHaveLength(1);
       const ok = await results(db);
-      expect(ok).toHaveLength(42);
+      expect(ok).toHaveLength(45);
       expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
     } finally {
       await db.exec('rollback');

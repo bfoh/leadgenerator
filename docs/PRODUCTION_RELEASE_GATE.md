@@ -552,9 +552,10 @@ If every line passes, the preview is safe to click through: every page renders f
 
 ### 5.1 What is actually open
 
-Six tables created by 014–016 still carry table-level privileges for the `anon` role, because those three
+Six tables created by 014–016 carried table-level privileges for the `anon` role, because those three
 migrations never revoke them and Supabase's default privileges grant `anon` everything on new tables in
-`public`:
+`public`. Migration 018 closed `business_resource_entries`; **five remain**, and 019 (prepared, not
+applied) closes them:
 
 `studio_creative_briefs`, `studio_creative_brief_reviews`, `studio_creative_directions`,
 `studio_creative_direction_reviews`, `studio_website_prototypes`, `business_resource_entries`.
@@ -624,7 +625,7 @@ statement, and no `anon` row at all after it.
 ### 5.4 Verify it in the same session
 
 ```sql
--- Before: six tables, each with the full privilege set.
+-- Before: the five tables 018 left open, each with the full privilege set.
 select table_name, string_agg(privilege_type, ',' order by privilege_type) as privileges
   from information_schema.role_table_grants
  where grantee = 'anon' and table_schema = 'public'
@@ -684,6 +685,17 @@ probe row (`018 resource ledger privileges`) and `after-migrations.sql` rows 33,
 reviewed change — the pairing this section asked for. See [MIGRATION_REVIEW_018](MIGRATION_REVIEW_018.md).
 §5.3 is still the right way to close the remaining five tables and the default privileges themselves; after
 both, the §5.4 query reports no `anon` row at all.
+
+**Update, 30 October 2026 (019).** The remaining five tables now have their own pair:
+`019_studio_privilege_hardening` revokes DELETE and TRUNCATE from members, the whole set from `anon` and
+TRUNCATE (plus `MAINTAIN` where Postgres 17 has it) from the worker on `studio_creative_briefs`,
+`studio_creative_brief_reviews`, `studio_creative_directions`, `studio_creative_direction_reviews` and
+`studio_website_prototypes`, with a guarded rollback, a preflight probe row (`019 Studio privilege
+hardening`), a preflight gate row for the `anon` half and `after-migrations.sql` rows 43–45. **Prepared on a
+local branch, not applied.** See [MIGRATION_REVIEW_019](MIGRATION_REVIEW_019.md). §5.3 remains the answer
+for the default privileges themselves — which 019 deliberately does not touch, because they are
+project-wide and the grantor has to be read from `pg_default_acl` first — and for any table 019 does not
+name. After both, the §5.4 query reports no `anon` row at all.
 
 ### 5.7 What "resolved" means at go/no-go
 

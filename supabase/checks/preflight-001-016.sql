@@ -1,7 +1,8 @@
--- READ ONLY pre-apply inspection for the whole chain 001–018, including the storage side of 013, the
--- 016 resource ledger, the 017 social research tables and the 018 privilege lockdown. Prepared 26 October
--- 2026 for the Resource Collector staging review and extended on 30 October 2026 for 017–018; NOT yet run
--- against production. (The file name still ends at 016; the chain below runs to 018.)
+-- READ ONLY pre-apply inspection for the whole chain 001–019, including the storage side of 013, the
+-- 016 resource ledger, the 017 social research tables, the 018 ledger privileges and the 019 Studio
+-- privileges. Prepared 26 October 2026 for the Resource Collector staging review, extended on 30 October
+-- 2026 for 017–018 and on 30 October 2026 for 019; NOT yet run
+-- against production. (The file name still ends at 016; the chain below runs to 019.)
 --
 -- One SELECT that calls no writing function: no DDL, no DML, no `set`, no temp table. It is safe to
 -- paste into the production SQL editor or to run through psql inside a read-only transaction. It changes
@@ -39,7 +40,8 @@ with chain(ord, name, marker, meaning) as (
     (15, '015 Studio website prototypes', 'public.studio_website_prototypes', 'Prototype versions bound to a direction and a Brand Kit.'),
     (16, '016 business resources', 'public.business_resource_entries', 'Independent, permissioned resource facts for one prospect.'),
     (17, '017 social research intelligence', 'public.business_social_sources', 'Permitted social profile references and research observations (needs 002).'),
-    (18, '018 resource ledger privileges', 'public.business_resource_entries@privileges', 'Privileges only: takes delete and truncate back from members on the 016 ledger. Present once members can no longer truncate it.')
+    (18, '018 resource ledger privileges', 'public.business_resource_entries@privileges', 'Privileges only: takes delete and truncate back from members on the 016 ledger. Present once members can no longer truncate it.'),
+    (19, '019 Studio privilege hardening', 'public.studio_creative_briefs@privileges', 'Privileges only: takes delete and truncate back from members, everything from anonymous visitors and truncate from the worker on the five 014–015 Studio tables. Present once all five are closed.')
 ),
 installed as (
   select ord, name, marker, meaning,
@@ -48,6 +50,19 @@ installed as (
     -- raising an error for a missing relation.
     case
       when marker = 'public.business_resource_entries@privileges' then coalesce((select not has_table_privilege('authenticated', 'public.business_resource_entries', 'truncate') from pg_class where oid = to_regclass('public.business_resource_entries')), false)
+      -- 019's probe: every one of the five 014–015 Studio tables still readable and writable by members,
+      -- and none of them truncatable or deletable by them. Missing tables simply fail the count.
+      when marker = 'public.studio_creative_briefs@privileges' then coalesce((
+        select count(*) = 5 and bool_and(
+                 has_table_privilege('authenticated', c.oid, 'select')
+                 and has_table_privilege('authenticated', c.oid, 'insert')
+                 and not has_table_privilege('authenticated', c.oid, 'delete')
+                 and not has_table_privilege('authenticated', c.oid, 'truncate'))
+          from pg_class c
+         where c.relnamespace = 'public'::regnamespace
+           and c.relname in ('studio_creative_briefs', 'studio_creative_brief_reviews', 'studio_creative_directions',
+                             'studio_creative_direction_reviews', 'studio_website_prototypes')
+      ), false)
       else to_regclass(marker) is not null
     end as present
   from chain
@@ -132,6 +147,7 @@ select section, "check", value, meaning from (
   -- 7. Go/no-go.
   union all select 7, 'gates', '002 baseline present', case when to_regclass('public.businesses') is null then 'NO - apply 002 first and nothing else' else 'yes' end, 'Everything in this chain needs 002; 001 is only for a project that still holds the legacy leads table.'
   union all select 7, 'gates', 'gaps in the installed chain', coalesce((select string_agg(i.name, ', ' order by i.ord) from installed i where not i.present and exists (select 1 from installed j where j.ord > i.ord and j.present)), 'none'), 'An object whose migration never ran means an unknown state: stop and review before applying anything.'
+  union all select 7, 'gates', 'Studio creative tables open to anonymous visitors', case when to_regclass('public.studio_creative_briefs') is null then 'not applied' else (select count(*)::text from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname in ('studio_creative_briefs', 'studio_creative_brief_reviews', 'studio_creative_directions', 'studio_creative_direction_reviews', 'studio_website_prototypes') and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert') or has_table_privilege('anon', c.oid, 'update') or has_table_privilege('anon', c.oid, 'delete') or has_table_privilege('anon', c.oid, 'truncate') or has_table_privilege('anon', c.oid, 'references') or has_table_privilege('anon', c.oid, 'trigger'))) end, '019 takes the creation-time grant back from anonymous visitors. Any number above 0 names Studio tables anon can still touch; 0 is the state 019 leaves.'
   union all select 7, 'gates', 'next file to apply', coalesce((select name from installed where not present order by ord limit 1), 'none - chain complete'), 'Apply one file at a time, in this order, and re-run this inspection after each file.'
 ) checks
 order by ord, section, "check";

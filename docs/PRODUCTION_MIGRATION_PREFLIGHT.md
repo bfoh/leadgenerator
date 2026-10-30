@@ -79,13 +79,13 @@ through the sections in order; a failure in an earlier section makes the later o
 
 | Section | Rows | Pass condition | If it fails |
 | --- | --- | --- | --- |
-| `chain` | one per migration, 001–017 | `present` for every file already applied, `missing` for every file not yet applied | A `present` you did not expect means someone applied a file outside the documented path: stop and find out when |
+| `chain` | one per migration, 001–019 | `present` for every file already applied, `missing` for every file not yet applied | A `present` you did not expect means someone applied a file outside the documented path: stop and find out when |
 | `database` | role, privilege, version, size, extensions, Storage, load | `connected as` names the role (owner for the apply run; ideally a different one for this pass); `Supabase Storage schema` = `present`; `other sessions open` small; `requests or transactions running over 5 minutes` = `0` | `can create objects in public` = `yes` under a role you created for read-only use means the role is wrong. A non-zero long-request row means a busy window: wait. Storage `absent` means 013 will skip the bucket, so uploads cannot work |
 | `objects` | one per table the chain owns | every installed table shows `RLS on` with its policy and trigger counts, e.g. `RLS on · 3 policies · 2 triggers`; every table from an unapplied file shows `missing` | `RLS OFF` on an installed table is a security regression: stop and investigate before adding anything |
 | `storage` | the bucket and its policies | the bucket row dumps `id, public, file_size_limit, allowed_mime_types` with `public` false and `file_size_limit` `26214400`; four `studio_assets_storage_%` policies | `missing` after 013 was applied, or `public` true, blocks the vault and the ZIP |
 | `records` | existing rows, members and proposals by status | counts match what you expect; `approved or sent proposals without an approval time` = `0` is the clean case | A non-zero value is not fatal (008 copes) but must be recorded, because it changes how change requests are judged |
 | `impact` | businesses size, five largest tables, files still to apply | recorded, not judged | Use it to pick the window: 003 rewrites every business row once |
-| `gates` | three rows | `002 baseline present` = `yes`, `gaps in the installed chain` = `none`, `next file to apply` names the file | A named gap means an object exists whose migration did not run: stop. A `next file` other than the one you planned means the plan is wrong |
+| `gates` | four rows | `002 baseline present` = `yes`, `gaps in the installed chain` = `none`, `Studio creative tables open to anonymous visitors` = `0` once 019 is applied, `next file to apply` names the file | A named gap means an object exists whose migration did not run: stop. A `next file` other than the one you planned means the plan is wrong |
 
 
 Two rows deserve to be read twice:
