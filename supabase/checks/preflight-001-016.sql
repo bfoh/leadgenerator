@@ -1,6 +1,7 @@
--- READ ONLY pre-apply inspection for the whole chain 001–017, including the storage side of 013, the
--- 016 resource ledger and the 017 social research tables. Prepared 26 October 2026 for the Resource
--- Collector staging review; NOT yet run against production.
+-- READ ONLY pre-apply inspection for the whole chain 001–018, including the storage side of 013, the
+-- 016 resource ledger, the 017 social research tables and the 018 privilege lockdown. Prepared 26 October
+-- 2026 for the Resource Collector staging review and extended on 30 October 2026 for 017–018; NOT yet run
+-- against production. (The file name still ends at 016; the chain below runs to 018.)
 --
 -- One SELECT that calls no writing function: no DDL, no DML, no `set`, no temp table. It is safe to
 -- paste into the production SQL editor or to run through psql inside a read-only transaction. It changes
@@ -37,10 +38,19 @@ with chain(ord, name, marker, meaning) as (
     (14, '014 Studio creative direction', 'public.studio_creative_directions', 'Creative briefs, directions and reviews.'),
     (15, '015 Studio website prototypes', 'public.studio_website_prototypes', 'Prototype versions bound to a direction and a Brand Kit.'),
     (16, '016 business resources', 'public.business_resource_entries', 'Independent, permissioned resource facts for one prospect.'),
-    (17, '017 social research intelligence', 'public.business_social_sources', 'Permitted social profile references and research observations (needs 002).')
+    (17, '017 social research intelligence', 'public.business_social_sources', 'Permitted social profile references and research observations (needs 002).'),
+    (18, '018 resource ledger privileges', 'public.business_resource_entries@privileges', 'Privileges only: takes delete and truncate back from members on the 016 ledger. Present once members can no longer truncate it.')
 ),
 installed as (
-  select ord, name, marker, meaning, to_regclass(marker) is not null as present from chain
+  select ord, name, marker, meaning,
+    -- 018 creates nothing, so its marker is a privilege probe rather than an object name. The subquery
+    -- returns no row (and this reads false) on a project where 016 has not been applied, instead of
+    -- raising an error for a missing relation.
+    case
+      when marker = 'public.business_resource_entries@privileges' then coalesce((select not has_table_privilege('authenticated', 'public.business_resource_entries', 'truncate') from pg_class where oid = to_regclass('public.business_resource_entries')), false)
+      else to_regclass(marker) is not null
+    end as present
+  from chain
 ),
 objects(name, short, meaning) as (
   values
@@ -64,7 +74,8 @@ objects(name, short, meaning) as (
     ('public.business_research_observations', 'business_research_observations', '017: observations with a source and a verified state; no platform content.')
 )
 select section, "check", value, meaning from (
-  -- 1. Which migrations are installed, by an object each one creates.
+  -- 1. Which migrations are installed, by an object each one creates (018 changes no object, so it probes
+  -- the privilege it revokes instead).
   select 1 as ord, 'chain' as section, i.name as "check",
          case when i.present then 'present' else 'missing' end as value, i.meaning
   from installed i
@@ -116,7 +127,7 @@ select section, "check", value, meaning from (
   -- 6. Where the apply time will go.
   union all select 6, 'impact', 'businesses table size', pg_size_pretty(pg_total_relation_size('public.businesses')), '003 rewrites every business row once (workflow-state backfill); size gives the lock time.'
   union all select 6, 'impact', 'five largest public tables', coalesce((select string_agg(tbl || ' ' || size, ', ' order by bytes desc) from (select c.relname as tbl, pg_size_pretty(pg_total_relation_size(c.oid)) size, pg_total_relation_size(c.oid) bytes from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' order by pg_total_relation_size(c.oid) desc limit 5) t), 'none'), 'The largest tables dominate any index build in a later migration.'
-  union all select 6, 'impact', 'files still to apply', (select count(*)::text from chain c where to_regclass(c.marker) is null), 'Each missing marker is one file still to apply, in order.'
+  union all select 6, 'impact', 'files still to apply', (select count(*)::text from installed i where not i.present), 'Each row above that reads missing is one file still to apply, in order.'
 
   -- 7. Go/no-go.
   union all select 7, 'gates', '002 baseline present', case when to_regclass('public.businesses') is null then 'NO - apply 002 first and nothing else' else 'yes' end, 'Everything in this chain needs 002; 001 is only for a project that still holds the legacy leads table.'

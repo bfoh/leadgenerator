@@ -215,7 +215,7 @@ describe('pre-production inspection script', () => {
   });
 });
 
-describe('001–017 pre-apply inspection script', () => {
+describe('001–018 pre-apply inspection script', () => {
   const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-001-016.sql');
   /** The single statement, without the leading comment block, for running inside a read-only transaction. */
   const body = preflight.slice(preflight.indexOf('with chain('));
@@ -237,6 +237,7 @@ describe('001–017 pre-apply inspection script', () => {
     expect(at002['business_resource_entries']).toBe('missing');
     expect(at002['017 social research intelligence']).toBe('missing');
     expect(at002['business_social_sources']).toBe('missing');
+    expect(at002['018 resource ledger privileges']).toBe('missing');
     expect(at002['studio-assets bucket']).toBe('Storage absent - 013 skips the bucket');
     expect(at002['next file to apply']).toBe('003 automation infrastructure');
     expect(at002['gaps in the installed chain']).toBe('none');
@@ -254,9 +255,26 @@ describe('001–017 pre-apply inspection script', () => {
     expect(all['017 social research intelligence']).toBe('present');
     expect(all['business_social_sources']).toBe('RLS on · 3 policies · 2 triggers');
     expect(all['business_research_observations']).toBe('RLS on · 3 policies · 2 triggers');
+    expect(all['018 resource ledger privileges']).toBe('present');
     expect(all['next file to apply']).toBe('none - chain complete');
     expect(all['files still to apply']).toBe('0');
     expect(all['gaps in the installed chain']).toBe('none');
+    await db.close();
+  });
+
+  it('reports 018 as the one file left when a project still hands members truncate', async () => {
+    // The 018 row is a privilege probe, not an object check: with Supabase's default privileges in place
+    // and 016 applied, the ledger is there but members can still truncate it, so 018 is the file to run.
+    const db = await createDatabase({
+      skip: ['018'],
+      before: { '016': (d) => d.exec('alter default privileges in schema public grant all on tables to anon, authenticated') },
+    });
+    const gap = await run(db);
+    expect(gap['016 business resources']).toBe('present');
+    expect(gap['018 resource ledger privileges']).toBe('missing');
+    expect(gap['next file to apply']).toBe('018 resource ledger privileges');
+    expect(gap['files still to apply']).toBe('1');
+    expect(gap['gaps in the installed chain']).toBe('none');
     await db.close();
   });
 
@@ -307,7 +325,7 @@ describe('after-migrations check', () => {
     try {
       expect(await db.exec(check)).toHaveLength(1);
       const ok = await results(db);
-      expect(ok).toHaveLength(40);
+      expect(ok).toHaveLength(42);
       expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
     } finally {
       await db.exec('rollback');

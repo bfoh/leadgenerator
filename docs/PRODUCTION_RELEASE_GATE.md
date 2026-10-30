@@ -677,6 +677,14 @@ So the fix ships as an **operation**, recorded here with its evidence. When the 
 reason, fold §5.3 into that migration and add the preflight row then — pair, test and check in one reviewed
 change.
 
+**Update, 30 October 2026.** The chain did change for a real reason: the 016 ledger's `authenticated` grant.
+Migration `018_business_resource_privileges` closes the DELETE and TRUNCATE half of this finding on
+`business_resource_entries` and drops `anon` from that table entirely, with its rollback pair, a preflight
+probe row (`018 resource ledger privileges`) and `after-migrations.sql` rows 33, 41 and 42 in the same
+reviewed change — the pairing this section asked for. See [MIGRATION_REVIEW_018](MIGRATION_REVIEW_018.md).
+§5.3 is still the right way to close the remaining five tables and the default privileges themselves; after
+both, the §5.4 query reports no `anon` row at all.
+
 ### 5.7 What "resolved" means at go/no-go
 
 Resolved when the §5.4 queries return `anon_grants = 0` and `authenticated_grants` unchanged on production, and
