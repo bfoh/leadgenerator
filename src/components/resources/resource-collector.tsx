@@ -9,6 +9,7 @@ import { Checkbox, Field, FormError, Input, Select, Textarea } from '@/component
 import { Notice, PageSkeleton } from '@/components/ui/misc';
 import { StudioAssetVault } from '@/components/studio/asset-vault';
 import { KitReadinessCard } from '@/components/resources/kit-readiness';
+import { VisualAssetPanel } from '@/components/resources/visual-acquisition';
 import { SocialResearchPanel } from '@/components/resources/social-research';
 import { addResourceEntry, downloadWebsiteResourceKit, openResourceVault } from '@/lib/data/resource-services';
 import { RESOURCE_CATEGORIES, resourceConflicts, websiteResourceCandidates, type GoogleResourceListing, type ResourceEntry, type ResourceEntryInsert, type WebsiteResources } from '@/lib/domain/business-resources';
@@ -53,6 +54,7 @@ function Workspace({ business }: { business: Business }) {
     <KitReadinessCard business={business} entries={entries} project={project} canExport={can('data.export')} pending={exportKit.pending} onDownload={async () => Boolean(await exportKit.run())} />
     <GoogleViewer business={business} entries={entries} website={website} editable={can('studio.write')} />
     <WebsiteViewer business={business} editable={can('studio.write')} onResult={setWebsite} />
+    <VisualAssetPanel business={business} project={project} reading={website} ensureProject={async () => (await open.run()) ?? null} />
     <SocialResearchPanel business={business} editable={can('studio.write')} available={socialSchema.data === true} />
     {schema.data === false && <Notice title="Independent resource ledger unavailable" tone="warning">Migration 016 is needed to save independent entries. Google viewing and the existing Asset Vault remain available. No migration is applied automatically.</Notice>}
     <ResourceEntries business={business} entries={entries} editable={can('studio.write') && schema.data === true} />

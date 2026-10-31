@@ -215,7 +215,7 @@ describe('pre-production inspection script', () => {
   });
 });
 
-describe('001–019 pre-apply inspection script', () => {
+describe('001–020 pre-apply inspection script', () => {
   const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-001-016.sql');
   /** The single statement, without the leading comment block, for running inside a read-only transaction. */
   const body = preflight.slice(preflight.indexOf('with chain('));
@@ -256,6 +256,9 @@ describe('001–019 pre-apply inspection script', () => {
     expect(all['business_social_sources']).toBe('RLS on · 3 policies · 2 triggers');
     expect(all['business_research_observations']).toBe('RLS on · 3 policies · 2 triggers');
     expect(all['018 resource ledger privileges']).toBe('present');
+    expect(all['020 visual asset acquisition']).toBe('present');
+    expect(all['visual_asset_candidates']).toBe('RLS on · 3 policies · 2 triggers');
+    expect(all['visual_asset_candidate_events']).toBe('RLS on · 2 policies · 1 triggers');
     expect(all['next file to apply']).toBe('none - chain complete');
     expect(all['files still to apply']).toBe('0');
     expect(all['gaps in the installed chain']).toBe('none');
@@ -267,7 +270,7 @@ describe('001–019 pre-apply inspection script', () => {
     // and 016 applied, the ledger is there but members can still truncate it, so 018 is the file to run.
     // 019 is skipped with it, because a later migration applied over an earlier missing one is a gap.
     const db = await createDatabase({
-      skip: ['018', '019'],
+      skip: ['018', '019', '020'],
       before: { '014': (d) => d.exec('alter default privileges in schema public grant all on tables to anon, authenticated') },
     });
     const gap = await run(db);
@@ -275,7 +278,7 @@ describe('001–019 pre-apply inspection script', () => {
     expect(gap['018 resource ledger privileges']).toBe('missing');
     expect(gap['019 Studio privilege hardening']).toBe('missing');
     expect(gap['next file to apply']).toBe('018 resource ledger privileges');
-    expect(gap['files still to apply']).toBe('2');
+    expect(gap['files still to apply']).toBe('3');
     expect(gap['gaps in the installed chain']).toBe('none');
     await db.close();
   });

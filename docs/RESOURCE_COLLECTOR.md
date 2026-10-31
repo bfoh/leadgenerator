@@ -319,3 +319,59 @@ concept illustrations towards `photography`, so a kit with a logo and an illustr
 while still listing Photography as missing. Only `product_photo`, `venue_photo` and `licensed_image` count
 now, and the missing-resource rule uses the same definition. No media store, provider or image pipeline
 was added.
+
+## Visual asset acquisition (31 October 2026)
+
+The previous release could describe image references but never produce an `assets/` folder for a
+prospect whose kit was otherwise empty. This milestone adds the missing middle: discovery, a recorded
+rights decision, a stored copy in the existing vault, an approval queue, and the same vault-driven ZIP.
+
+Implemented:
+
+- **Discovery is an address, not a copy.** `Find visual assets` records what the verified homepage
+  published (label, type, credit line, why the source is relevant) and starts every row at
+  `reference_only` / `not_established`. Nothing is fetched at this step. Google and social hosts are
+  refused by the domain planner, the API routes and migration 020's check constraint.
+- **Two source classes.** A file on the business's own registrable domain is `official_site` and may be
+  authorized; a file the page links to on another host is `third_party_reference`, can never be
+  downloaded, and can only enter the vault as an uploaded original supplied by its rights holder.
+- **Rights are explicit and separate.** A person chooses a basis (own website, written permission,
+  licensed stock), records evidence (≥15 characters), and confirms ownership for the website basis.
+  Storage, prototype use, export and publication remain distinct: import sets inspect/store/prototype
+  and grants export only when the operator says so. `publishPermission` is never granted by collection.
+- **Duplicates are refused by SHA-256** against the whole vault and the candidate ledger, and by
+  canonical image address against earlier discovery.
+- **Approval queue with bulk selection.** Approving requires a stored candidate whose export permission
+  is already recorded; anything else is skipped with the vault's own reason. Rejection rejects or
+  revokes the stored file too, so it cannot re-enter a kit.
+- **Category-aware requirements.** Hotel/guesthouse asks for logo, exterior, interior, room and staff
+  photography; restaurants, retail, beauty, health, fitness and creative categories have their own
+  lists. They appear in the panel and in `MISSING-RESOURCES.md`.
+- **Kit output.** Approved, export-cleared files reach `assets/` through `exportStudioAssetPack` with
+  manifest entries (path, kind, licence, attribution, five permissions, checksum). Reference-only
+  candidates never appear, kits with only references still grade incomplete, and Studio reads the same
+  vault, so nothing becomes a design asset before approval.
+- **Transient previews only.** A same-origin `/api/resources/preview` route returns one image with
+  `Cache-Control: no-store`, robots checks and the same 8 MB/type limits; it refuses Google, social and
+  any address outside the recorded website. Third-party references show no thumbnail at all.
+- **Migration 020** (`visual_asset_candidates`, `visual_asset_candidate_events`) is drafted and tested on
+  PGlite, **not applied to production**. Older databases keep working: the panel names the prerequisite
+  and the existing vault and kit are unaffected.
+
+Verification on 31 October 2026, credentials blanked, `SIMULATE_EXTERNAL_TOOLS=true`, PGlite only:
+
+| Check | Result |
+| --- | --- |
+| TypeScript / ESLint | `TSC_EXIT=0`, `LINT_EXIT=0` |
+| `tests/unit/visual-acquisition.test.ts` | 13 tests: classification, hotel requirements, discovery and duplicate reporting, off-site refusal, rights/ownership refusals, third-party upload path, duplicate bytes, redirect guard, bulk approval with skips, rejected file exclusion, request-without-copy, and a kit with exactly the four authorized files in `assets/` |
+| `tests/db/visual-acquisition.test.ts` | 6 tests: organization isolation, Google/social refusal, downloaded vs uploaded third-party rule, immutable discovery fields, final rejection, append-only role-gated events, delete/truncate grants taken back |
+| `tests/e2e/visual-acquisition.spec.ts` | 2 passed: the full hotel fixture (6 candidates → 4 authorized → bulk approve → ZIP contains exactly 4 `assets/` paths and neither reference) and route-boundary refusals |
+| `tests/e2e/visual-acquisition-responsive.spec.ts` | Passed at 360/390/768: discovery, one import, no horizontal overflow, no serious axe findings |
+| Existing suite | No regressions; the pre-apply inspection script now covers 001–020 |
+
+Known limits: thumbnails exist only for the business's own site (deliberately not for third parties);
+there is still no image generation, visual-similarity or reverse-duplicate detection; and the live
+Google/website providers were not exercised. Nothing was pushed, deployed, applied to production or
+sent to a prospect.
+
+

@@ -68,6 +68,11 @@ export const useAssetVaultSchema = () => useStoreQuery(['asset-vault-schema'], (
 export const useStudioAssets = (projectId?: string, enabled = true) => useStoreQuery(['studio-assets', projectId ?? 'all'], (s) => s.listStudioAssets(projectId), enabled);
 export const useStudioAssetEvents = (projectId?: string) => useStoreQuery(['studio-asset-events', projectId ?? 'all'], (s) => s.listStudioAssetEvents(projectId));
 export const useStudioAssetReferences = (projectId?: string) => useStoreQuery(['studio-asset-references', projectId ?? 'all'], (s) => s.listStudioAssetReferences(projectId));
+/** Whether migration 020 (visual asset acquisition) is applied. */
+export const useVisualAcquisitionSchema = () => useStoreQuery(['visual-acquisition-schema'], (s) => s.visualAcquisitionAvailable());
+export const useVisualCandidates = (businessId?: string, enabled = true) => useStoreQuery(['visual-candidates', businessId ?? 'all'], (s) => s.listVisualCandidates(businessId), enabled);
+export const useVisualCandidateEvents = (candidateId?: string, enabled = true) =>
+  useStoreQuery(['visual-candidate-events', candidateId ?? 'all'], (s) => s.listVisualCandidateEvents(candidateId), enabled);
 /** Whether migration 014 (creative briefs, directions, reviews) is applied. */
 export const useCreativeDirectionSchema = () => useStoreQuery(['creative-direction-schema'], (s) => s.creativeDirectionSchemaAvailable());
 /** Immutable brief versions, newest first. */

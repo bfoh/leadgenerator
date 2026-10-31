@@ -1,5 +1,6 @@
 import { resourceEntrySchema, restrictedResourceUrl, type ResourceEntryInsert } from '@/lib/domain/business-resources';
 import { isVisualAsset, kitReadiness, RESOURCE_KIT_DOCUMENTS, visualReferenceSheet } from '@/lib/domain/resource-readiness';
+import { missingVisualRequirements } from '@/lib/domain/visual-acquisition';
 import {
   containsContactDetails,
   observationHasContactDetails,
@@ -84,6 +85,7 @@ export async function downloadWebsiteResourceKit(ctx: ServiceContext, businessId
   const withheldFiles = vaultAssets.filter(isVisualAsset).length - readiness.visual.images;
   const missing = [
     ...readiness.missing.map((m) => m.detail),
+    ...missingVisualRequirements(business, vaultAssets),
     ...(['contact', 'location', 'service', 'color', 'typography'] as const).filter((c) => !resources.some((v) => v.category === c)).map((c) => `Independently verified, export-permitted ${c} information.`),
     'Confirm publication rights, current hours, accessibility, rates and commercial terms with the owner before launch.',
   ];

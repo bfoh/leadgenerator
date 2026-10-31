@@ -80,6 +80,7 @@ import {
   type StudioCreativeDirectionReview,
 } from '@/lib/domain/creative-direction';
 import type { StudioWebsitePrototype } from '@/lib/domain/website-prototype';
+import { visualCandidateEventSchema, visualCandidateSchema, type VisualCandidate, type VisualCandidateEvent } from '@/lib/domain/visual-acquisition';
 import type {
   Activity,
   AuditEvent,
@@ -176,6 +177,9 @@ interface DemoState {
   /** Added with social resource intelligence (migration 017); filled in on load for older demo data. */
   socialSources: BusinessSocialSource[];
   researchObservations: ResearchObservation[];
+  /** Added with visual asset acquisition (migration 020); filled in on load for older demo data. */
+  visualCandidates: VisualCandidate[];
+  visualCandidateEvents: VisualCandidateEvent[];
   /** Added with automation; absent in demo data saved by earlier builds. */
   workflowTransitions?: WorkflowTransition[];
 }
@@ -204,6 +208,7 @@ const AUDITED: (keyof Tables)[] = [
   'researchObservations',
   'studioAssetReferences',
   'studioBrandKits',
+  'visualCandidates',
 ];
 const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   businesses: 'businesses',
@@ -228,6 +233,7 @@ const AUDIT_TABLE_NAMES: Partial<Record<keyof Tables, string>> = {
   studioBrandKits: 'studio_brand_kits',
   studioCreativeBriefs: 'studio_creative_briefs',
   studioCreativeDirections: 'studio_creative_directions',
+  visualCandidates: 'visual_asset_candidates',
 };
 /** Mirrors guard_verification_update and guard_audit_finding_update in migration 004. */
 const VERIFICATION_REVIEW_FIELDS = new Set(['reviewStatus', 'reviewNote', 'reviewedBy', 'reviewedAt']);
@@ -284,6 +290,8 @@ export function seedDemoState(legacy: LegacyLead[] = seed as LegacyLead[], now =
     resourceEntries: [],
     socialSources: [],
     researchObservations: [],
+    visualCandidates: [],
+    visualCandidateEvents: [],
     workflowTransitions: [],
   };
   for (const lead of legacy) {
@@ -346,6 +354,7 @@ const INSERT_ONLY = new Set<keyof Tables>([
   'studioCreativeDirections',
   'studioCreativeDirectionReviews',
   'studioWebsitePrototypes',
+  'visualCandidateEvents',
 ]);
 const PROVIDER_SOURCES = new Set(['licensed_dataset', 'authorized_directory', 'enrichment_provider']);
 /** Mirrors the generated match_key / channel_key and the active-entry unique index of migration 005. */
@@ -415,6 +424,8 @@ export class LocalStore implements DataStore {
           parsed.resourceEntries ??= [];
           parsed.socialSources ??= [];
           parsed.researchObservations ??= [];
+          parsed.visualCandidates ??= [];
+          parsed.visualCandidateEvents ??= [];
           // Mirrors migration 005's backfill: businesses already opted out are suppressed.
           if (!parsed.suppressions) {
             parsed.suppressions = [];
@@ -1678,6 +1689,71 @@ export class LocalStore implements DataStore {
     this.commit(() => {
       if (!this.state.studioAssetReferences.some((r) => r.id === id)) throw new StoreError('Reference not found', 'not_found');
       this.remove('studioAssetReferences', (r) => r.id === id);
+    });
+
+  // ── Visual asset acquisition (migration 020) ──
+  async visualAcquisitionAvailable() {
+    return true;
+  }
+  async listVisualCandidates(businessId?: string) {
+    return clone(
+      this.state.visualCandidates
+        .filter((c) => !businessId || c.businessId === businessId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  }
+  async getVisualCandidate(id: string) {
+    return clone(this.state.visualCandidates.find((c) => c.id === id) ?? null);
+  }
+  createVisualCandidates: DataStore['createVisualCandidates'] = (inputs) =>
+    this.commit(() => {
+      if (!inputs.length) throw new StoreError('There are no new images to record.', 'invalid');
+      const rows: VisualCandidate[] = [];
+      for (const input of inputs) {
+        const parsed = visualCandidateSchema.safeParse(input);
+        if (!parsed.success) throw new StoreError(parsed.error.issues[0]?.message ?? 'The candidate is not valid.', 'invalid');
+        const business = this.state.businesses.find((b) => b.id === input.businessId);
+        if (!business) throw new StoreError('Prospect not found', 'not_found');
+        const project = this.state.studioProjects.find((p) => p.id === input.projectId);
+        if (!project || project.businessId !== input.businessId) throw new StoreError('The vault belongs to another prospect.', 'invalid');
+        if (this.state.visualCandidates.some((c) => c.businessId === input.businessId && c.imageUrl === input.imageUrl)) {
+          throw new StoreError('That image is already recorded for this prospect.', 'conflict');
+        }
+        rows.push(this.insert('visualCandidates', { ...input, createdBy: this.userId }));
+      }
+      return rows.map((row) => clone(row));
+    });
+  updateVisualCandidate: DataStore['updateVisualCandidate'] = (id, patch) =>
+    this.commit(() => {
+      const existing = this.state.visualCandidates.find((c) => c.id === id);
+      if (!existing) throw new StoreError('Candidate not found', 'not_found');
+      if (existing.status === 'rejected' && patch.status && patch.status !== 'rejected') {
+        throw new StoreError('A rejected candidate stays rejected.', 'invalid');
+      }
+      if (patch.assetId && !this.state.studioAssets.some((a) => a.id === patch.assetId && a.projectId === existing.projectId)) {
+        throw new StoreError('The stored file does not belong to this vault.', 'invalid');
+      }
+      if (existing.sourceKind === 'third_party_reference' && patch.status === 'imported' && patch.importedVia !== 'uploaded') {
+        throw new StoreError('A third party’s file cannot be copied. Upload the original its owner supplied.', 'forbidden');
+      }
+      const next: VisualCandidate = { ...existing, ...patch };
+      const parsed = visualCandidateSchema.safeParse(next);
+      if (!parsed.success) throw new StoreError(parsed.error.issues[0]?.message ?? 'The candidate is not valid.', 'invalid');
+      return this.update('visualCandidates', id, patch);
+    });
+  async listVisualCandidateEvents(candidateId?: string) {
+    return clone(
+      this.state.visualCandidateEvents
+        .filter((e) => !candidateId || e.candidateId === candidateId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  }
+  createVisualCandidateEvent: DataStore['createVisualCandidateEvent'] = (input) =>
+    this.commit(() => {
+      const parsed = visualCandidateEventSchema.safeParse(input);
+      if (!parsed.success) throw new StoreError(parsed.error.issues[0]?.message ?? 'The event is not valid.', 'invalid');
+      if (!this.state.visualCandidates.some((c) => c.id === input.candidateId)) throw new StoreError('Candidate not found', 'not_found');
+      return this.insert('visualCandidateEvents', { ...input, actorId: this.userId });
     });
 
   async getStudioBrandKit(projectId: string) {

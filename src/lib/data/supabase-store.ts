@@ -54,7 +54,8 @@ import type {
   StudioCreativeDirectionReview,
 } from '@/lib/domain/creative-direction';
 import type { StudioWebsitePrototype } from '@/lib/domain/website-prototype';
-import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, SOCIAL_RESEARCH_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
+import type { VisualCandidate, VisualCandidateEvent } from '@/lib/domain/visual-acquisition';
+import { ASSET_VAULT_MIGRATION_REQUIRED, CONTACTS_MIGRATION_REQUIRED, CONVERSION_MIGRATION_REQUIRED, CREATIVE_DIRECTION_MIGRATION_REQUIRED, MESSAGING_MIGRATION_REQUIRED, RESEARCH_MIGRATION_REQUIRED, SENDING_MIGRATION_REQUIRED, SOCIAL_RESEARCH_MIGRATION_REQUIRED, STUDIO_MIGRATION_REQUIRED, VISUAL_ACQUISITION_MIGRATION_REQUIRED, WEBSITE_PROTOTYPE_MIGRATION_REQUIRED, StoreError, type DataStore } from './store';
 
 const toSnake = (k: string) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 const toCamel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -117,6 +118,7 @@ export class SupabaseStore implements DataStore {
   private conversion: Promise<boolean> | null = null;
   private studio: Promise<boolean> | null = null;
   private vault: Promise<boolean> | null = null;
+  private visual: Promise<boolean> | null = null;
   private creative: Promise<boolean> | null = null;
   private prototype: Promise<boolean> | null = null;
 
@@ -680,6 +682,60 @@ export class SupabaseStore implements DataStore {
   deleteStudioAssetReference: DataStore['deleteStudioAssetReference'] = async (id) => {
     await this.requireAssetVault();
     await this.remove('studio_asset_references', id);
+  };
+
+  // ── Visual asset acquisition (migration 020) ──
+  visualAcquisitionAvailable() {
+    this.visual ??= (async () => {
+      const { error } = await this.sb.from('visual_asset_candidates').select('id', { head: true, count: 'exact' }).eq('organization_id', this.organizationId).limit(1);
+      if (error && MISSING.has(error.code)) return false;
+      if (error) {
+        this.visual = null;
+        throw storeError(error);
+      }
+      return true;
+    })();
+    return this.visual;
+  }
+  private async requireVisualAcquisition() {
+    if (!(await this.visualAcquisitionAvailable())) throw new StoreError(VISUAL_ACQUISITION_MIGRATION_REQUIRED, 'unavailable');
+  }
+  async listVisualCandidates(businessId?: string) {
+    if (!(await this.visualAcquisitionAvailable())) return [];
+    return this.all<VisualCandidate>('visual_asset_candidates', (q) =>
+      (businessId ? q.eq('business_id', businessId) : q).order('created_at', { ascending: false }),
+    );
+  }
+  async getVisualCandidate(id: string) {
+    if (!UUID.test(id) || !(await this.visualAcquisitionAvailable())) return null;
+    return this.one<VisualCandidate>('visual_asset_candidates', id);
+  }
+  createVisualCandidates: DataStore['createVisualCandidates'] = async (inputs) => {
+    await this.requireVisualAcquisition();
+    if (!inputs.length) throw new StoreError('There are no new images to record.', 'invalid');
+    const { data, error } = await this.sb
+      .from('visual_asset_candidates')
+      .insert(inputs.map((input) => ({ ...toRow(input), organization_id: this.organizationId })))
+      .select('*');
+    if (error) {
+      if (error.code === '23505') throw new StoreError('One of those images is already recorded for this prospect.', 'conflict');
+      throw storeError(error);
+    }
+    return (data ?? []).map((row) => fromRow<VisualCandidate>(row));
+  };
+  updateVisualCandidate: DataStore['updateVisualCandidate'] = async (id, patch) => {
+    await this.requireVisualAcquisition();
+    return this.patch<VisualCandidate>('visual_asset_candidates', id, patch);
+  };
+  async listVisualCandidateEvents(candidateId?: string) {
+    if (!(await this.visualAcquisitionAvailable())) return [];
+    return this.all<VisualCandidateEvent>('visual_asset_candidate_events', (q) =>
+      (candidateId ? q.eq('candidate_id', candidateId) : q).order('created_at', { ascending: false }),
+    );
+  }
+  createVisualCandidateEvent: DataStore['createVisualCandidateEvent'] = async (input) => {
+    await this.requireVisualAcquisition();
+    return this.insertRow<VisualCandidateEvent>('visual_asset_candidate_events', input);
   };
   async getStudioBrandKit(projectId: string) {
     if (!UUID.test(projectId) || !(await this.assetVaultAvailable())) return null;

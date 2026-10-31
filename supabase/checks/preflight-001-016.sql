@@ -1,8 +1,8 @@
--- READ ONLY pre-apply inspection for the whole chain 001–019, including the storage side of 013, the
--- 016 resource ledger, the 017 social research tables, the 018 ledger privileges and the 019 Studio
--- privileges. Prepared 26 October 2026 for the Resource Collector staging review, extended on 30 October
--- 2026 for 017–018 and on 30 October 2026 for 019; NOT yet run
--- against production. (The file name still ends at 016; the chain below runs to 019.)
+-- READ ONLY pre-apply inspection for the whole chain 001–020, including the storage side of 013, the
+-- 016 resource ledger, the 017 social research tables, the 018 ledger privileges, the 019 Studio
+-- privileges and the 020 visual asset acquisition ledger. Prepared 26 October 2026 for the Resource
+-- Collector staging review, extended on 30 October 2026 for 017–018 and 019 and on 31 October 2026 for
+-- 020; NOT yet run against production. (The file name still ends at 016; the chain below runs to 020.)
 --
 -- One SELECT that calls no writing function: no DDL, no DML, no `set`, no temp table. It is safe to
 -- paste into the production SQL editor or to run through psql inside a read-only transaction. It changes
@@ -41,7 +41,8 @@ with chain(ord, name, marker, meaning) as (
     (16, '016 business resources', 'public.business_resource_entries', 'Independent, permissioned resource facts for one prospect.'),
     (17, '017 social research intelligence', 'public.business_social_sources', 'Permitted social profile references and research observations (needs 002).'),
     (18, '018 resource ledger privileges', 'public.business_resource_entries@privileges', 'Privileges only: takes delete and truncate back from members on the 016 ledger. Present once members can no longer truncate it.'),
-    (19, '019 Studio privilege hardening', 'public.studio_creative_briefs@privileges', 'Privileges only: takes delete and truncate back from members, everything from anonymous visitors and truncate from the worker on the five 014–015 Studio tables. Present once all five are closed.')
+    (19, '019 Studio privilege hardening', 'public.studio_creative_briefs@privileges', 'Privileges only: takes delete and truncate back from members, everything from anonymous visitors and truncate from the worker on the five 014–015 Studio tables. Present once all five are closed.'),
+    (20, '020 visual asset acquisition', 'public.visual_asset_candidates@privileges', 'Candidate images, rights decisions and an append-only decision history. Present once both tables exist and members hold select, insert and update only.')
 ),
 installed as (
   select ord, name, marker, meaning,
@@ -62,6 +63,20 @@ installed as (
          where c.relnamespace = 'public'::regnamespace
            and c.relname in ('studio_creative_briefs', 'studio_creative_brief_reviews', 'studio_creative_directions',
                              'studio_creative_direction_reviews', 'studio_website_prototypes')
+      ), false)
+      -- 020's probe: both acquisition tables exist, members hold select, insert and update on the
+      -- candidate ledger, and neither table can be deleted from or truncated by them.
+      when marker = 'public.visual_asset_candidates@privileges' then coalesce((
+        select count(*) = 2 and bool_and(
+                 has_table_privilege('authenticated', c.oid, 'select')
+                 and has_table_privilege('authenticated', c.oid, 'insert')
+                 -- The candidate ledger is reviewed in place; the decision history is insert-only.
+                 and (c.relname <> 'visual_asset_candidates' or has_table_privilege('authenticated', c.oid, 'update'))
+                 and not has_table_privilege('authenticated', c.oid, 'delete')
+                 and not has_table_privilege('authenticated', c.oid, 'truncate'))
+          from pg_class c
+         where c.relnamespace = 'public'::regnamespace
+           and c.relname in ('visual_asset_candidates', 'visual_asset_candidate_events')
       ), false)
       else to_regclass(marker) is not null
     end as present
@@ -86,7 +101,9 @@ objects(name, short, meaning) as (
     ('public.studio_website_prototypes', 'studio_website_prototypes', '015: prototype versions; publishReady stays false.'),
     ('public.business_resource_entries', 'business_resource_entries', '016: independent resource ledger; Google content is refused at the boundary.'),
     ('public.business_social_sources', 'business_social_sources', '017: social profile references with a retention basis and verification status.'),
-    ('public.business_research_observations', 'business_research_observations', '017: observations with a source and a verified state; no platform content.')
+    ('public.business_research_observations', 'business_research_observations', '017: observations with a source and a verified state; no platform content.'),
+    ('public.visual_asset_candidates', 'visual_asset_candidates', '020: image addresses, image type and the rights decision; Google and social hosts are refused.'),
+    ('public.visual_asset_candidate_events', 'visual_asset_candidate_events', '020: append-only history of discovery, import, request, rejection and approval.')
 )
 select section, "check", value, meaning from (
   -- 1. Which migrations are installed, by an object each one creates (018 changes no object, so it probes

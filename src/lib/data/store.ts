@@ -61,6 +61,13 @@ import type {
 } from '@/lib/domain/creative-direction';
 import type { StudioWebsitePrototype, StudioWebsitePrototypeInsert } from '@/lib/domain/website-prototype';
 import type {
+  VisualCandidate,
+  VisualCandidateEvent,
+  VisualCandidateEventInsert,
+  VisualCandidateInsert,
+  VisualCandidatePatch,
+} from '@/lib/domain/visual-acquisition';
+import type {
   Activity,
   ActivityInsert,
   AuditEvent,
@@ -265,6 +272,16 @@ export interface DataStore {
   createStudioAssetReference(input: StudioAssetReferenceInsert): Promise<StudioAssetReference>;
   updateStudioAssetReference(id: string, patch: Partial<Pick<StudioAssetReference, 'status' | 'note'>>): Promise<StudioAssetReference>;
   deleteStudioAssetReference(id: string): Promise<void>;
+
+  /** False when the cloud database has not had migration 020 (visual asset acquisition). */
+  visualAcquisitionAvailable(): Promise<boolean>;
+  /** Candidates for one prospect, newest first; no bytes, only addresses and decisions. */
+  listVisualCandidates(businessId?: string): Promise<VisualCandidate[]>;
+  getVisualCandidate(id: string): Promise<VisualCandidate | null>;
+  createVisualCandidates(inputs: VisualCandidateInsert[]): Promise<VisualCandidate[]>;
+  updateVisualCandidate(id: string, patch: VisualCandidatePatch): Promise<VisualCandidate>;
+  listVisualCandidateEvents(candidateId?: string): Promise<VisualCandidateEvent[]>;
+  createVisualCandidateEvent(input: VisualCandidateEventInsert): Promise<VisualCandidateEvent>;
   /** The kit belongs to one concept; its versions are immutable and approvals are append-only. */
   getStudioBrandKit(projectId: string): Promise<StudioBrandKit | null>;
   createStudioBrandKit(projectId: string): Promise<StudioBrandKit>;
@@ -351,3 +368,6 @@ export const WEBSITE_PROTOTYPE_MIGRATION_REQUIRED =
 
 export const SOCIAL_RESEARCH_MIGRATION_REQUIRED =
   'Apply database migration 017 (supabase/migrations/017_social_research_intelligence.sql) to link social sources and record research observations.';
+
+export const VISUAL_ACQUISITION_MIGRATION_REQUIRED =
+  'Apply database migration 020 (supabase/migrations/020_visual_asset_acquisition.sql) to collect candidate images and record rights decisions.';
