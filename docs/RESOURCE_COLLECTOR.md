@@ -351,6 +351,13 @@ Implemented:
   manifest entries (path, kind, licence, attribution, five permissions, checksum). Reference-only
   candidates never appear, kits with only references still grade incomplete, and Studio reads the same
   vault, so nothing becomes a design asset before approval.
+- **The archive re-checks its own contents before it is sealed.** `verifyPackedAssetsCurrent` re-reads
+  the packed rows twice on the way out — once at the end of `exportStudioAssetPack`, once more at the
+  kit's delivery point in `downloadWebsiteResourceKit`, immediately before `createZip`. A revoke, a
+  withdrawn export grant, an expired licence, a deleted file or a replaced checksum that lands while
+  the pack is assembling fails the export with a retry instruction instead of travelling in the ZIP,
+  and nothing is logged as exported. The residual window is the synchronous archive write plus the
+  browser's save.
 - **Transient previews only.** A same-origin `/api/resources/preview` route reads one image with
   `Cache-Control: no-store`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin`, robots checks and
   the same 8 MB/type limits. It takes a recorded `candidateId` and reads the address from that row, so
@@ -370,7 +377,7 @@ Verification on 31 October 2026, credentials blanked, `SIMULATE_EXTERNAL_TOOLS=t
 | Check | Result |
 | --- | --- |
 | TypeScript / ESLint | `TSC_EXIT=0`, `LINT_EXIT=0` |
-| `tests/unit/visual-acquisition.test.ts` | 14 tests: classification, hotel requirements, discovery and duplicate reporting, off-site refusal, rights/ownership refusals, third-party upload path, duplicate bytes, redirect guard, bulk approval with skips, rejected file exclusion, request-without-copy, an orphan file taken back when the ledger write fails, and a kit with exactly the four authorized files in `assets/` |
+| `tests/unit/visual-acquisition.test.ts` | 15 tests: classification, hotel requirements, discovery and duplicate reporting, off-site refusal, rights/ownership refusals, third-party upload path, duplicate bytes, redirect guard, bulk approval with skips, rejected file exclusion, request-without-copy, an orphan file taken back when the ledger write fails, a kit with exactly the four authorized files in `assets/`, and a revoke that lands after the pack's own check but before the archive is sealed |
 | `tests/db/visual-acquisition.test.ts` | 10 tests: organization isolation, Google/social refusal, downloaded vs uploaded third-party rule, a direct write that skips the rights record refused, decisions that cannot reopen or swap the stored file, a cross-vault asset refused, no PUBLIC or service-role truncate/references privilege, immutable discovery fields, final rejection, append-only role-gated events, delete/truncate taken back, and a clean re-apply on a populated ledger |
 | `tests/unit/visual-acquisition-routes.test.ts` | 10 tests: Google, social, off-site and `javascript:` previews refused, a candidate id and recorded website required, placeholder bytes with `nosniff` and same-origin policy, third-party and off-site downloads refused, rights statement and confirmation required |
 | `tests/unit/visual-acquisition-source.test.ts` | 8 tests: the stored candidate decides the address (body and query-string addresses ignored), third-party/Google/off-site candidates refused before any fetch, decided candidates refused, other workspaces and other prospects' vaults refused, off-site redirects refused |
@@ -382,5 +389,80 @@ Known limits: thumbnails exist only for the business's own site (deliberately no
 there is still no image generation, visual-similarity or reverse-duplicate detection; and the live
 Google/website providers were not exercised. Nothing was pushed, deployed, applied to production or
 sent to a prospect.
+
+
+## Release preparation (31 October 2026)
+
+Reviewed state: `main` / `origin/main` at `b0f4cf97`, feature branch
+`feature/google-business-resource-collector` at `ef0f985` (feature) and `53362781` (security fixes),
+plus this release-preparation commit on top. The working tree was clean before it and the diff is
+exactly those commits (`git diff --stat b0f4cf97..HEAD`: 32 files, +3,299/−12 before this commit).
+
+Fixed in review, and each has a regression test:
+
+1. `POST /api/resources/candidates/original` trusted body-supplied addresses. It now resolves
+   candidate → prospect → vault from the store and only reads the stored `officialWebsite`.
+2. `/api/resources/preview` was an authenticated open image proxy. It is candidate-bound: the address
+   comes from the stored candidate row, and a simulated run fetches nothing.
+3. Migration 020 accepted an `imported` row with no rights basis or evidence. The check now requires a
+   basis other than `not_established` and ≥15 characters of evidence, and the trigger refuses an asset
+   from another workspace or prospect.
+4. A decision could be reversed and its stored file swapped. The trigger allows one forward path,
+   freezes `asset_id`, `checksum_sha256` and `imported_via`, and treats a rejection as final.
+5. A rights record could be rewritten after the file was stored. It is frozen once `imported`, in the
+   service and in the store.
+6. Supabase's creation-time grants left the ledger with truncate, references and trigger powers. 020
+   revokes everything from `public`, `anon`, `authenticated` and `service_role`, grants exactly what
+   the collector uses, and revokes `execute` on the trigger functions.
+7. An orphan import could survive a failed ledger write. `storeAuthorizedCopy` deletes the asset and
+   its storage object when the ledger update fails.
+
+**The approved-asset export race.** `exportStudioAssetPack` read the vault once, filtered approved and
+export-cleared rows, and then streamed their bytes. A revoke that committed in between still shipped.
+`verifyPackedAssetsCurrent` now re-reads the packed rows at the end of the pack and again at the kit's
+delivery point (immediately before `createZip`), and fails the export — with nothing logged as
+exported — if an asset is gone, no longer exportable, or its checksum changed. Covered by
+`tests/unit/studio-asset-services.test.ts` (revoke between selection and the pack's own check) and
+`tests/unit/visual-acquisition.test.ts` (revoke after the pack's check, caught at the kit). The
+remaining window is the synchronous archive write plus the browser's save; closing it needs a
+server-side signed download, which this release does not add.
+
+**Migration 020 for production.** Nothing was applied. The preparation is
+`supabase/checks/preflight-020-visual-acquisition.sql` (read-only, 47 rows, safe before the apply and
+on an already-migrated project), `supabase/checks/verify-020-visual-acquisition.sql` (read-only, 24
+structural rows), rows 46–50 of `supabase/checks/after-migrations.sql`, and the rollback that already
+existed. Both files are executed inside `begin transaction read only` against PGlite in
+`tests/db/migrations.test.ts`, together with the static assertion that neither contains a writing
+statement. Ordering is proven by object markers, because no CLI history exists; the migration declares
+013 and the 002 audit helper and raises its own exception without them. It creates two tables and
+touches nothing else — no `drop table`, `drop column`, `truncate` or unconditional delete — and the
+verification compares pre- and post-apply counts.
+
+**Safe without 020.** The store probes `visual_asset_candidates` and treats a missing table as
+`false`; lists return `[]`, writes raise the prerequisite error, every acquisition service starts with
+`requireVisualAcquisition()`, and the panel is hidden. The previous build never reads the new tables,
+so either deploy order works — 020 first is simply the order that makes the feature visible.
+
+**Rollout and recovery** are in [RELEASE_VISUAL_ASSET_ACQUISITION](RELEASE_VISUAL_ASSET_ACQUISITION.md):
+backup window → read-only preflight → apply one file in one transaction → verify → deploy the reviewed
+SHA → Vercel SHA and `/api/status` → read-only smoke. No new environment variable, bucket, role or
+budget change is involved. Recovery is the application first, then
+`supabase/rollback/020_visual_asset_acquisition_down.sql`, then the preflight again.
+
+Verification on 31 October 2026 (credentials blanked, `SIMULATE_EXTERNAL_TOOLS=true`, PGlite only):
+
+| Gate | Result |
+| --- | --- |
+| `npm run typecheck` | clean |
+| `npm run lint` | clean |
+| `npx vitest run` | **1,150 passed in 73 files** (1,145 before this preparation; +2 export-race tests, +3 check-script tests) |
+| `npm run build` | clean, client bundle check passed (183 files, 5 key formats) |
+| Browser: the four visual/resource specs | 6 of 8 in one combined run; the two phone specs fail there with 5 s waits on a cold dev server, fail **identically at the baseline commit**, and pass per spec (3 of 3) and per project — a recorded harness timing issue, not a regression in this change |
+
+Verdict: **conditional GO**. The local code and the migration are ready; the release is conditional on
+a same-window read-only production preflight, the apply of 020, its verification, and explicit owner
+authorisation for the push, deploy and migration. Nothing was pushed, deployed, applied to production,
+sent to a prospect or spent on a provider. Adwoa's House creative approval remains outstanding and
+separate.
 
 

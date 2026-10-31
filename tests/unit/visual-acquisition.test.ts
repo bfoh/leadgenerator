@@ -321,6 +321,30 @@ describe('approval queue and export', () => {
     expect(kit.manifest.assets).toHaveLength(0);
   });
 
+  it('refuses the kit when a revoke lands after the pack itself was checked', async () => {
+    const created = await discover();
+    await acquisition.importVisualCandidate(ctx, business, project, created[0], request(), {
+      bytes: png(900, 300), fileName: 'harbour-hotel-logo.png', mimeType: 'image/png', finalUrl: created[0].imageUrl,
+    });
+    const stored = (await ctx.store.listVisualCandidates(business.id)).filter((c) => c.status === 'imported');
+    await acquisition.approveVisualCandidates(ctx, business, project, stored);
+    const listAssets = ctx.store.listStudioAssets.bind(ctx.store);
+    let reads = 0;
+    // The pack reads the vault twice (selection, then its own check) and the kit reads it once more
+    // to grade readiness. This revoke lands after all three and before the archive is sealed, which
+    // is the window the delivery-point check closes.
+    ctx.store.listStudioAssets = async (projectId: string) => {
+      reads += 1;
+      const rows = await listAssets(projectId);
+      return reads <= 3 ? rows : rows.map((asset) => ({ ...asset, status: 'revoked' as const, exportPermission: 'denied' as const }));
+    };
+    await expect(downloadWebsiteResourceKit(ctx, business.id, project)).rejects.toThrow(/Permissions changed .* no longer exportable/);
+    ctx.store.listStudioAssets = listAssets;
+    expect(reads).toBe(4);
+    // The failed export is not recorded as an export.
+    expect((await ctx.store.listActivities(business.id)).filter((a) => a.summary.includes('Website Resource Kit exported'))).toEqual([]);
+  });
+
   it('records an authorization request without copying the file', async () => {
     const created = await discover();
     const lounge = created[4];

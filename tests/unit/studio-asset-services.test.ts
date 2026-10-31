@@ -385,6 +385,25 @@ describe('the approved pack', () => {
     await expect(vault.exportStudioAssetPack(ctx, project)).rejects.toThrow(/stored file is missing/);
   });
 
+  it('refuses the pack when a permission change lands while it is being assembled', async () => {
+    await approved({ fileName: 'nsroma-logo.png' });
+    const listAssets = ctx.store.listStudioAssets.bind(ctx.store);
+    let reads = 0;
+    // The first read selects the approved file; every later read sees the revoke that landed in
+    // between, exactly as a second reviewer's revoke would arrive after the rows were chosen.
+    ctx.store.listStudioAssets = async (projectId: string) => {
+      reads += 1;
+      const rows = await listAssets(projectId);
+      return reads === 1
+        ? rows
+        : rows.map((asset) => ({ ...asset, status: 'revoked' as const, exportPermission: 'denied' as const, revokedAt: '2026-10-31T12:00:00.000Z' }));
+    };
+    await expect(vault.exportStudioAssetPack(ctx, project)).rejects.toThrow(/Permissions changed .* no longer exportable/);
+    ctx.store.listStudioAssets = listAssets;
+    // Nothing was logged as exported, and a fresh export without the revoke still works.
+    expect((await activities()).filter((summary) => summary.startsWith('Asset pack exported'))).toEqual([]);
+  });
+
   it('names the approved Brand Kit version in the manifest', async () => {
     const logo = await approved();
     const { version } = await vault.saveBrandKitVersion(ctx, project, kit(logo.id), 'First.');

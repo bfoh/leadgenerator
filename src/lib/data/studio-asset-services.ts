@@ -425,6 +425,30 @@ export interface AssetPack {
 const encoder = new TextEncoder();
 
 /**
+ * Re-reads the packed rows at the moment the archive is built. A revoke, a withdrawn export grant,
+ * an expired licence or a replaced file that lands while the pack is being assembled must stop the
+ * export rather than travel inside it: the caller retries and the pack is rebuilt without that file.
+ * This is a check-then-deliver narrowing, not a lock — the remaining window is the synchronous ZIP
+ * write and the browser's save, and closing it entirely would need a server-side signed download.
+ */
+export async function verifyPackedAssetsCurrent(
+  ctx: ServiceContext,
+  project: StudioProject,
+  packed: readonly { assetId: string; sha256: string }[],
+): Promise<void> {
+  if (!packed.length) return;
+  const current = new Map((await ctx.store.listStudioAssets(project.id)).map((asset) => [asset.id, asset]));
+  for (const file of packed) {
+    const asset = current.get(file.assetId);
+    if (!asset) throw new StoreError('An approved file was removed while this pack was being built. Export again.', 'conflict');
+    if (assetExportProblems(asset).length) {
+      throw new StoreError(`Permissions changed while this pack was being built: “${asset.fileName}” is no longer exportable. Export again.`, 'conflict');
+    }
+    if (asset.checksumSha256 !== file.sha256) throw new StoreError(`“${asset.fileName}” was replaced while this pack was being built. Export again.`, 'conflict');
+  }
+}
+
+/**
  * Builds a pack from approved, unexpired, export-authorized files only. Rejected, restricted,
  * replaced and expired assets are counted but never read, so no excluded file can slip into the ZIP.
  */
@@ -491,6 +515,10 @@ export async function exportStudioAssetPack(ctx: ServiceContext, project: Studio
     note: 'Only approved assets with export permission and a current licence are included. A brand kit version does not grant permission to publish any file.',
   };
   entries.push({ name: 'manifest.json', data: encoder.encode(JSON.stringify(manifest, null, 2)) });
+
+  // Nothing in the archive was re-checked since the rows were read; do it now, before the bytes are
+  // sealed, so a permission change that landed mid-assembly fails the export instead of shipping.
+  await verifyPackedAssetsCurrent(ctx, project, manifestAssets.map((asset) => ({ assetId: asset.assetId, sha256: asset.sha256 })));
 
   const zip = createZip(entries, new Date(manifest.generatedAt));
   const manifestHash = await sha256Hex(encoder.encode(JSON.stringify(manifest)));

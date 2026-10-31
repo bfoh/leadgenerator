@@ -334,6 +334,104 @@ describe('001–020 pre-apply inspection script', () => {
   });
 });
 
+describe('020 pre-apply inspection and post-apply verification', () => {
+  const preflight = read(join(process.cwd(), 'supabase', 'checks'), 'preflight-020-visual-acquisition.sql');
+  const verify = read(join(process.cwd(), 'supabase', 'checks'), 'verify-020-visual-acquisition.sql');
+  /** The single statement without the leading comment block, for running inside a read-only transaction. */
+  const body = preflight.slice(preflight.indexOf('select 1 as ord'));
+  const runPreflight = async (db: PGlite) => {
+    await db.exec('begin transaction read only');
+    try {
+      return Object.fromEntries((await rows<{ check: string; value: string }>(db, body)).map((r) => [r.check, r.value]));
+    } finally {
+      await db.exec('rollback');
+    }
+  };
+  const verified = async (db: PGlite) =>
+    (await db.exec(verify))[0].rows as { check: string; expected: string; actual: string; result: string }[];
+
+  it('runs read-only before the apply, then reports the ledger installed', async () => {
+    const db = await createDatabase({ skip: ['020'] });
+    const before = await runPreflight(db);
+    expect(before['002 baseline present']).toBe('yes');
+    expect(before['prerequisites complete']).toBe('yes');
+    expect(before['chain marker 016']).toBe('present');
+    expect(before['019 Studio privileges']).toBe('hardened');
+    expect(before['020 target tables']).toBe('both absent');
+    expect(before['020 already installed']).toBe('no - apply 020 once');
+    expect(before['named checks on candidates']).toBe('missing');
+    expect(before['read-only session']).toBe('yes');
+    // As pasted into the SQL editor it is exactly one statement, so the editor shows its result.
+    expect((await db.exec(preflight)).length).toBe(1);
+
+    // The verification also runs when the tables are absent: it says so instead of failing.
+    await db.exec('begin transaction read only');
+    try {
+      const missing = await verified(db);
+      expect(missing.find((r) => r.check === 'both tables exist')?.result).toBe('LOOK AT THIS');
+      expect(missing.find((r) => r.check === 'policies on candidates (read, insert, update)')?.actual).toBe('missing');
+    } finally {
+      await db.exec('rollback');
+    }
+
+    await db.exec(read(MIGRATIONS_DIR, '020_visual_asset_acquisition.sql'));
+    const after = await runPreflight(db);
+    expect(after['020 target tables']).toBe('both present');
+    expect(after['020 already installed']).toMatch(/^yes - do not apply again/);
+    expect(after['named checks on candidates']).toBe('2');
+    expect(after['triggers on candidates']).toBe('2');
+    expect(after['triggers on candidate events']).toBe('1');
+    expect(after['policies on candidates']).toBe('3');
+    expect(after['indexes 020 names']).toBe('3');
+    expect(after['rows already in the candidate table']).toBe('0');
+    expect(after['next action']).toBe('run supabase/checks/verify-020-visual-acquisition.sql');
+    await db.close();
+  });
+
+  it('verifies every promise of 020, and flags a guard that is missing', async () => {
+    const db = await createDatabase();
+    await db.exec('begin transaction read only');
+    try {
+      expect(await db.exec(verify)).toHaveLength(1);
+      const results = await verified(db);
+      expect(results).toHaveLength(24);
+      expect(results.filter((r) => r.result !== 'ok')).toEqual([]);
+      expect(Object.fromEntries(results.map((r) => [r.check, r.actual]))).toMatchObject({
+        'row level security on candidates': 'on',
+        'row level security on candidate events': 'on',
+        'policies on candidates (read, insert, update)': 'INSERT,SELECT,UPDATE',
+        'policies on candidate events (read, insert)': 'INSERT,SELECT',
+        'members hold select, insert and update on candidates only': 'INSERT,SELECT,UPDATE',
+        'members hold select and insert on events only': 'INSERT,SELECT',
+        'anonymous visitors and PUBLIC hold nothing': '0',
+        'trigger functions are not callable by members or visitors': 'false',
+        'stored rows need a rights basis and evidence': 'true',
+      });
+    } finally {
+      await db.exec('rollback');
+    }
+
+    // A dropped guard is a finding, not a pass: the verification names it and stops the release.
+    await db.exec('begin');
+    try {
+      await db.exec('drop trigger visual_candidate_event_guard on public.visual_asset_candidate_events');
+      expect((await verified(db)).filter((r) => r.result !== 'ok').map((r) => r.check)).toEqual([
+        'trigger on candidate events (append-only)',
+        'event guard refuses every change',
+      ]);
+    } finally {
+      await db.exec('rollback');
+    }
+    await db.close();
+  });
+
+  it('contains nothing that writes, outside the privilege names it inspects', () => {
+    for (const sql of [preflight, verify]) {
+      expect(code(sql).replace(/'([^']|'')*'/g, "''")).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+    }
+  });
+});
+
 describe('after-migrations check', () => {
   const check = read(join(process.cwd(), 'supabase', 'checks'), 'after-migrations.sql');
   const results = async (db: PGlite) => (await db.exec(check))[0].rows as { check: string; result: string }[];
@@ -347,7 +445,7 @@ describe('after-migrations check', () => {
     try {
       expect(await db.exec(check)).toHaveLength(1);
       const ok = await results(db);
-      expect(ok).toHaveLength(45);
+      expect(ok).toHaveLength(50);
       expect(ok.filter((r) => r.result !== 'ok')).toEqual([]);
     } finally {
       await db.exec('rollback');

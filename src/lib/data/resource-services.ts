@@ -13,7 +13,7 @@ import type { Business } from '@/lib/domain/types';
 import type { StudioProject } from '@/lib/domain/studio';
 import { slug } from '@/lib/utils';
 import { log, type ServiceContext } from './services';
-import { exportStudioAssetPack } from './studio-asset-services';
+import { exportStudioAssetPack, verifyPackedAssetsCurrent } from './studio-asset-services';
 import { createStudioConcept } from './studio-services';
 import { StoreError } from './store';
 
@@ -119,6 +119,10 @@ export async function downloadWebsiteResourceKit(ctx: ServiceContext, businessId
     { name: 'RESEARCH-BRIEF.md', data: encode(socialResearchBrief(business, exportableSources, exportableObservations)) },
     { name: 'MISSING-RESOURCES.md', data: encode(missing.map((m) => `- ${m}`).join('\n')) }, { name: 'DEVELOPMENT-BRIEF.md', data: encode(brief) },
     { name: 'visual-references.json', data: encode(JSON.stringify(visualSheet, null, 2)) });
+  // The ZIP is the delivery point, so the packed rows are read once more here, after every document
+  // and file is assembled: a revoke, an expired licence or a replaced file that landed meanwhile
+  // refuses the export instead of being carried in it. The caller retries and the kit rebuilds.
+  if (project) await verifyPackedAssetsCurrent(ctx, project, assets.map((a) => ({ assetId: a.assetId, sha256: a.sha256 })));
   await log(ctx, businessId, 'studio', `Website Resource Kit exported (${readiness.label}): ${assets.length} authorized files, ${resources.length} independent entries, ${exportableSources.length} social references`, { assets: assets.length, resources: resources.length, socialSources: exportableSources.length, researchObservations: exportableObservations.length, readiness: readiness.state });
   return { zip: createZip(files), filename: `${slug(redactContactDetails(business.name))}-website-resource-kit.zip`, manifest, readiness };
 }
