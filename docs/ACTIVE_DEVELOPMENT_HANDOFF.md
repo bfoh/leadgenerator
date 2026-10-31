@@ -1,6 +1,6 @@
 # Active development handoff
 
-Last updated: 25 October 2026. Branch: `feature/google-business-resource-collector`.
+Last updated: 31 October 2026. Branch: `feature/google-business-resource-collector`.
 
 This note is the entry point for whoever picks this work up next. It records what is committed, what
 is deliberately not built, and which external approvals are still missing.
@@ -12,7 +12,12 @@ is deliberately not built, and which external approvals are still missing.
 | `497ba5e` — Google-first Business Resource Collector | Prospect resource page, transient Google listing viewer, independently verified website candidates, migration 016 (drafted, **not applied**), Asset Vault import, standalone Website Resource Kit ZIP, unit/PGlite/browser coverage |
 | Branch tip — Google and social business discovery | Unified discovery UI (Google / social / both), transient social profile discovery through a public web index, `POST /api/discover/social`, off-by-default flags, unit and browser coverage |
 
-Both are local commits. **Nothing has been pushed, deployed or applied to production Supabase.**
+| `e2e13e7` — Approve several identified references in one reviewed batch | Review table with per-row Approve / Reject / Needs more evidence, Select all eligible and Deselect all; explicit confirmation listing the records that will change; per-record safe writes that re-read the record, re-check its Place ID and duplicates, re-judge the evidence and log the reviewer; idempotent re-approval; phone-width review |
+| `6c01631` — Name several Google references in one reviewed batch | Read-only batch identification: 20 records, four checks per request, two in flight, halts on a blocked check |
+| `1c57984` — Grade a resource kit before it is downloaded | `kitReadiness()` drives the card, the pre-export review, the ZIP manifest and `visual-references.json` |
+| `aeb1c62` — Name a Place-ID-only reference from independent sources | Single-record identification: bounded searches, guarded homepage reads, `place-identity/1` evidence, acceptance, audit and provenance |
+
+All four are local commits. **Nothing has been pushed, deployed or applied to production Supabase.**
 
 ## What the discovery work does
 
@@ -28,6 +33,20 @@ Both are local commits. **Nothing has been pushed, deployed or applied to produc
 - `src/components/discover/discover-view.tsx` — source selector (Google / Social / Both), platform
   toggles, a social results list with confidence, evidence, duplicate flags and an explicit
   "Review & add" path into the existing candidate form.
+
+## What the identity work does
+
+- `src/lib/domain/place-identity.ts` — one reading from bounded searches and guarded homepage reads:
+  the site that publishes the name, where on the page it was read, ownership evidence, confidence and
+  the concerns a person should see. Google's listing is never a source of record.
+- `src/lib/data/identity-services.ts` — `acceptPlaceIdentity` and `approveIdentityBatch`. Each write
+  re-reads the record from the caller's own store, refuses a record whose Place ID changed, re-parses
+  and re-judges the evidence, and (for a reviewed batch) refuses a rename that would duplicate another
+  prospect. Re-approving the same reading returns `unchanged` without a second write or audit entry.
+- `src/lib/domain/identity-approval.ts` — the review table: eligibility, verification state, conflicts,
+  duplicate notices and the Approve / Reject / Needs more evidence selection.
+- `src/components/prospects/bulk-identify-business.tsx` — plan, run, review, confirm, per-record
+  results. The dialog keeps the selection it opened with, so renaming a record cannot close it.
 
 ## Deliberate boundaries
 
@@ -53,15 +72,18 @@ Both are local commits. **Nothing has been pushed, deployed or applied to produc
 npm run typecheck
 npm run lint
 npm test                       # unit + PGlite database suites
+npx playwright test tests/e2e/identity-batch.spec.ts tests/e2e/responsive.spec.ts
 npx playwright test tests/e2e/social-discovery.spec.ts tests/e2e/discover.spec.ts
 ```
 
 The browser suite runs with Supabase blanked and `SIMULATE_EXTERNAL_TOOLS=true`, so every social
 result is the labelled fictional world: no network, no provider account and no cost.
 
-Verified on 25 October 2026: `typecheck` and `lint` clean, 903 unit/database tests passing,
-`tests/e2e/social-discovery.spec.ts` (3 tests), `tests/e2e/discover.spec.ts` (2 tests) and the
-`/discover` phone-layout test passing.
+Verified on 31 October 2026: `typecheck` and `lint` clean, **1103 unit/database tests in 69 files**,
+**134 browser tests passing**, the production build and client secret scan clean (183 files, no
+matches). `tests/e2e/adwoa-experience.spec.ts` flaked twice under full-suite load (a scroll-mask
+timing comparison and one axe contrast run) and passes 7/7 when run alone; it is unrelated to this
+work and remains under the creative approval gate.
 
 ## Still required before live social discovery
 
