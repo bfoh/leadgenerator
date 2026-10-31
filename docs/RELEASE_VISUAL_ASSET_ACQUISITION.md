@@ -8,8 +8,9 @@ preflight habit) and [DEPLOYMENT](DEPLOYMENT.md) §4–7.
 Branch: `feature/google-business-resource-collector`. Migration: `020_visual_asset_acquisition.sql`.
 Rollback: `supabase/rollback/020_visual_asset_acquisition_down.sql`.
 Production baseline: `b0f4cf97` (the commit `main` and `origin/main` point at).
-Reviewed feature SHA: `53362781` (feature) plus the release-preparation commit recorded at the end of
-this file.
+Reviewed feature SHA: `53362781` (feature) and `a6fa72da` (release preparation: the export-race fix,
+the two check files and the `after-migrations.sql` rows). The SHA that ships is the one
+`git rev-parse HEAD` reports at deploy (§4); nothing in this release rewrites history.
 
 **Order matters, once.** 020 goes in **before** the code. The old build ignores the two new tables,
 so the reverse order is not dangerous — but a new build with 020 absent simply hides the acquisition
