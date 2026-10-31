@@ -66,6 +66,30 @@ encyclopaedia exclusion, and acceptance (rename with the Place ID kept, activity
 acceptance, unreadable evidence and cross-record isolation). The search and the page reader are mocked
 throughout; no live provider was called.
 
+## Naming several references at once
+
+Twenty references meant twenty dialogs, and a person could not see what a run would search for before it
+spent anything. Selecting rows on the prospect list now offers **Identify N references**, which plans the
+run first: which references are eligible, the name each check will search for, and whether the batch may
+start at all. A reference label is not a business name, so a check without a typed name stays out.
+
+- At most 20 records per batch, sent 4 per request with two requests in flight, and the browser drives the
+  chunks: no single request carries a whole batch, and stopping leaves later chunks unstarted.
+- Eligibility is re-derived on the server from the caller's own store in cloud mode (the reference must
+  still be a Place-ID-only record owned by the caller's organization). The browser's copy of the profile is
+  used only in demo mode, where there is no store to read.
+- Every check runs the single-record path unchanged: the same bounded searches, the same guarded reader,
+  the same `place-identity/1` evidence and the same acceptance rules. A batch writes nothing — acceptance
+  stays one record at a time, and each reading is re-validated against the record as it stands.
+- A blocked check (quota, budget, missing key or an unreadable search) halts the whole batch rather than
+  spending on the rest, and the response says which one stopped it.
+- Duplicate selections in the same run are dropped with a reason instead of searching twice.
+
+Verification: `tests/unit/identity-batch.test.ts` and `tests/unit/identity-batch-preparation.test.ts`
+(29 cases) cover eligibility and skip reasons, the 20-record ceiling, chunking and concurrency, the halt on
+a blocked check, the ownership re-read, and the absence of any write. `tests/e2e/identity-batch.spec.ts`
+names two references in one batch in demo mode and confirms the records are untouched afterwards.
+
 ## Kit readiness, visual references and the pre-export review
 
 A kit can always be downloaded, but an empty collection that looks like a finished pack wastes a

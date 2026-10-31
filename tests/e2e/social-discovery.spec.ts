@@ -98,8 +98,12 @@ test('adds selected social profiles in one batch, links their sources, and expor
   await expect(research.getByText(/does not establish ownership, operating status or permission/).first()).toBeVisible();
   await expect(research.getByText('An independently verified official website.')).toBeVisible();
 
-  const downloaded = page.waitForEvent('download');
+  // The pre-export review stands between the card and the file, so the download is confirmed there.
   await page.getByRole('button', { name: 'Download Website Resource Kit' }).click();
+  const review = page.getByRole('dialog', { name: 'Download Website Resource Kit' });
+  await expect(review).toContainText('social-sources.json');
+  const downloaded = page.waitForEvent('download');
+  await review.getByRole('button', { name: /^Download (incomplete|complete) kit$/ }).click();
   const file = await downloaded;
   const zip = await readFile((await file.path())!);
   const text = zip.toString();

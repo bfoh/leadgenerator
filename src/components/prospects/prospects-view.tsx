@@ -14,6 +14,7 @@ import { cn, relativeTime, formatDate, todayIso } from '@/lib/utils';
 import { useAction, useBusinesses } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { BulkAutomateResearch } from '@/components/automation/prospect-automation';
+import { BulkIdentifyBusiness } from '@/components/prospects/bulk-identify-business';
 import { PermissionBadge, ScorePill, StageBadge, WebsiteStatusBadge } from '@/components/records/badges';
 import { ExportDialog } from '@/components/records/export-dialog';
 import { Button } from '@/components/ui/button';
@@ -234,6 +235,7 @@ export function ProspectsView() {
             </Menu>
           )}
           <BulkAutomateResearch businesses={selectedRecords} onDone={() => setSelected(new Set())} />
+          <BulkIdentifyBusiness businesses={selectedRecords} onDone={() => setSelected(new Set())} />
           {can('data.export') && (
             <Button size="sm" onClick={() => setExporting(true)}>
               <Download /> Export selected
