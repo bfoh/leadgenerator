@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DefinitionList, Notice } from '@/components/ui/misc';
 import { IdentityCard } from './identity-card';
+import { IdentifyBusiness } from './identify-business';
 
 export function ExternalLinkText({ href, children }: { href: string | null | undefined; children?: React.ReactNode }) {
   const safe = safeHref(href);
@@ -202,6 +203,9 @@ function PlacesReference({ business }: { business: Business }) {
             Google&apos;s terms allow storing the Place ID only. Details are fetched on demand and never saved.
           </Notice>
         )}
+        <div className="border-t border-border pt-3">
+          <IdentifyBusiness business={business} />
+        </div>
       </CardBody>
     </Card>
   );

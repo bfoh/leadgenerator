@@ -37,6 +37,35 @@ terms and privacy links explain Google's terms. A missing website field is not p
 has no website. Website ownership and export rights must be independently confirmed; a discovered URL
 grants neither.
 
+## Identifying a Place-ID-only reference
+
+A prospect created from a Place ID carries only a reference label (`Unverified place …`). **Identify this
+business** on the Google Places card asks for the name a person is looking for, runs at most three bounded
+searches and reads at most three candidate homepages with the existing guarded reader, then shows the name
+each site publishes, the ownership evidence behind it and what acceptance would change. The record is
+untouched until someone accepts the reading.
+
+- Searches use the typed name, never the reference label, and each one is metered with an `identity_*`
+  purpose in the usage ledger.
+- A proposal stands only when one independent site names the business (name match ≥ 0.75) *and* shows
+  ownership evidence (≥ 50, verdict owned or probable). Two plausible sites, another town, another
+  country, a conflicting name, or a page that appears to echo the reference label all come back as *needs
+  a person*, and nothing is written.
+- Google-hosted and encyclopaedia hits are excluded from the evidence, and no search title, snippet or
+  ranking is stored: the evidence keeps hosts, scores and the name a site publishes.
+- Acceptance re-parses the evidence, re-derives the reading and rebuilds the patch against the record as
+  it stands, so a profile edited after the check, or a check older than seven days, is refused. Only the
+  name, website, category and town a site supports are written; the Place ID is retained; the activity log
+  records the site as the source.
+- No migration is required. Provenance rides on the existing research-observation table and degrades to
+  the activity entry when that table is absent.
+
+Verification: `tests/unit/place-identity.test.ts` (19 tests) covers query planning, placeholder refusal,
+conflicting/multi-site/other-town/empty readings, fill-versus-overwrite, staleness, drift, Google and
+encyclopaedia exclusion, and acceptance (rename with the Place ID kept, activity, observation, repeat
+acceptance, unreadable evidence and cross-record isolation). The search and the page reader are mocked
+throughout; no live provider was called.
+
 ## Verification
 
 Implemented:
