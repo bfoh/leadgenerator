@@ -14,6 +14,7 @@ import {
 } from '@/lib/domain/places-intake';
 import { type SocialCandidate } from '@/lib/domain/social-discovery';
 import type { SocialRetentionBasis } from '@/lib/domain/social-research';
+import { errorMessage } from '@/lib/utils';
 import { bulkAddSocialCandidates, type BulkSocialIntakeResult } from './social-intake-services';
 import { createBusiness, log, type ServiceContext } from './services';
 import { StoreError } from './store';
@@ -97,7 +98,7 @@ async function addPlaces(
           outcome: 'failed',
           businessId: null,
           businessName: null,
-          reason: `This reference could not be saved: ${error instanceof Error ? error.message : 'unknown error'}`,
+          reason: `This reference could not be saved: ${errorMessage(error)}`,
         };
       }
     }

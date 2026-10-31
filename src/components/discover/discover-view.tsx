@@ -856,7 +856,7 @@ function Discover({
               </Notice>
             ) : (
               <Notice tone="info" icon={Info} title={`Listed on Google Maps as “${tracking.name}”`}>
-                Google’s terms allow storing only the Place ID. Enter the name and any details as confirmed from an independent source — such as the business’s own social page, signboard or a directory — and add that source’s link. You can view live Google details from the prospect’s profile at any time.
+                Google’s terms allow storing only the Place ID. Enter the name and any details as confirmed from an independent source — such as the business’s own social page, signboard or a directory — and put that source’s link in the research notes. You can view live Google details from the prospect’s profile at any time.
               </Notice>
             )
           }

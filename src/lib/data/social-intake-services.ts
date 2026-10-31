@@ -28,6 +28,7 @@ import {
   type SocialVerificationStatus,
 } from '@/lib/domain/social-research';
 import type { BusinessForm } from '@/lib/domain/schemas';
+import { errorMessage } from '@/lib/utils';
 import { createBusiness, log, type ServiceContext } from './services';
 import { SOCIAL_RESEARCH_MIGRATION_REQUIRED, StoreError } from './store';
 
@@ -142,7 +143,7 @@ export async function bulkAddSocialCandidates(
           businessId: null,
           businessName: intakeBusinessName(candidate),
           sourceId: null,
-          reason: `This candidate could not be saved: ${error instanceof Error ? error.message : 'unknown error'}`,
+          reason: `This candidate could not be saved: ${errorMessage(error)}`,
         };
       }
     }

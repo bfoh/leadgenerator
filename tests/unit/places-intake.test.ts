@@ -112,6 +112,38 @@ describe('Places intake eligibility', () => {
     expect(result.reason).toMatch(/Possible existing prospect/);
   });
 
+  it('finds a prospect already in the CRM under its real name, without keeping the listing name', () => {
+    const existing = existingBusiness({ name: 'Adwoa’s Boutique' });
+    const result = assessPlacesIntake(place({ name: 'Adwoa’s Boutique' }), {
+      existingBusinesses: [existing],
+      search: { region: 'Ashanti', city: 'Kumasi' },
+    });
+    expect(result.outcome).toBe('needs_review');
+    expect(result.businessId).toBe(existing.id);
+    expect(result.reason).toContain(existing.name);
+    // The comparison is transient: nothing from the listing is reported back for storage.
+    expect(result.reason).not.toMatch(/listing copy/i);
+    expect(result.listingName).toContain('Adwoa');
+  });
+
+  it('finds a prospect on the listed website or phone, so one business never gets two references', () => {
+    const onWebsite = existingBusiness({ id: '00000000-0000-4000-8000-000000000202', name: 'Adwoa Boutique and Gifts', officialWebsite: 'https://adwoasboutique.example.org/about' });
+    const byWebsite = assessPlacesIntake(place({ name: 'Another trading name entirely', websiteUri: 'https://www.adwoasboutique.example.org/' }), {
+      existingBusinesses: [onWebsite],
+      search: { region: 'Ashanti', city: 'Kumasi' },
+    });
+    expect(byWebsite.outcome).toBe('needs_review');
+    expect(byWebsite.businessId).toBe(onWebsite.id);
+
+    const onPhone = existingBusiness({ id: '00000000-0000-4000-8000-000000000203', name: 'Adwoa Boutique and Gifts', phone: '+233 24 123 4567' });
+    const byPhone = assessPlacesIntake(place({ name: 'Another trading name entirely', phone: '024 123 4567' }), {
+      existingBusinesses: [onPhone],
+      search: { region: 'Ashanti', city: 'Kumasi' },
+    });
+    expect(byPhone.outcome).toBe('needs_review');
+    expect(byPhone.businessId).toBe(onPhone.id);
+  });
+
   it('refuses a result with no usable Place ID', () => {
     const result = assessPlacesIntake(place({ externalId: 'Adwoa Boutique' }), { existingBusinesses: [], search: { region: 'Ashanti', city: 'Kumasi' } });
     expect(result.outcome).toBe('failed');
@@ -177,6 +209,22 @@ describe('bulk Places intake', () => {
     expect(storage.getItem(DEMO_KEY) ?? '').not.toContain('adwoasboutique.example.org');
   });
 
+  it('holds a result the CRM already has under its real name: no record, no listing content', async () => {
+    const { store, ctx, storage } = context();
+    await store.createBusiness(businessDefaults({ name: 'Adwoa’s Boutique', city: 'Kumasi', region: 'Ashanti', socialProfiles: [] }));
+    const before = (await store.listBusinesses()).length;
+    const result = await bulkAddPlacesCandidates(ctx, placesInput([place({ name: 'Adwoa’s Boutique', websiteUri: 'https://adwoasboutique.example.org/', phone: '+233 24 123 4567' })]));
+
+    expect(result.summary.added).toBe(0);
+    expect(result.summary.needs_review).toBe(1);
+    expect(result.results[0].businessName).toBe('Adwoa’s Boutique');
+    expect((await store.listBusinesses()).length).toBe(before);
+    const persisted = storage.getItem(DEMO_KEY) ?? '';
+    expect(persisted).not.toContain('adwoasboutique.example.org');
+    expect(persisted).not.toContain('listing copy that must never be stored');
+    expect(persisted).not.toContain('123 4567');
+  });
+
   it('is idempotent: repeating the same batch adds nothing', async () => {
     const { store, ctx } = context();
     await bulkAddPlacesCandidates(ctx, placesInput([place(), place({ externalId: OTHER_PLACE_ID })]));
@@ -193,6 +241,17 @@ describe('bulk Places intake', () => {
     const result = await bulkAddPlacesCandidates(ctx, placesInput([place(), place()]));
     expect(result.results.map((r) => r.outcome)).toEqual(['added', 'already_exists']);
     expect((await store.listBusinesses()).length).toBe(before + 1);
+  });
+
+  it('reports one row’s failure in plain language and keeps going', async () => {
+    const { store, ctx } = context();
+    const before = (await store.listBusinesses()).length;
+    const input = { ...placesInput([place(), place({ externalId: OTHER_PLACE_ID })]), neighborhood: 'n'.repeat(120) };
+    const result = await bulkAddPlacesCandidates(ctx, input);
+    expect(result.results.map((r) => r.outcome)).toEqual(['failed', 'failed']);
+    expect(result.results[0].reason).toBe('This reference could not be saved: Too big: expected string to have <=80 characters');
+    expect(result.summary.failed).toBe(2);
+    expect((await store.listBusinesses()).length).toBe(before);
   });
 
   it('refuses more than 20 results at a time', async () => {

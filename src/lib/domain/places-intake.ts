@@ -4,7 +4,7 @@
 // reference — and records why it may not. It never returns the listing name, address, phone,
 // reviews or photos for storage.
 
-import { findDuplicates, normalizeName } from './dedupe';
+import { findDuplicates, normalizeName, type DuplicateMatch } from './dedupe';
 import { profileKey } from './social-intake';
 import { parseSocialProfileUrl } from './social-discovery';
 import type { BusinessForm } from './schemas';
@@ -30,6 +30,8 @@ export interface PlacesCandidate {
   /** Google listing name: shown in review, never stored for a live result. */
   name: string;
   websiteUri: string | null;
+  /** Google's phone field: compared in memory only, never stored for a live result. */
+  phone?: string | null;
   isDemo: boolean;
 }
 
@@ -122,12 +124,31 @@ export function assessPlacesIntake(candidate: PlacesCandidate, ctx: PlacesIntake
   }
 
   const name = placesIntakeName(candidate);
-  const matches = findDuplicates({ name, city: ctx.search.city ?? '' }, ctx.existingBusinesses).filter(
-    (match) => match.strength === 'exact' || match.strength === 'likely',
-  );
-  const sameName = ctx.existingBusinesses.find(
-    (business) => normalizeName(business.name) === normalizeName(name) && Boolean(ctx.search.region) && business.region === ctx.search.region,
-  );
+  const city = ctx.search.city ?? '';
+  // Both comparisons happen in memory and neither value is ever written: the name the reference
+  // will be stored under, and the listing's own name, website and phone. The second is what finds a
+  // prospect already in the CRM under its real name — a placeholder name never can — so the batch
+  // holds it for review instead of creating a second record for the same business.
+  const comparisons = [
+    { name, city },
+    ...(candidate.isDemo
+      ? []
+      : [{ name: candidate.name.trim(), city, officialWebsite: candidate.websiteUri, phone: candidate.phone ?? null }]),
+  ];
+  const matches: DuplicateMatch<Business>[] = [];
+  for (const fields of comparisons) {
+    for (const match of findDuplicates(fields, ctx.existingBusinesses)) {
+      const strong = match.strength === 'exact' || match.strength === 'likely';
+      if (strong && !matches.some((seen) => seen.record.id === match.record.id)) matches.push(match);
+    }
+  }
+  const comparisonNames = comparisons.map((fields) => normalizeName(fields.name)).filter(Boolean);
+  // Stronger matches first, so the row names the closest record when several are possible.
+  matches.sort((a, b) => (a.strength === b.strength ? 0 : a.strength === 'exact' ? -1 : 1));
+  const sameName = ctx.existingBusinesses.find((business) => {
+    const record = normalizeName(business.name);
+    return Boolean(record) && Boolean(ctx.search.region) && business.region === ctx.search.region && comparisonNames.includes(record);
+  });
   const possible = matches[0]?.record ?? sameName;
 
   // Simulated practice results are deterministic: the same fictional row always means the same record.
