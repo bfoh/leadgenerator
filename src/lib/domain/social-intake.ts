@@ -39,6 +39,11 @@ export interface SocialIntakeContext {
   basis: SocialRetentionBasis | null;
   existingBusinesses: Business[];
   existingSources: BusinessSocialSource[];
+  /**
+   * Profile links already claimed by a Google Places reference added in the same batch. One business
+   * gets one prospect, however many providers surfaced it.
+   */
+  claimedProfileKeys?: Map<string, { businessId: string; name: string }>;
 }
 
 export interface SocialIntakeAssessment {
@@ -141,6 +146,17 @@ export function assessSocialIntake(candidate: SocialCandidate, ctx: SocialIntake
 
   if (candidate.duplicateOf || candidate.verification === 'possible_duplicate') {
     return { ...base, outcome: 'needs_review', reason: 'Another result looks like the same account. Confirm which profile is official.' };
+  }
+
+  const claimed = ctx.claimedProfileKeys?.get(profileKey(parsed.platform, parsed.handle));
+  if (claimed) {
+    return {
+      ...base,
+      businessId: claimed.businessId,
+      businessName: claimed.name,
+      outcome: 'needs_review',
+      reason: `Google lists this same profile for “${claimed.name}”, which this batch already added as a Place ID reference. Attach the profile to that prospect instead of creating a second record.`,
+    };
   }
 
   const duplicates = findDuplicates({ name: fallbackName, city: candidate.location.city ?? '' }, ctx.existingBusinesses).filter(

@@ -13,18 +13,21 @@ import {
   INTEREST_LABELS,
   INTEREST_LEVELS,
   SOCIAL_PLATFORMS,
-  SOURCE_KINDS,
   SOURCE_KIND_LABELS,
   type SocialPlatform,
+  type SourceKind,
 } from '@/lib/domain/constants';
 import { findDuplicates } from '@/lib/domain/dedupe';
 import { districtsIn, findDistrict } from '@/lib/domain/districts';
 import { COUNTRIES, citiesFor, findCountry, neighborhoodsFor, regionForCity } from '@/lib/domain/geo';
+import { normalizePlaceId, placeReferenceName } from '@/lib/domain/places-intake';
+import { INDEPENDENT_SOURCE_KINDS, SAVE_MODES, saveModeFor, sourceEvidenceIssues, sourceKindForMode, SOURCE_EVIDENCE_RULES, type IndependentSourceKind, type SaveMode } from '@/lib/domain/research-source';
 import { businessFormSchema, businessToForm, fieldErrors, type BusinessForm } from '@/lib/domain/schemas';
 import { categoryGroups } from '@/lib/domain/settings';
 import type { Business, BusinessInsert } from '@/lib/domain/types';
 import { useAction, useBusinesses } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, FormError, Input, Select, Textarea } from '@/components/ui/field';
@@ -41,6 +44,67 @@ const PLATFORM_LABELS: Record<SocialPlatform, string> = {
   youtube: 'YouTube',
   whatsapp_business: 'WhatsApp Business',
   other: 'Other',
+};
+
+/** Field names as a person reads them, so a failed save names what to fix. */
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Business name',
+  category: 'Category',
+  country: 'Country',
+  region: 'Region',
+  districtCode: 'District',
+  city: 'City / town',
+  neighborhood: 'Neighbourhood',
+  address: 'Address',
+  businessStatus: 'Operating status',
+  officialWebsite: 'Official website',
+  enquiryChannel: 'Enquiry channel',
+  phone: 'Business phone',
+  email: 'Business email',
+  contactSource: 'Where the contact details were published',
+  serviceNeeds: 'Service needs',
+  estimatedValue: 'Estimated value',
+  expectedCloseDate: 'Expected close date',
+  nextAction: 'Next action',
+  nextActionDue: 'Next action due',
+  notes: 'Research notes',
+  sourceUrl: 'Source URL',
+  sourceKind: 'Source type',
+  placesPlaceId: 'Google Place ID',
+};
+
+/** Actionable summary: "Google Place ID: paste the ID…", never "Check the highlighted fields." */
+export function describeFormIssues(issues: Record<string, string>): string {
+  const entries = Object.entries(issues);
+  if (!entries.length) return '';
+  const label = (field: string) => (field.startsWith('socialProfiles') ? 'Social profile URL' : (FIELD_LABELS[field] ?? 'A field'));
+  const shown = entries.slice(0, 2).map(([field, message]) => {
+    const name = label(field);
+    return message.toLowerCase().startsWith(name.toLowerCase()) ? message : `${name}: ${message}`;
+  });
+  return entries.length > 2 ? `${shown.join(' ')} (+${entries.length - 2} more to fix)` : shown.join(' ');
+}
+
+const SAVE_MODE_COPY: Record<SaveMode, { title: string; detail: string }> = {
+  place_reference: {
+    title: 'Save Place ID as a research reference',
+    detail: 'Keeps the Google Place ID, the location you choose and a name generated from the ID. No listing name, address, phone, review or photo is stored.',
+  },
+  independent: {
+    title: 'Add independently supported business details',
+    detail: 'Cites the source you checked: the business’s own page, a licensed directory, its own submission or your own research.',
+  },
+};
+
+const SOURCE_URL_HINTS: Record<IndependentSourceKind, string> = {
+  manual: 'The page you checked while researching this business.',
+  directory: 'The directory entry you confirmed the details from.',
+  search: 'The page the search led to — not a Google or social listing.',
+  direct_submission: 'Optional: the form or page the business used, if there is one.',
+  referral: 'Optional: a link to the referral note, if there is one.',
+  provider_discovery: 'The permitted provider’s record you reviewed.',
+  social_profile: 'The business’s own public profile page.',
+  legacy_seed: 'Optional: the archived source, if one exists.',
 };
 
 export function emptyBusinessForm(overrides: Partial<FormInput> = {}): FormInput {
@@ -134,27 +198,48 @@ export function BusinessFormDialog({
     [form.name, form.city, form.officialWebsite, form.phone, form.placesPlaceId, existing, business?.id],
   );
   const socials = (form.socialProfiles ?? []) as { platform: SocialPlatform; url: string }[];
+  const mode = saveModeFor(text(form.sourceKind) as SourceKind);
+  const referenceMode = mode === 'place_reference';
+  const independentKind = (referenceMode ? 'manual' : text(form.sourceKind)) as IndependentSourceKind;
+  const urlRequired = !referenceMode && (SOURCE_EVIDENCE_RULES[independentKind]?.url === 'required' || Boolean(requireIndependentSource));
+
+  function setMode(next: SaveMode) {
+    setErrors({});
+    setForm((f) => ({ ...f, sourceKind: sourceKindForMode(next, text(f.sourceKind) as SourceKind) }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
+    const typedPlaceId = text(form.placesPlaceId);
+    const placeId = normalizePlaceId(typedPlaceId);
+    const typedName = text(form.name).trim();
+    // A Place ID reference needs no invented name: the placeholder is derived from the ID itself.
+    const name = referenceMode && !typedName && placeId ? placeReferenceName(placeId) : text(form.name);
     const parsed = businessFormSchema.safeParse({
       ...form,
+      name,
+      // A reference cites the Place ID, never a Google page or a leftover URL from the other mode.
+      sourceUrl: referenceMode ? '' : text(form.sourceUrl),
+      placesPlaceId: referenceMode ? (placeId ?? typedPlaceId) : typedPlaceId,
       socialProfiles: socials.filter((s) => s.url.trim()),
       serviceNeeds: ((form.serviceNeeds ?? []) as string[]).map((s) => s.trim()).filter(Boolean),
     });
-    if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
-      setFormError('Check the highlighted fields.');
-      return;
+    const issues: Record<string, string> = parsed.success ? {} : fieldErrors(parsed.error);
+    for (const issue of sourceEvidenceIssues({
+      sourceKind: text(form.sourceKind) as SourceKind,
+      sourceUrl: text(form.sourceUrl),
+      placesPlaceId: typedPlaceId,
+      contactSource: text(form.contactSource),
+      notes: text(form.notes),
+      requireIndependentSource: urlRequired,
+    })) {
+      if (!issues[issue.field]) issues[issue.field] = issue.message;
     }
-    if (requireIndependentSource) {
-      const source = parsed.data.sourceUrl;
-      if (!source || /(^|\.)(google\.[a-z.]+|goo\.gl|g\.page)$/i.test(new URL(source).hostname)) {
-        setErrors({ sourceUrl: 'Add a non-Google source that confirms these details (e.g. the business’s own page or a directory listing).' });
-        setFormError('Check the highlighted fields.');
-        return;
-      }
+    if (!parsed.success || Object.keys(issues).length) {
+      setErrors(issues);
+      setFormError(describeFormIssues(issues));
+      return;
     }
     setErrors({});
     if (duplicates.some((d) => d.strength === 'exact') && !business) {
@@ -171,12 +256,18 @@ export function BusinessFormDialog({
       onOpenChange={onOpenChange}
       size="lg"
       title={business ? `Edit ${business.name}` : 'Add research candidate'}
-      description={business ? 'Changes are recorded in the audit trail.' : 'Record what you know. Leave anything unconfirmed blank — it will show as unknown.'}
+      description={
+        business
+          ? 'Changes are recorded in the audit trail.'
+          : referenceMode
+            ? 'Only the Place ID, the location you choose and a placeholder name are saved — nothing Google lists.'
+            : 'Record what you know. Leave anything unconfirmed blank — it will show as unknown.'
+      }
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant="primary" type="submit" form="business-form" loading={create.pending || update.pending}>
-            {business ? 'Save changes' : 'Add candidate'}
+            {business ? 'Save changes' : referenceMode ? 'Save reference' : 'Add candidate'}
           </Button>
         </>
       }
@@ -200,7 +291,13 @@ export function BusinessFormDialog({
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Business</legend>
-          <Field label="Business name" required error={errors.name} className="sm:col-span-2">
+          <Field
+            label="Business name"
+            required={!referenceMode}
+            error={errors.name}
+            hint={referenceMode ? 'Optional here: leave it blank to use a name generated from the Place ID.' : undefined}
+            className="sm:col-span-2"
+          >
             {(p) => <Input {...p} value={text(form.name)} onChange={(e) => set('name', e.target.value)} autoFocus />}
           </Field>
           <Field label="Category" required error={errors.category} hint="Type to search, or pick from an industry group. A custom category is allowed.">
@@ -430,27 +527,89 @@ export function BusinessFormDialog({
           </Field>
         </fieldset>
 
-        <fieldset className="grid gap-4 sm:grid-cols-2">
+        <fieldset className="space-y-3">
           <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-subtle">Source and notes</legend>
-          <Field label="Source URL" hint="Where this business was found (directory page, search result, referral note link)" error={errors.sourceUrl}>
-            {(p) => <Input {...p} value={text(form.sourceUrl)} onChange={(e) => set('sourceUrl', e.target.value)} placeholder="https://" />}
-          </Field>
-          <Field label="Source type" error={errors.sourceKind}>
-            {(p) => (
-              <Select {...p} value={text(form.sourceKind)} onChange={(e) => set('sourceKind', e.target.value as FormInput['sourceKind'])}>
-                {SOURCE_KINDS.filter(
-                  (s) =>
-                    (s !== 'provider_discovery' && s !== 'social_profile' || form.sourceKind === s) &&
-                    (s !== 'legacy_seed' || form.sourceKind === 'legacy_seed'),
-                ).map((s) => (
-                  <option key={s} value={s}>
-                    {SOURCE_KIND_LABELS[s]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          <Field label="Research notes" error={errors.notes} className="sm:col-span-2">
+          <div role="radiogroup" aria-label="What are you saving?" className="grid gap-2 sm:grid-cols-2">
+            {SAVE_MODES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={mode === option}
+                onClick={() => setMode(option)}
+                className={cn(
+                  'rounded-md border p-3 text-left transition-colors',
+                  mode === option ? 'border-accent bg-accent-soft' : 'border-border bg-surface hover:bg-surface-hover',
+                )}
+              >
+                <span className="block text-sm font-medium">{SAVE_MODE_COPY[option].title}</span>
+                <span className="mt-0.5 block text-xs text-subtle">{SAVE_MODE_COPY[option].detail}</span>
+              </button>
+            ))}
+          </div>
+
+          {referenceMode ? (
+            <div className="space-y-3 rounded-md border border-border bg-surface-muted/40 p-3">
+              <Field
+                label="Google Place ID"
+                required
+                error={errors.placesPlaceId}
+                hint="The ID from the place’s Google Maps URL, usually starting with “ChIJ”. It is checked here only: no Google request is made, and no listing detail is saved."
+              >
+                {(p) => (
+                  <Input
+                    {...p}
+                    value={text(form.placesPlaceId)}
+                    onChange={(e) => set('placesPlaceId', e.target.value)}
+                    placeholder="ChIJ…"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                )}
+              </Field>
+              <p className="text-xs text-subtle">
+                Need the business’s name, website or phone? Choose “Add independently supported business details” and cite a source you can check. A
+                Place ID on its own never establishes that a listing is accurate or that anyone may be contacted.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Source type" error={errors.sourceKind}>
+                {(p) => (
+                  <Select {...p} value={independentKind} onChange={(e) => set('sourceKind', e.target.value as FormInput['sourceKind'])}>
+                    {INDEPENDENT_SOURCE_KINDS.map((s) => (
+                      <option key={s} value={s}>
+                        {SOURCE_KIND_LABELS[s]}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label="Source URL" required={urlRequired} error={errors.sourceUrl} hint={SOURCE_URL_HINTS[independentKind]}>
+                {(p) => <Input {...p} value={text(form.sourceUrl)} onChange={(e) => set('sourceUrl', e.target.value)} placeholder="https://" />}
+              </Field>
+              {text(form.placesPlaceId) && (
+                <Field
+                  label="Google Place ID"
+                  error={errors.placesPlaceId}
+                  hint="Kept as a reference only — it never supplies the details above."
+                  className="sm:col-span-2"
+                >
+                  {(p) => (
+                    <Input
+                      {...p}
+                      value={text(form.placesPlaceId)}
+                      onChange={(e) => set('placesPlaceId', e.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  )}
+                </Field>
+              )}
+            </div>
+          )}
+
+          <Field label="Research notes" error={errors.notes}>
             {(p) => <Textarea {...p} rows={4} value={text(form.notes)} onChange={(e) => set('notes', e.target.value)} />}
           </Field>
         </fieldset>

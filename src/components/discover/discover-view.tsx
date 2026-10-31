@@ -17,6 +17,7 @@ import {
 } from '@/lib/domain/social-discovery';
 import type { UsageInsert } from '@/lib/domain/types';
 import { SOCIAL_INTAKE_LABELS, nameFromHandle, type SocialIntakeOutcome } from '@/lib/domain/social-intake';
+import { PLACES_INTAKE_LABELS, PLACES_INTAKE_LIMIT, normalizePlaceId, type PlacesIntakeOutcome, type PlacesIntakeSummary } from '@/lib/domain/places-intake';
 import {
   SOCIAL_RETENTION_BASES,
   SOCIAL_RETENTION_BASIS_HELP,
@@ -26,6 +27,7 @@ import {
 } from '@/lib/domain/social-research';
 import type { BulkSocialIntakeResult, SocialIntakeResult } from '@/lib/data/social-intake-services';
 import { addSocialSourceToBusiness, bulkAddSocialCandidates } from '@/lib/data/social-intake-services';
+import { bulkAddMixedCandidates, bulkAddPlacesCandidates, type BulkPlacesIntakeResult, type MixedIntakeSummary, type PlacesIntakeResult } from '@/lib/data/places-intake-services';
 import { cn, errorMessage, formatDateTime, safeHref } from '@/lib/utils';
 import { ApiError, api, recordCharge, useServerStatus, type ProviderInfo, type ServerStatus } from '@/lib/workspace/api';
 import { useAction, useBusinesses, useUsage } from '@/lib/workspace/hooks';
@@ -90,6 +92,21 @@ const STATUS_LABELS: Record<string, { label: string; tone: 'warning' | 'danger' 
 
 const DAY_MS = 86_400_000;
 
+/** Selection keys keep one set across both providers: `google:<placeId>` and `social:<platform>:<handle>`. */
+const googleKey = (placeId: string) => `google:${placeId}`;
+const socialKey = (candidate: SocialCandidate) => `social:${candidate.platform}:${candidate.handle.replace(/^@/, '').toLowerCase()}`;
+
+/** One sentence for the toast: the panel keeps the per-result detail. */
+function batchMessage(summary: { added: number; already_exists: number; needs_permitted_source: number; needs_review: number; failed?: number }): string {
+  return [
+    `${summary.added} added`,
+    `${summary.already_exists} already existed`,
+    `${summary.needs_review} need review`,
+    `${summary.needs_permitted_source} need a permitted source`,
+    ...(summary.failed ? [`${summary.failed} failed`] : []),
+  ].join(' · ');
+}
+
 const SOURCE_OPTIONS: readonly (readonly [DiscoverySource, string])[] = [
   ['google', 'Google'],
   ['social', 'Social'],
@@ -149,10 +166,12 @@ function Discover({
   const [socialLoading, setSocialLoading] = useState(false);
   const [socialError, setSocialError] = useState<{ message: string; retryable: boolean } | null>(null);
   const [socialTracking, setSocialTracking] = useState<SocialCandidate | null>(null);
-  const [socialSelected, setSocialSelected] = useState<Set<string>>(() => new Set());
+  /** One selection across both providers, so "Both" behaves as a single batch. */
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [socialBasis, setSocialBasis] = useState<SocialRetentionBasis | ''>('');
   const [socialIntake, setSocialIntake] = useState<BulkSocialIntakeResult | null>(null);
-  const [socialProgress, setSocialProgress] = useState<{ done: number; total: number } | null>(null);
+  const [placesIntake, setPlacesIntake] = useState<BulkPlacesIntakeResult | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const socialRequestId = useRef(0);
 
   const [results, setResults] = useState<DiscoveryResult[] | null>(null);
@@ -193,25 +212,26 @@ function Discover({
   const complianceNote = complianceForCategory(category);
   const countryInfo = findCountry(country);
 
+  const searchPlace = { category: category.trim() || 'Other', country, region: region || null, city: city.trim() || null, neighborhood: neighborhood.trim() || null };
+
   const bulkAdd = useAction(
     (ctx, selected: SocialCandidate[], basis: SocialRetentionBasis | null) =>
-      bulkAddSocialCandidates(
-        ctx,
-        {
-          candidates: selected,
-          basis,
-          category: category.trim() || 'Other',
-          country,
-          region: region || null,
-          city: city.trim() || null,
-          neighborhood: neighborhood.trim() || null,
-        },
-        (done, total) => setSocialProgress({ done, total }),
-      ),
+      bulkAddSocialCandidates(ctx, { candidates: selected, basis, ...searchPlace }, (done, total) => setBatchProgress({ done, total })),
     {
-      success: (result) =>
-        `${result.summary.added} added · ${result.summary.already_exists} existing · ${result.summary.needs_permitted_source} need a permitted source · ${result.summary.needs_review} need review`,
+      success: (result) => batchMessage(result.summary),
     },
+  );
+
+  const addPlaceReferences = useAction(
+    (ctx, selected: DiscoveryResult[]) =>
+      bulkAddPlacesCandidates(ctx, { candidates: selected, ...searchPlace }, (done, total) => setBatchProgress({ done, total })),
+    { success: (result) => batchMessage(result.summary) },
+  );
+
+  const addMixed = useAction(
+    (ctx, places: DiscoveryResult[], social: SocialCandidate[], basis: SocialRetentionBasis | null) =>
+      bulkAddMixedCandidates(ctx, { candidates: places, social, basis, ...searchPlace }, (done, total) => setBatchProgress({ done, total })),
+    { success: (result) => batchMessage(result.summary) },
   );
 
   const linkSocialSource = useAction(
@@ -229,23 +249,98 @@ function Discover({
     { success: 'Social profile linked to the new prospect' },
   );
 
-  function resetSocialIntake() {
-    setSocialSelected(new Set());
+  function resetIntake() {
+    setSelectedKeys(new Set());
     setSocialIntake(null);
-    setSocialProgress(null);
+    setPlacesIntake(null);
+    setBatchProgress(null);
   }
 
+  function toggleKey(key: string) {
+    setSelectedKeys((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const selectedPlaces = (results ?? []).filter((result) => selectedKeys.has(googleKey(result.externalId)));
+  const selectedSocial = (socialResults ?? []).filter(
+    (candidate) => candidate.verification !== 'wrong_business' && selectedKeys.has(socialKey(candidate)),
+  );
+  const canWrite = can('prospects.write');
+  const socialSelectable = (socialResults ?? []).filter((candidate) => candidate.verification !== 'wrong_business').length;
+  const selectableCount = (results ?? []).length + socialSelectable;
+  const selectedCount = selectedPlaces.length + selectedSocial.length;
+  const runningBatch = bulkAdd.pending || addPlaceReferences.pending || addMixed.pending;
+  const placesOutcomes = useMemo(() => new Map((placesIntake?.results ?? []).map((result) => [result.placeId, result])), [placesIntake]);
+  const combinedSummary: MixedIntakeSummary | null = useMemo(() => {
+    if (!placesIntake && !socialIntake) return null;
+    const p = placesIntake?.summary;
+    const s = socialIntake?.summary;
+    return {
+      added: (p?.added ?? 0) + (s?.added ?? 0),
+      already_exists: (p?.already_exists ?? 0) + (s?.already_exists ?? 0),
+      needs_review: (p?.needs_review ?? 0) + (s?.needs_review ?? 0),
+      needs_permitted_source: (p?.needs_permitted_source ?? 0) + (s?.needs_permitted_source ?? 0),
+      failed: p?.failed ?? 0,
+      not_eligible: s?.not_eligible ?? 0,
+      total: (p?.total ?? 0) + (s?.total ?? 0),
+    };
+  }, [placesIntake, socialIntake]);
+
+  /** Selects up to one batch's worth, Google first, so a mixed "Both" run stays inside the limit. */
+  function selectAllResults() {
+    const next = new Set<string>();
+    for (const result of results ?? []) {
+      if (next.size >= PLACES_INTAKE_LIMIT) break;
+      next.add(googleKey(result.externalId));
+    }
+    for (const candidate of socialResults ?? []) {
+      if (next.size >= PLACES_INTAKE_LIMIT) break;
+      if (candidate.verification !== 'wrong_business') next.add(socialKey(candidate));
+    }
+    setSelectedKeys(next);
+  }
+
+  function deselectAllResults() {
+    setSelectedKeys(new Set());
+  }
+
+  /** One action for one selection, whatever mix of providers it came from. */
   async function runBulkIntake() {
-    if (!socialResults || !socialSelected.size) return;
-    const selected = socialResults.filter((candidate) => socialSelected.has(candidate.profileUrl));
-    if (!selected.length) return;
+    if (!selectedPlaces.length && !selectedSocial.length) return;
     setSocialIntake(null);
-    setSocialProgress({ done: 0, total: selected.length });
-    const result = await bulkAdd.run(selected, socialBasis || null);
-    setSocialProgress(null);
-    if (result) {
-      setSocialIntake(result);
-      setSocialSelected(new Set());
+    setPlacesIntake(null);
+    setBatchProgress({ done: 0, total: selectedPlaces.length + selectedSocial.length });
+
+    if (selectedPlaces.length && selectedSocial.length) {
+      const mixed = await addMixed.run(selectedPlaces, selectedSocial, socialBasis || null);
+      setBatchProgress(null);
+      if (mixed) {
+        setPlacesIntake(mixed.places);
+        setSocialIntake(mixed.social);
+        setSelectedKeys(new Set());
+      }
+      return;
+    }
+
+    if (selectedPlaces.length) {
+      const places = await addPlaceReferences.run(selectedPlaces);
+      setBatchProgress(null);
+      if (places) {
+        setPlacesIntake(places);
+        setSelectedKeys(new Set());
+      }
+      return;
+    }
+
+    const social = await bulkAdd.run(selectedSocial, socialBasis || null);
+    setBatchProgress(null);
+    if (social) {
+      setSocialIntake(social);
+      setSelectedKeys(new Set());
     }
   }
 
@@ -281,7 +376,7 @@ function Discover({
     setSocialLoading(true);
     setSocialError(null);
     setSocialResults(null);
-    resetSocialIntake();
+    resetIntake();
     try {
       const res = await api.post<SocialSearchResponse>('/api/discover/social', {
         country,
@@ -313,7 +408,7 @@ function Discover({
     setFilter('all');
     setSocialResults(null);
     setSocialError(null);
-    resetSocialIntake();
+    resetIntake();
     if (searchGoogle) {
       run(
         {
@@ -568,6 +663,26 @@ function Discover({
         </div>
 
         <div ref={resultsRef} className="min-w-0 scroll-mt-16 space-y-4">
+          {showGoogle && showSocial && canWrite && selectableCount > 0 && (
+            <Card className="overflow-hidden">
+              <IntakeBar
+                testId="combined-bulk-controls"
+                selectedCount={selectedCount}
+                selectableCount={selectableCount}
+                onSelectAll={selectAllResults}
+                onDeselectAll={deselectAllResults}
+                showBasis
+                basis={socialBasis}
+                onBasisChange={setSocialBasis}
+                onAdd={() => void runBulkIntake()}
+                running={runningBatch}
+                progress={batchProgress}
+                hint={`Up to ${PLACES_INTAKE_LIMIT} results per batch across both sources. Google results keep only a Place ID reference; each social profile needs a retention basis. Duplicates are checked across both providers.`}
+              />
+            </Card>
+          )}
+          {showGoogle && showSocial && combinedSummary && <CombinedSummary summary={combinedSummary} />}
+
           {showGoogle && error && (
             <Notice tone="danger" icon={AlertTriangle} title="Search failed">
               <p>{error.message}</p>
@@ -623,14 +738,41 @@ function Discover({
               </div>
 
               <Card className="overflow-hidden">
+                {!showSocial && canWrite && (
+                  <IntakeBar
+                    testId="places-bulk-controls"
+                    selectedCount={selectedCount}
+                    selectableCount={results.length}
+                    onSelectAll={selectAllResults}
+                    onDeselectAll={deselectAllResults}
+                    showBasis={false}
+                    basis={socialBasis}
+                    onBasisChange={setSocialBasis}
+                    onAdd={() => void runBulkIntake()}
+                    running={runningBatch}
+                    progress={batchProgress}
+                    hint={`Up to ${PLACES_INTAKE_LIMIT} businesses per batch. Only the Place ID is kept — never the listing name, address, phone or photos. Each result is checked against existing prospects.`}
+                  />
+                )}
+                {placesIntake && <PlacesSummary places={placesIntake} />}
                 <ul className="divide-y divide-border" aria-live="polite">
                   {shown.map((r) => (
                     <ResultRow
                       key={r.externalId}
                       result={r}
                       trackedId={tracked.get(r.externalId)?.id ?? trackedDemo[r.externalId] ?? null}
-                      canTrack={can('prospects.write')}
+                      canTrack={canWrite}
                       onTrack={() => setTracking(r)}
+                      selection={
+                        canWrite
+                          ? {
+                              selected: selectedKeys.has(googleKey(r.externalId)),
+                              disabled: runningBatch,
+                              onToggle: () => toggleKey(googleKey(r.externalId)),
+                            }
+                          : null
+                      }
+                      outcome={placesOutcomes.get(normalizePlaceId(r.externalId) ?? r.externalId) ?? null}
                     />
                   ))}
                   {shown.length === 0 && <li className="px-4 py-8 text-center text-sm text-subtle">No results in this filter.</li>}
@@ -673,26 +815,18 @@ function Discover({
               candidates={socialResults}
               simulated={Boolean(social?.simulated)}
               retrievedAt={socialRetrievedAt}
-              canTrack={can('prospects.write')}
+              canTrack={canWrite}
               onReview={setSocialTracking}
-              selected={socialSelected}
-              onToggle={(candidate) =>
-                setSocialSelected((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(candidate.profileUrl)) next.delete(candidate.profileUrl);
-                  else next.add(candidate.profileUrl);
-                  return next;
-                })
-              }
-              onSelectAll={() =>
-                setSocialSelected(new Set(socialResults.filter((candidate) => candidate.verification !== 'wrong_business').map((candidate) => candidate.profileUrl)))
-              }
-              onDeselectAll={() => setSocialSelected(new Set())}
+              bulkControls={!showGoogle}
+              selected={new Set(selectedSocial.map((candidate) => candidate.profileUrl))}
+              onToggle={(candidate) => toggleKey(socialKey(candidate))}
+              onSelectAll={selectAllResults}
+              onDeselectAll={deselectAllResults}
               basis={socialBasis}
               onBasisChange={setSocialBasis}
               onBulkAdd={() => void runBulkIntake()}
-              running={bulkAdd.pending}
-              progress={socialProgress}
+              running={runningBatch}
+              progress={batchProgress}
               intake={socialIntake}
             />
           )}
@@ -790,13 +924,39 @@ function GoogleAttribution({ provider }: { provider: ProviderInfo | undefined })
   );
 }
 
-function ResultRow({ result: r, trackedId, canTrack, onTrack }: { result: DiscoveryResult; trackedId: string | null; canTrack: boolean; onTrack: () => void }) {
+function ResultRow({
+  result: r,
+  trackedId,
+  canTrack,
+  onTrack,
+  selection,
+  outcome,
+}: {
+  result: DiscoveryResult;
+  trackedId: string | null;
+  canTrack: boolean;
+  onTrack: () => void;
+  /** Present when the row can join a batch. */
+  selection?: { selected: boolean; disabled: boolean; onToggle: () => void } | null;
+  outcome?: PlacesIntakeResult | null;
+}) {
   const kind = classifyListedLink(r.websiteUri);
   const website = safeHref(r.websiteUri);
   const maps = safeHref(r.mapsUri);
   const closed = r.businessStatus ? STATUS_LABELS[r.businessStatus] : undefined;
+  const inCrm = trackedId ?? outcome?.businessId ?? null;
   return (
     <li className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start">
+      {selection && (
+        <input
+          type="checkbox"
+          className="mt-1 size-4 shrink-0 rounded border-border accent-[var(--accent)]"
+          aria-label={`Select ${r.name}`}
+          checked={selection.selected}
+          disabled={selection.disabled}
+          onChange={selection.onToggle}
+        />
+      )}
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{r.name}</p>
@@ -834,10 +994,16 @@ function ResultRow({ result: r, trackedId, canTrack, onTrack }: { result: Discov
           )}
         </div>
         {kind === 'none' && <p className="text-xs text-subtle">Not proof that no website exists — verify before relying on it.</p>}
+        {outcome && (
+          <p className="break-words text-xs text-muted" data-testid={`place-outcome-${r.externalId}`}>
+            {outcome.reason}
+          </p>
+        )}
       </div>
-      <div className="shrink-0">
-        {trackedId ? (
-          <Link href={`/prospects/${trackedId}`} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-surface-hover">
+      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        {outcome && <Badge tone={PLACES_TONE[outcome.outcome]}>{PLACES_INTAKE_LABELS[outcome.outcome]}</Badge>}
+        {inCrm ? (
+          <Link href={`/prospects/${inCrm}`} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-surface-hover">
             <Building2 className="size-3.5" aria-hidden /> In CRM
           </Link>
         ) : canTrack ? (
@@ -965,12 +1131,177 @@ const INTAKE_TONE: Record<SocialIntakeOutcome, 'success' | 'neutral' | 'warning'
   not_eligible: 'danger',
 };
 
+const PLACES_TONE: Record<PlacesIntakeOutcome, 'success' | 'neutral' | 'warning' | 'danger'> = {
+  added: 'success',
+  already_exists: 'neutral',
+  needs_review: 'warning',
+  needs_permitted_source: 'warning',
+  failed: 'danger',
+};
+
+/** One line for the whole "Both" batch, so a mixed selection is reviewed once. */
+function CombinedSummary({ summary }: { summary: MixedIntakeSummary }) {
+  const parts: [string, number][] = [
+    ['added', summary.added],
+    ['existing', summary.already_exists],
+    ['need review', summary.needs_review],
+    ['need a permitted source', summary.needs_permitted_source],
+    ...(summary.failed ? ([['failed', summary.failed]] as [string, number][]) : []),
+  ];
+  return (
+    <div className="rounded-md border border-border bg-surface px-4 py-3" data-testid="combined-intake-summary" aria-live="polite">
+      <p className="text-sm font-medium">Batch result ({summary.total} results)</p>
+      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {parts.map(([label, value]) => (
+          <li key={label}>
+            <span className="font-semibold tabular">{value}</span> {label}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-xs text-subtle">
+        Each result is listed under its own provider with the reason it was added or held back. Google results keep only a Place ID reference.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The one place a batch is chosen and started. It serves a Google-only batch, a social-only batch
+ * and the combined "Both" batch, because the selection set is shared across providers.
+ */
+function IntakeBar({
+  testId,
+  selectedCount,
+  selectableCount,
+  onSelectAll,
+  onDeselectAll,
+  showBasis,
+  basis,
+  onBasisChange,
+  onAdd,
+  running,
+  progress,
+  hint,
+}: {
+  testId: string;
+  selectedCount: number;
+  selectableCount: number;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
+  showBasis: boolean;
+  basis: SocialRetentionBasis | '';
+  onBasisChange: (basis: SocialRetentionBasis | '') => void;
+  onAdd: () => void;
+  running: boolean;
+  progress: { done: number; total: number } | null;
+  hint: string;
+}) {
+  return (
+    <div className="space-y-3 border-b border-border bg-surface-muted/30 px-4 py-3" data-testid={testId}>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-subtle">
+        <span className="font-medium text-muted">
+          {selectedCount} of {selectableCount} selected
+        </span>
+        <Button size="sm" variant="ghost" disabled={running || selectedCount === selectableCount} onClick={onSelectAll}>
+          Select all
+        </Button>
+        <Button size="sm" variant="ghost" disabled={running || !selectedCount} onClick={onDeselectAll}>
+          Deselect all
+        </Button>
+      </div>
+      {showBasis && (
+        <Field
+          label="Why may these profile links be kept?"
+          hint={
+            basis
+              ? SOCIAL_RETENTION_BASIS_HELP[basis]
+              : 'Needed for the social profiles in this batch. A search result alone does not permit storing a profile, so live social results come back as “Needs permitted source”. Google results keep only a Place ID.'
+          }
+        >
+          {(props) => (
+            <Select {...props} value={basis} disabled={running} onChange={(e) => onBasisChange(e.target.value as SocialRetentionBasis | '')}>
+              <option value="">Choose a basis…</option>
+              {SOCIAL_RETENTION_BASES.map((option) => (
+                <option key={option} value={option}>
+                  {SOCIAL_RETENTION_BASIS_LABELS[option]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button size="sm" variant="primary" loading={running} disabled={!selectedCount || selectedCount > PLACES_INTAKE_LIMIT} onClick={onAdd}>
+          Add selected to CRM ({selectedCount})
+        </Button>
+        <span className="text-xs text-subtle">{hint}</span>
+        {selectedCount > PLACES_INTAKE_LIMIT && (
+          <span className="text-xs text-danger">
+            One batch holds at most {PLACES_INTAKE_LIMIT} results — deselect {selectedCount - PLACES_INTAKE_LIMIT}.
+          </span>
+        )}
+        {progress && (
+          <span className="text-xs text-muted" role="status">
+            Processing {progress.done} / {progress.total}…
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** What the Google half of a batch produced, and a link to each reference it created. */
+function PlacesSummary({ places }: { places: BulkPlacesIntakeResult }) {
+  const summary: PlacesIntakeSummary = places.summary;
+  const linked = places.results.filter((result) => result.businessId);
+  return (
+    <div className="space-y-2 border-b border-border px-4 py-3" data-testid="places-intake-summary" aria-live="polite">
+      <p className="text-sm font-medium">Batch result</p>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <li>
+          <span className="font-semibold tabular">{summary.added}</span> added
+        </li>
+        <li>
+          <span className="font-semibold tabular">{summary.already_exists}</span> existing
+        </li>
+        <li>
+          <span className="font-semibold tabular">{summary.needs_review}</span> need review
+        </li>
+        <li>
+          <span className="font-semibold tabular">{summary.needs_permitted_source}</span> need a permitted source
+        </li>
+        {summary.failed > 0 && (
+          <li>
+            <span className="font-semibold tabular">{summary.failed}</span> failed
+          </li>
+        )}
+      </ul>
+      {linked.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          {linked.map((result) => (
+            <Link key={`${result.placeId}-${result.outcome}`} href={`/prospects/${result.businessId}`} className="text-accent underline">
+              {result.businessName} →
+            </Link>
+          ))}
+        </div>
+      )}
+      {summary.added > 0 && (
+        <p className="text-xs text-subtle">
+          Only Place ID references were saved. Open a prospect to start the permitted research workflow — Collect Business Resources — before relying on
+          anything Google lists.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SocialResults({
   candidates,
   simulated,
   retrievedAt,
   canTrack,
   onReview,
+  bulkControls,
   selected,
   onToggle,
   onSelectAll,
@@ -987,6 +1318,8 @@ function SocialResults({
   retrievedAt: string | null;
   canTrack: boolean;
   onReview: (candidate: SocialCandidate) => void;
+  /** False in "Both" mode, where one shared bar above the panels drives the batch. */
+  bulkControls: boolean;
   selected: ReadonlySet<string>;
   onToggle: (candidate: SocialCandidate) => void;
   onSelectAll: () => void;
@@ -1015,7 +1348,7 @@ function SocialResults({
         <p className="text-xs text-subtle">{SOCIAL_DISCOVERY_NOTICE}</p>
       </CardBody>
 
-      {canTrack && candidates.length > 0 && (
+      {canTrack && bulkControls && candidates.length > 0 && (
         <div className="space-y-3 border-b border-border bg-surface-muted/30 px-4 py-3" data-testid="social-bulk-controls">
           <div className="flex flex-wrap items-center gap-2 text-xs text-subtle">
             <span className="font-medium text-muted">

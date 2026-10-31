@@ -41,6 +41,8 @@ export interface BulkSocialIntakeInput {
   region: string | null;
   city: string | null;
   neighborhood: string | null;
+  /** Profile links a Google reference in the same batch already claims (cross-provider duplicates). */
+  claimedProfileKeys?: Map<string, { businessId: string; name: string }> | null;
 }
 
 export interface SocialIntakeResult extends SocialIntakeAssessment {
@@ -108,7 +110,12 @@ export async function bulkAddSocialCandidates(
   const results: SocialIntakeResult[] = [];
 
   for (const [index, candidate] of input.candidates.entries()) {
-    const assessment = assessSocialIntake(candidate, { basis: input.basis, existingBusinesses: workingBusinesses, existingSources: workingSources });
+    const assessment = assessSocialIntake(candidate, {
+      basis: input.basis,
+      existingBusinesses: workingBusinesses,
+      existingSources: workingSources,
+      claimedProfileKeys: input.claimedProfileKeys ?? undefined,
+    });
     let result: SocialIntakeResult = { ...assessment, sourceId: null };
 
     if (assessment.outcome === 'added' && assessment.basis) {

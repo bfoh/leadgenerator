@@ -30,6 +30,14 @@ export function googleHostedUrl(raw: string): boolean {
   } catch { return true; }
 }
 
+/** A social platform page: real evidence of what a business says, but not a directory or an official site. */
+export function socialHostedUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return !['https:', 'http:'].includes(u.protocol) || SOCIAL_HOSTS.test(normalizedHostname(u));
+  } catch { return true; }
+}
+
 /** Google or a social platform: neither can be an independent, export-permitted source. */
 export function restrictedResourceUrl(raw: string): boolean {
   if (googleHostedUrl(raw)) return true;
