@@ -351,9 +351,16 @@ Implemented:
   manifest entries (path, kind, licence, attribution, five permissions, checksum). Reference-only
   candidates never appear, kits with only references still grade incomplete, and Studio reads the same
   vault, so nothing becomes a design asset before approval.
-- **Transient previews only.** A same-origin `/api/resources/preview` route returns one image with
-  `Cache-Control: no-store`, robots checks and the same 8 MB/type limits; it refuses Google, social and
-  any address outside the recorded website. Third-party references show no thumbnail at all.
+- **Transient previews only.** A same-origin `/api/resources/preview` route reads one image with
+  `Cache-Control: no-store`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin`, robots checks and
+  the same 8 MB/type limits. It takes a recorded `candidateId` and reads the address from that row, so
+  the browser cannot point it at another host; Google, social and third-party files are refused before
+  any fetch. The download route resolves the same record, so the request never chooses what the server
+  reads. Third-party references show no thumbnail at all.
+- **The table enforces the attestation too.** `imported` requires a stored asset, checksum, origin, a
+  real rights basis and ≥15 characters of evidence, so a direct write cannot skip the form; a trigger
+  allows only reference-only → stored → rejected (or straight to rejected), freezes the stored file,
+  checksum, origin and rights record once set, and refuses an asset from another prospect's vault.
 - **Migration 020** (`visual_asset_candidates`, `visual_asset_candidate_events`) is drafted and tested on
   PGlite, **not applied to production**. Older databases keep working: the panel names the prerequisite
   and the existing vault and kit are unaffected.
@@ -363,8 +370,10 @@ Verification on 31 October 2026, credentials blanked, `SIMULATE_EXTERNAL_TOOLS=t
 | Check | Result |
 | --- | --- |
 | TypeScript / ESLint | `TSC_EXIT=0`, `LINT_EXIT=0` |
-| `tests/unit/visual-acquisition.test.ts` | 13 tests: classification, hotel requirements, discovery and duplicate reporting, off-site refusal, rights/ownership refusals, third-party upload path, duplicate bytes, redirect guard, bulk approval with skips, rejected file exclusion, request-without-copy, and a kit with exactly the four authorized files in `assets/` |
-| `tests/db/visual-acquisition.test.ts` | 6 tests: organization isolation, Google/social refusal, downloaded vs uploaded third-party rule, immutable discovery fields, final rejection, append-only role-gated events, delete/truncate grants taken back |
+| `tests/unit/visual-acquisition.test.ts` | 14 tests: classification, hotel requirements, discovery and duplicate reporting, off-site refusal, rights/ownership refusals, third-party upload path, duplicate bytes, redirect guard, bulk approval with skips, rejected file exclusion, request-without-copy, an orphan file taken back when the ledger write fails, and a kit with exactly the four authorized files in `assets/` |
+| `tests/db/visual-acquisition.test.ts` | 10 tests: organization isolation, Google/social refusal, downloaded vs uploaded third-party rule, a direct write that skips the rights record refused, decisions that cannot reopen or swap the stored file, a cross-vault asset refused, no PUBLIC or service-role truncate/references privilege, immutable discovery fields, final rejection, append-only role-gated events, delete/truncate taken back, and a clean re-apply on a populated ledger |
+| `tests/unit/visual-acquisition-routes.test.ts` | 10 tests: Google, social, off-site and `javascript:` previews refused, a candidate id and recorded website required, placeholder bytes with `nosniff` and same-origin policy, third-party and off-site downloads refused, rights statement and confirmation required |
+| `tests/unit/visual-acquisition-source.test.ts` | 8 tests: the stored candidate decides the address (body and query-string addresses ignored), third-party/Google/off-site candidates refused before any fetch, decided candidates refused, other workspaces and other prospects' vaults refused, off-site redirects refused |
 | `tests/e2e/visual-acquisition.spec.ts` | 2 passed: the full hotel fixture (6 candidates → 4 authorized → bulk approve → ZIP contains exactly 4 `assets/` paths and neither reference) and route-boundary refusals |
 | `tests/e2e/visual-acquisition-responsive.spec.ts` | Passed at 360/390/768: discovery, one import, no horizontal overflow, no serious axe findings |
 | Existing suite | No regressions; the pre-apply inspection script now covers 001–020 |

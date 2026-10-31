@@ -172,6 +172,20 @@ describe('authorization and import', () => {
     expect((await ctx.store.getVisualCandidate(logo.id))?.status).toBe('reference_only');
   });
 
+  it('takes the stored file back out when the ledger cannot record it', async () => {
+    const [logo] = await discover();
+    const original = { bytes: png(900, 300), fileName: 'harbour-hotel-logo.png', mimeType: 'image/png', finalUrl: logo.imageUrl };
+    const update = ctx.store.updateVisualCandidate;
+    ctx.store.updateVisualCandidate = (async () => {
+      throw new Error('The ledger is unavailable.');
+    }) as typeof update;
+    await expect(acquisition.importVisualCandidate(ctx, business, project, logo, request(), original)).rejects.toThrow(/ledger is unavailable/i);
+    ctx.store.updateVisualCandidate = update;
+    // No orphan vault file, and the candidate is still an undecided reference.
+    expect(await ctx.store.listStudioAssets(project.id)).toHaveLength(0);
+    expect((await ctx.store.getVisualCandidate(logo.id))?.status).toBe('reference_only');
+  });
+
   it('never downloads a third party image; only an uploaded original can be stored', async () => {
     const created = await discover();
     const thirdParty = created.find((c) => c.sourceKind === 'third_party_reference')!;

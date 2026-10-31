@@ -114,12 +114,16 @@ test('collects a hotel’s authorized logo and photographs into the kit, and kee
 
 test('refuses Google, social and off-site previews at the route boundary', async ({ request }) => {
   const website = encodeURIComponent(SITE);
+  const candidateId = '00000000-0000-4000-8000-00000000c001';
   for (const url of ['https://lh3.googleusercontent.com/places/photo', 'https://scontent.cdninstagram.com/photo.jpg', 'https://cdn.example.net/photo.jpg']) {
-    const response = await request.get(`/api/resources/preview?url=${encodeURIComponent(url)}&website=${website}`);
+    const response = await request.get(`/api/resources/preview?candidateId=${candidateId}&url=${encodeURIComponent(url)}&website=${website}`);
     expect(response.status()).toBe(400);
   }
+  // A candidate id is required: the route will not read an address the caller invented.
+  expect((await request.get(`/api/resources/preview?url=${encodeURIComponent(`${SITE}/logo.png`)}&website=${website}`)).status()).toBe(400);
   const original = await request.post('/api/resources/candidates/original', {
     data: {
+      candidateId,
       sourceUrl: 'https://cdn.example.net/photo.jpg',
       pageUrl: SITE,
       businessWebsite: SITE,

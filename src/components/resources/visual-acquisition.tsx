@@ -60,7 +60,7 @@ function CandidatePreview({ candidate, asset, website }: { candidate: VisualCand
   const stored = useSignedUrl(asset);
   const remote =
     candidate.status === 'reference_only' && candidate.sourceKind === 'official_site' && website
-      ? `/api/resources/preview?url=${encodeURIComponent(candidate.imageUrl)}&website=${encodeURIComponent(website)}`
+      ? `/api/resources/preview?candidateId=${candidate.id}&url=${encodeURIComponent(candidate.imageUrl)}&website=${encodeURIComponent(website)}`
       : null;
   const src = stored ?? remote;
   return (
@@ -237,6 +237,7 @@ function AuthorizeDialog({
     try {
       if (candidate.sourceKind === 'official_site') {
         const result = await api.post<{ base64: string; fileName: string; mimeType: string; finalUrl: string }>('/api/resources/candidates/original', {
+          candidateId: candidate.id,
           sourceUrl: candidate.imageUrl,
           pageUrl: candidate.pageUrl,
           businessWebsite: business.officialWebsite,

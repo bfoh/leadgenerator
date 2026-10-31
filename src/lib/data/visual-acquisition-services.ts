@@ -22,7 +22,7 @@ import type { Business } from '@/lib/domain/types';
 import type { StudioProject } from '@/lib/domain/studio';
 import { hostOf, registrableDomain } from '@/lib/domain/web-research';
 import { log, type ServiceContext } from './services';
-import { approveStudioAsset, rejectStudioAsset, revokeStudioAsset, sha256Hex, uploadStudioAsset } from './studio-asset-services';
+import { approveStudioAsset, deleteStudioAsset, rejectStudioAsset, revokeStudioAsset, sha256Hex, uploadStudioAsset } from './studio-asset-services';
 import { StoreError, VISUAL_ACQUISITION_MIGRATION_REQUIRED } from './store';
 
 const now = () => new Date().toISOString();
@@ -116,17 +116,25 @@ async function storeAuthorizedCopy(
     declaredType: file.mimeType,
     bytes: original.bytes,
   });
-  const updated = await ctx.store.updateVisualCandidate(candidate.id, {
-    status: 'imported',
-    rightsBasis: request.rightsBasis,
-    rightsEvidence: request.evidence.trim(),
-    assetId: asset.id,
-    importedVia,
-    checksumSha256: checksum,
-    reviewedBy: ctx.userLabel,
-    reviewedAt: now(),
-    reviewNote: `Stored as a candidate on ${ctx.userLabel}’s rights record. Approval is separate.`,
-  });
+  const updated = await ctx.store
+    .updateVisualCandidate(candidate.id, {
+      status: 'imported',
+      rightsBasis: request.rightsBasis,
+      rightsEvidence: request.evidence.trim(),
+      assetId: asset.id,
+      importedVia,
+      checksumSha256: checksum,
+      reviewedBy: ctx.userLabel,
+      reviewedAt: now(),
+      reviewNote: `Stored as a candidate on ${ctx.userLabel}’s rights record. Approval is separate.`,
+    })
+    // The bytes reached the bucket before the ledger could record them (for example a second import
+    // of the same candidate won a race). Take both back, so a failed import never leaves a vault row
+    // that no candidate points at and nobody approved.
+    .catch(async (error: unknown) => {
+      await deleteStudioAsset(ctx, project, asset).catch(() => undefined);
+      throw error;
+    });
   await recordEvent(ctx, candidate.id, 'imported', `${RIGHTS_BASIS_META[request.rightsBasis].label}: ${original.fileName} (${importedVia})`);
   await log(ctx, business.id, 'studio', `Visual candidate stored: ${original.fileName}`, {
     projectId: project.id,

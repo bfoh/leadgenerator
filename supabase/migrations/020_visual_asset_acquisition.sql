@@ -61,9 +61,20 @@ create index if not exists visual_candidates_project_idx on public.visual_asset_
 alter table public.visual_asset_candidates drop constraint if exists visual_candidates_reference_only_check;
 alter table public.visual_asset_candidates add constraint visual_candidates_reference_only_check
   check (source_kind = 'official_site' or status = 'reference_only' or imported_via = 'uploaded');
+-- A stored copy must carry the rights record that justified it. The service asks for a basis and
+-- evidence; the table refuses an `imported` row without them, so the rule survives a direct write to
+-- the API as well as a write through the app.
 alter table public.visual_asset_candidates drop constraint if exists visual_candidates_import_check;
 alter table public.visual_asset_candidates add constraint visual_candidates_import_check
-  check (status <> 'imported' or (asset_id is not null and checksum_sha256 is not null and imported_via is not null));
+  check (
+    status <> 'imported' or (
+      asset_id is not null
+      and checksum_sha256 is not null
+      and imported_via is not null
+      and rights_basis <> 'not_established'
+      and char_length(btrim(coalesce(rights_evidence, ''))) >= 15
+    )
+  );
 
 create table if not exists public.visual_asset_candidate_events (
   id uuid primary key default gen_random_uuid(),
@@ -82,21 +93,55 @@ create index if not exists visual_candidate_events_candidate_idx on public.visua
 create or replace function public.guard_visual_candidate_update() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if (to_jsonb(new) - 'rights_basis' - 'rights_evidence' - 'status' - 'asset_id' - 'imported_via' - 'checksum_sha256'
-        - 'requested_at' - 'request_note' - 'reviewed_by' - 'reviewed_at' - 'review_note' - 'updated_at')
-     is distinct from
-     (to_jsonb(old) - 'rights_basis' - 'rights_evidence' - 'status' - 'asset_id' - 'imported_via' - 'checksum_sha256'
-        - 'requested_at' - 'request_note' - 'reviewed_by' - 'reviewed_at' - 'review_note' - 'updated_at') then
-    raise exception 'A candidate’s source and discovery fields are immutable; record a new candidate instead.' using errcode = '42501';
+  if tg_op = 'UPDATE' then
+    if (to_jsonb(new) - 'rights_basis' - 'rights_evidence' - 'status' - 'asset_id' - 'imported_via' - 'checksum_sha256'
+          - 'requested_at' - 'request_note' - 'reviewed_by' - 'reviewed_at' - 'review_note' - 'updated_at')
+       is distinct from
+       (to_jsonb(old) - 'rights_basis' - 'rights_evidence' - 'status' - 'asset_id' - 'imported_via' - 'checksum_sha256'
+          - 'requested_at' - 'request_note' - 'reviewed_by' - 'reviewed_at' - 'review_note' - 'updated_at') then
+      raise exception 'A candidate’s source and discovery fields are immutable; record a new candidate instead.' using errcode = '42501';
+    end if;
+    if old.status = 'rejected' and new.status <> 'rejected' then
+      raise exception 'A rejected candidate stays rejected.' using errcode = '42501';
+    end if;
+    -- The only way forward is reference-only → stored, or either state → rejected. Nothing reopens a
+    -- decision, and a stored copy cannot be quietly turned back into an undecided reference.
+    if new.status is distinct from old.status
+       and not ((old.status = 'reference_only' and new.status in ('imported', 'rejected'))
+             or (old.status = 'imported' and new.status = 'rejected')) then
+      raise exception 'A candidate may only move from reference-only to stored, or to rejected.' using errcode = '42501';
+    end if;
+    -- What was stored is a fact about the file that was read, so the link and the checksum never move.
+    if old.asset_id is not null and new.asset_id is distinct from old.asset_id then
+      raise exception 'The stored file recorded for a candidate cannot be swapped.' using errcode = '42501';
+    end if;
+    if old.checksum_sha256 is not null and new.checksum_sha256 is distinct from old.checksum_sha256 then
+      raise exception 'The recorded checksum cannot be rewritten.' using errcode = '42501';
+    end if;
+    if old.imported_via is not null and new.imported_via is distinct from old.imported_via then
+      raise exception 'How the file arrived cannot be rewritten.' using errcode = '42501';
+    end if;
+    -- Approval rests on the basis and evidence recorded when the file was stored. Editing either
+    -- afterwards would relabel a decision already taken, so the record is frozen with the file.
+    if old.status = 'imported' and (new.rights_basis is distinct from old.rights_basis or new.rights_evidence is distinct from old.rights_evidence) then
+      raise exception 'The rights record behind a stored file cannot be rewritten.' using errcode = '42501';
+    end if;
+    new.updated_at := now();
   end if;
-  if old.status = 'rejected' and new.status <> 'rejected' then
-    raise exception 'A rejected candidate stays rejected.' using errcode = '42501';
+  -- A stored copy must point at a file in this workspace's own vault for this prospect, so a direct
+  -- write cannot attach someone else's asset to a candidate.
+  if new.asset_id is not null and not exists (
+    select 1 from public.studio_assets a
+     where a.id = new.asset_id
+       and a.organization_id = new.organization_id
+       and a.project_id = new.project_id
+  ) then
+    raise exception 'The stored file must belong to this prospect’s vault.' using errcode = '42501';
   end if;
-  new.updated_at := now();
   return new;
 end $$;
 drop trigger if exists visual_candidate_guard on public.visual_asset_candidates;
-create trigger visual_candidate_guard before update on public.visual_asset_candidates
+create trigger visual_candidate_guard before insert or update on public.visual_asset_candidates
   for each row execute function public.guard_visual_candidate_update();
 drop trigger if exists visual_candidate_audit on public.visual_asset_candidates;
 create trigger visual_candidate_audit after insert or update or delete on public.visual_asset_candidates
@@ -128,11 +173,20 @@ drop policy if exists visual_candidate_event_insert on public.visual_asset_candi
 create policy visual_candidate_event_insert on public.visual_asset_candidate_events for insert to authenticated with check (public.has_org_role(organization_id, array['owner','admin','researcher','sales']));
 
 -- Supabase grants new tables everything to `authenticated` and `anon` by default. Take back the
--- powers this ledger must never have, then grant exactly what the collector uses.
-revoke all on public.visual_asset_candidates from anon, authenticated;
-revoke all on public.visual_asset_candidate_events from anon, authenticated;
+-- powers this ledger must never have (including anything inherited from PUBLIC), then grant exactly
+-- what the collector uses: no delete, no truncate, no references, no trigger.
+revoke all on public.visual_asset_candidates from public, anon, authenticated;
+revoke all on public.visual_asset_candidate_events from public, anon, authenticated;
+-- Supabase's default privileges also hand the backend role everything, including TRUNCATE and
+-- REFERENCES. Take those back and state the four powers the server actually uses.
+revoke all on public.visual_asset_candidates from service_role;
+revoke all on public.visual_asset_candidate_events from service_role;
 grant select, insert, update on public.visual_asset_candidates to authenticated;
 grant select, insert on public.visual_asset_candidate_events to authenticated;
 grant select, insert, update, delete on public.visual_asset_candidates to service_role;
 grant select, insert, update, delete on public.visual_asset_candidate_events to service_role;
+
+-- Trigger functions are not an API surface: nobody calls them directly.
+revoke all on function public.guard_visual_candidate_update() from public, anon, authenticated;
+revoke all on function public.guard_visual_candidate_event() from public, anon, authenticated;
 

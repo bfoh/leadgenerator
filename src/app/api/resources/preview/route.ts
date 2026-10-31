@@ -1,49 +1,62 @@
 import type { NextRequest } from 'next/server';
-import { restrictedResourceUrl } from '@/lib/domain/business-resources';
+import { z } from 'zod';
+import { SupabaseStore } from '@/lib/data/supabase-store';
+import { candidateSourceCheck } from '@/lib/domain/visual-acquisition';
 import { hostOf, registrableDomain } from '@/lib/domain/web-research';
 import { requireContext } from '@/lib/server/context';
 import { serverEnv } from '@/lib/server/env';
 import { fail, HttpError } from '@/lib/server/http';
 import { simulatedPng } from '@/lib/server/resource-fixtures';
-import { downloadResourceOriginal, parsePublicUrl, UnsafeUrlError } from '@/lib/server/safe-fetch';
+import { downloadResourceOriginal, UnsafeUrlError } from '@/lib/server/safe-fetch';
+import { resolveAuthorizedSource } from '@/lib/server/visual-source';
 
 export const dynamic = 'force-dynamic';
 
-// A transient thumbnail for a reference the verified homepage published. The bytes are read once,
-// returned with `no-store`, and never written to storage, logs or a ZIP. Google and social hosts are
-// refused, and so is any address outside the recorded official website: the point of the preview is
-// to help someone decide about the business's own material, not to proxy the web.
+// A transient thumbnail for a candidate the workspace recorded. The address is read from the
+// candidate row, never from the query string, so this route cannot be used to proxy the web. The
+// bytes come back with `no-store` and are never written to storage, logs or a ZIP.
+//
+// A simulated run has no database and no network: the addresses are checked for shape and hosts,
+// then a generated placeholder is returned so the flow can be reviewed. Nothing is fetched either way.
+
+const IMAGE_HEADERS = {
+  'Cache-Control': 'no-store, max-age=0',
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Disposition': 'inline',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+};
+
+/** Simulated runs cannot read the candidate table, so they check the addresses they were given. */
+function simulatedPreview(url: string, website: string) {
+  if (!url || url.length > 2000 || !website || website.length > 2000) {
+    throw new HttpError(400, 'A preview needs an image address and the recorded website.');
+  }
+  const check = candidateSourceCheck(website, url, website);
+  if (!check.ok || check.sourceKind !== 'official_site') {
+    throw new HttpError(400, check.problem ?? 'Only images published on the business’s own website can be previewed.');
+  }
+  return new Response(new Blob([new Uint8Array(simulatedPng(url))], { type: 'image/png' }), { headers: IMAGE_HEADERS });
+}
 
 export async function GET(req: NextRequest) {
   try {
-    await requireContext(req, 'studio.write', { count: 60, windowMs: 60_000 });
-    const url = req.nextUrl.searchParams.get('url') ?? '';
-    const website = req.nextUrl.searchParams.get('website') ?? '';
-    if (!url || url.length > 2000 || !website || website.length > 2000) throw new HttpError(400, 'A preview needs an image address and the recorded website.');
-    let source: URL;
-    let site: URL;
-    try {
-      source = parsePublicUrl(url);
-      site = parsePublicUrl(website);
-    } catch {
-      throw new HttpError(400, 'Use public http(s) addresses.');
-    }
-    if (restrictedResourceUrl(source.href)) throw new HttpError(400, 'Google and social-platform images are not previewed.');
-    const sourceHost = hostOf(source.href);
-    const siteHost = hostOf(site.href);
-    if (!sourceHost || !siteHost || registrableDomain(sourceHost) !== registrableDomain(siteHost)) {
-      throw new HttpError(400, 'Only images published on the business’s own website can be previewed.');
-    }
-    const headers = { 'Cache-Control': 'no-store, max-age=0', 'X-Content-Type-Options': 'nosniff', 'Content-Disposition': 'inline' };
+    const ctx = await requireContext(req, 'studio.write', { count: 60, windowMs: 60_000 });
+    const candidateId = req.nextUrl.searchParams.get('candidateId') ?? '';
+    if (!z.uuid().safeParse(candidateId).success) throw new HttpError(400, 'A preview needs a recorded candidate.');
+
     if (serverEnv.simulateExternalTools()) {
-      return new Response(new Blob([new Uint8Array(simulatedPng(source.href))], { type: 'image/png' }), { headers });
+      return simulatedPreview(req.nextUrl.searchParams.get('url') ?? '', req.nextUrl.searchParams.get('website') ?? '');
     }
-    const original = await downloadResourceOriginal(source.href);
+    if (ctx.mode !== 'cloud') throw new HttpError(403, 'Remote previews require an authenticated workspace.');
+
+    const { candidate, business } = await resolveAuthorizedSource(new SupabaseStore(ctx.supabase, ctx.orgId), candidateId);
+    const original = await downloadResourceOriginal(candidate.imageUrl);
     const finalHost = hostOf(original.finalUrl);
-    if (!finalHost || registrableDomain(finalHost) !== registrableDomain(siteHost)) {
+    const siteHost = hostOf(business.officialWebsite);
+    if (!finalHost || !siteHost || registrableDomain(finalHost) !== registrableDomain(siteHost)) {
       throw new HttpError(400, 'The file redirected away from the business’s own website.');
     }
-    return new Response(new Blob([new Uint8Array(original.bytes)], { type: original.mimeType }), { headers });
+    return new Response(new Blob([new Uint8Array(original.bytes)], { type: original.mimeType }), { headers: IMAGE_HEADERS });
   } catch (e) {
     return fail(e instanceof UnsafeUrlError ? new HttpError(400, e.message) : e);
   }

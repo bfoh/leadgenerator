@@ -1,22 +1,29 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { restrictedResourceUrl } from '@/lib/domain/business-resources';
+import { SupabaseStore } from '@/lib/data/supabase-store';
+import { candidateSourceCheck } from '@/lib/domain/visual-acquisition';
 import { hostOf, registrableDomain } from '@/lib/domain/web-research';
 import { requireContext } from '@/lib/server/context';
 import { serverEnv } from '@/lib/server/env';
 import { fail, HttpError, ok, readJson } from '@/lib/server/http';
 import { simulatedFileName, simulatedPng } from '@/lib/server/resource-fixtures';
-import { downloadResourceOriginal, parsePublicUrl, UnsafeUrlError } from '@/lib/server/safe-fetch';
+import { downloadResourceOriginal, UnsafeUrlError } from '@/lib/server/safe-fetch';
 import { enforceQuota, recordUsage } from '@/lib/server/usage';
+import { resolveAuthorizedSource } from '@/lib/server/visual-source';
 
 export const dynamic = 'force-dynamic';
 
 // The acquisition flow's own read. It exists separately from /api/resources/original so the Studio's
-// established import keeps its exact behaviour (including its simulated fixture name). Bytes are read
-// once, validated, and returned to the caller; nothing is stored here. The service stores them only
-// after a person records a rights basis.
+// established import keeps its exact behaviour (including its simulated fixture name).
+//
+// A real read is driven by the stored candidate: the service looks the row up, proves the file sits
+// on the prospect's recorded website and that nobody has decided about it yet, and only then fetches
+// that one address. The addresses in the body are used by simulated runs alone, which have no
+// database and no network. Nothing is stored here; the service stores the bytes only after a person
+// records a rights basis.
 
 const schema = z.object({
+  candidateId: z.uuid(),
   sourceUrl: z.string().trim().max(2000),
   pageUrl: z.string().trim().max(2000),
   businessWebsite: z.string().trim().max(2000),
@@ -30,41 +37,43 @@ const sameSite = (a: string, b: string) => {
   return Boolean(left && right && registrableDomain(left) === registrableDomain(right));
 };
 
+/** Simulated runs have no candidate table, so the addresses they were given are checked instead. */
+function simulatedOriginal(sourceUrl: string, pageUrl: string, businessWebsite: string) {
+  const check = candidateSourceCheck(pageUrl, sourceUrl, businessWebsite);
+  if (!check.ok) throw new HttpError(400, check.problem ?? 'That image cannot be read from this address.');
+  if (!sameSite(pageUrl, businessWebsite)) throw new HttpError(400, 'The page read is not the recorded official website.');
+  if (check.sourceKind !== 'official_site') {
+    throw new HttpError(400, 'That image is served by a third party. Ask the owner for the original, or upload it with permission.');
+  }
+  const bytes = simulatedPng(sourceUrl);
+  return ok({
+    fileName: simulatedFileName(sourceUrl),
+    mimeType: 'image/png',
+    base64: Buffer.from(bytes).toString('base64'),
+    finalUrl: sourceUrl,
+    simulated: true,
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const ctx = await requireContext(req, 'studio.write', { count: 30, windowMs: 60_000 });
     const input = await readJson(req, schema, 6000);
-    let source: URL;
-    let page: URL;
-    let site: URL;
-    try {
-      source = parsePublicUrl(input.sourceUrl);
-      page = parsePublicUrl(input.pageUrl);
-      site = parsePublicUrl(input.businessWebsite);
-    } catch {
-      throw new HttpError(400, 'Use public http(s) addresses for the image, the page and the official website.');
-    }
-    if (restrictedResourceUrl(source.href)) throw new HttpError(400, 'Google and social-platform images are never downloaded. Use the business’s own site or an uploaded authorized original.');
-    // The page must be the recorded website, and the image must sit on the same site: anything else
-    // is a third party's file and belongs in the reference queue, not the vault.
-    if (!sameSite(page.href, site.href)) throw new HttpError(400, 'The page read is not the recorded official website.');
-    if (!sameSite(source.href, site.href)) throw new HttpError(400, 'That image is served by a third party. Ask the owner for the original, or upload it with permission.');
 
     if (serverEnv.simulateExternalTools()) {
-      const bytes = simulatedPng(source.href);
-      return ok({
-        fileName: simulatedFileName(source.href),
-        mimeType: 'image/png',
-        base64: Buffer.from(bytes).toString('base64'),
-        finalUrl: source.href,
-        simulated: true,
-      });
+      return simulatedOriginal(input.sourceUrl, input.pageUrl, input.businessWebsite);
     }
-    if (ctx.mode === 'demo') throw new HttpError(403, 'Remote downloads require an authenticated workspace. Upload the authorized original instead.');
+    if (ctx.mode !== 'cloud') throw new HttpError(403, 'Remote downloads require an authenticated workspace. Upload the authorized original instead.');
+
+    const { candidate, business } = await resolveAuthorizedSource(new SupabaseStore(ctx.supabase, ctx.orgId), input.candidateId);
     await enforceQuota(ctx, 'website_check', serverEnv.quota.websiteChecks());
     await recordUsage(ctx, { provider: 'http_check', operation: 'website_check', units: 1, estimatedCostUsd: 0, metadata: { purpose: 'visual_candidate' } }, { required: true });
-    const original = await downloadResourceOriginal(source.href);
-    if (!sameSite(original.finalUrl, site.href)) throw new HttpError(400, 'The file redirected away from the business’s own website, so it was not loaded.');
+    const original = await downloadResourceOriginal(candidate.imageUrl);
+    const finalHost = hostOf(original.finalUrl);
+    const siteHost = hostOf(business.officialWebsite);
+    if (!finalHost || !siteHost || registrableDomain(finalHost) !== registrableDomain(siteHost)) {
+      throw new HttpError(400, 'The file redirected away from the business’s own website, so it was not loaded.');
+    }
     return ok({
       fileName: original.fileName,
       mimeType: original.mimeType,

@@ -1727,8 +1727,27 @@ export class LocalStore implements DataStore {
     this.commit(() => {
       const existing = this.state.visualCandidates.find((c) => c.id === id);
       if (!existing) throw new StoreError('Candidate not found', 'not_found');
-      if (existing.status === 'rejected' && patch.status && patch.status !== 'rejected') {
-        throw new StoreError('A rejected candidate stays rejected.', 'invalid');
+      // Mirrors the database guard: a decision only moves forward, and what was stored stays stored.
+      if (patch.status && patch.status !== existing.status
+        && !((existing.status === 'reference_only' && ['imported', 'rejected'].includes(patch.status))
+          || (existing.status === 'imported' && patch.status === 'rejected'))) {
+        throw new StoreError(
+          existing.status === 'rejected' ? 'A rejected candidate stays rejected.' : 'A candidate may only move from reference-only to stored, or to rejected.',
+          'invalid',
+        );
+      }
+      if (patch.assetId && existing.assetId && patch.assetId !== existing.assetId) {
+        throw new StoreError('The stored file recorded for a candidate cannot be swapped.', 'invalid');
+      }
+      if (patch.checksumSha256 && existing.checksumSha256 && patch.checksumSha256 !== existing.checksumSha256) {
+        throw new StoreError('The recorded checksum cannot be rewritten.', 'invalid');
+      }
+      if (patch.importedVia && existing.importedVia && patch.importedVia !== existing.importedVia) {
+        throw new StoreError('How the file arrived cannot be rewritten.', 'invalid');
+      }
+      if (existing.status === 'imported'
+        && ((patch.rightsBasis && patch.rightsBasis !== existing.rightsBasis) || (patch.rightsEvidence !== undefined && patch.rightsEvidence !== existing.rightsEvidence))) {
+        throw new StoreError('The rights record behind a stored file cannot be rewritten.', 'invalid');
       }
       if (patch.assetId && !this.state.studioAssets.some((a) => a.id === patch.assetId && a.projectId === existing.projectId)) {
         throw new StoreError('The stored file does not belong to this vault.', 'invalid');
@@ -1739,6 +1758,10 @@ export class LocalStore implements DataStore {
       const next: VisualCandidate = { ...existing, ...patch };
       const parsed = visualCandidateSchema.safeParse(next);
       if (!parsed.success) throw new StoreError(parsed.error.issues[0]?.message ?? 'The candidate is not valid.', 'invalid');
+      // The database refuses a stored candidate without its rights record; demo mode must agree.
+      if (next.status === 'imported' && (next.rightsBasis === 'not_established' || (next.rightsEvidence ?? '').trim().length < 15)) {
+        throw new StoreError('Record a rights basis and the evidence behind it before storing a copy.', 'invalid');
+      }
       return this.update('visualCandidates', id, patch);
     });
   async listVisualCandidateEvents(candidateId?: string) {
