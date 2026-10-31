@@ -68,7 +68,15 @@ for (const withSite of [false, true]) test(`Google-first collection and authoriz
   await page.getByRole('checkbox', { name: 'Independently verified; not copied from Google content' }).check();
   await page.getByRole('checkbox', { name: 'The recorded evidence grants export rights for this entry' }).check();
   await page.getByRole('button', { name: 'Save independent resource' }).click();
-  await expect(page.getByText('Export permitted', { exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Service description' })).toContainText('Export permitted');
+  // The readiness card states what the download would contain before anything is downloaded.
+  const readiness = page.getByTestId('kit-readiness');
+  await expect(readiness.getByText('Resource kit readiness')).toBeVisible();
+  await expect(readiness).toContainText('Independent entries');
+  await expect(readiness.getByText('1', { exact: true }).first()).toBeVisible();
+  await expect(readiness).toContainText('Google Places previews');
+  await expect(readiness).toContainText('Preview only');
+  await expect(readiness).toContainText('Nothing included');
   await page.getByRole('button', { name: 'Add authorized files' }).click();
   await page.getByRole('button', { name: 'Add asset', exact: true }).click();
   const asset = page.getByRole('dialog', { name: 'Add an asset' });
@@ -89,12 +97,21 @@ for (const withSite of [false, true]) test(`Google-first collection and authoriz
   await asset.getByRole('button', { name: 'Add to vault' }).click();
   await page.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(page.getByText(`${fileName} — Approved for this concept.`)).toBeVisible();
-  const downloaded = page.waitForEvent('download');
+  // The pre-export review lists the documents and the button says plainly when the kit is incomplete.
   await page.getByRole('button', { name: 'Download Website Resource Kit' }).click();
+  const review = page.getByRole('dialog', { name: 'Download Website Resource Kit' });
+  await expect(review).toContainText('visual-references.json');
+  await expect(review).toContainText('Export is not publication permission');
+  const downloadButton = review.getByRole('button', { name: 'Download incomplete kit' });
+  // Only a logo is approved here, so the review must say the kit is incomplete rather than imply otherwise.
+  await expect(review).toContainText('This download is incomplete');
+  const downloaded = page.waitForEvent('download');
+  await downloadButton.click();
   const file = await downloaded;
   expect(file.suggestedFilename()).toMatch(/website-resource-kit.zip$/);
   const zip = await readFile((await file.path())!); const text = zip.toString();
   expect(text).toContain(fileName); expect(text).toContain('Original owner supplied bread menu'); expect(text).toContain('DEVELOPMENT-BRIEF.md'); expect(text).toContain('MISSING-RESOURCES.md');
+  expect(text).toContain('visual-references.json'); expect(text).toContain('Kit status:');
   expect(text).not.toContain('12 Sample Lane'); expect(text).not.toContain('fictional_sample'); expect(text).not.toContain('collector-fixture');
   await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await page.waitForTimeout(250);

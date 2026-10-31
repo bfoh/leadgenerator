@@ -68,6 +68,9 @@ describe('Independent resources and permitted downloads', () => {
     const asset = await uploadStudioAsset(ctx, project, input);
     const candidate = await downloadWebsiteResourceKit(ctx, business.id, project);
     expect(candidate.manifest.assets).toHaveLength(0);
+    // A file that exists in the vault but cannot be exported is counted as withheld, not exported.
+    expect(candidate.manifest.visualReferences.withheldFiles).toBe(1);
+    expect(candidate.manifest.readiness.state).toBe('research_pending');
     const approved = await approveStudioAsset(ctx, project, asset, 'Authorized original inspected');
     const copy = await uploadStudioAsset(ctx, project, { ...input, fileName: 'duplicate.png' });
     await approveStudioAsset(ctx, project, copy, 'Duplicate original inspected');
@@ -76,6 +79,15 @@ describe('Independent resources and permitted downloads', () => {
     expect(kit.manifest.deduplicatedAssets).toBe(1);
     expect(kit.manifest.assets[0].permissionEvidence).toBe(entry.evidence);
     expect(kit.manifest.assets[0].permissions.publish).toBe('denied');
+    // The manifest states the same grade the readiness card shows, and the sheet travels with the ZIP.
+    expect(kit.manifest.ready).toBe(false);
+    expect(kit.manifest.readiness.state).toBe(kit.readiness.state);
+    expect(kit.manifest.documents).toContain('visual-references.json');
+    expect(kit.manifest.visualReferences).toMatchObject({ googlePreviewsExported: 0, socialImagesExported: 0, sheet: 'visual-references.json' });
+    const kitText = new TextDecoder().decode(kit.zip);
+    expect(kitText).toContain('visual-references.json');
+    expect(kitText).toContain('Kit status:');
+    expect(kitText).toContain('Google previews are never part of a kit');
     await revokeStudioAsset(ctx, project, approved, 'Owner withdrew permission');
     await revokeStudioAsset(ctx, project, { ...copy, status: 'approved' }, 'Owner withdrew duplicate');
     await store.revokeResourceEntry(resource.id);

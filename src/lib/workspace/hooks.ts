@@ -58,14 +58,14 @@ export const useResourceEntries = (businessId: string) => useStoreQuery(['resour
 export const useResourceCollectorSchema = () => useStoreQuery(['resource-schema'], (s) => s.resourceCollectorAvailable());
 /** Whether migration 017 (social sources, research observations) is applied. */
 export const useSocialResearchSchema = () => useStoreQuery(['social-research-schema'], (s) => s.socialResearchAvailable());
-export const useSocialSources = (businessId?: string) => useStoreQuery(['social-sources', businessId ?? 'all'], (s) => s.listSocialSources(businessId));
-export const useResearchObservations = (businessId?: string) => useStoreQuery(['research-observations', businessId ?? 'all'], (s) => s.listResearchObservations(businessId));
+export const useSocialSources = (businessId?: string, enabled = true) => useStoreQuery(['social-sources', businessId ?? 'all'], (s) => s.listSocialSources(businessId), enabled);
+export const useResearchObservations = (businessId?: string, enabled = true) => useStoreQuery(['research-observations', businessId ?? 'all'], (s) => s.listResearchObservations(businessId), enabled);
 export const useStudioProject = (id: string) => useStoreQuery(['studio-project', id], (s) => s.getStudioProject(id));
 export const useStudioObservations = (projectId?: string) => useStoreQuery(['studio-observations', projectId ?? 'all'], (s) => s.listStudioObservations(projectId));
 export const useStudioReviews = (projectId?: string) => useStoreQuery(['studio-reviews', projectId ?? 'all'], (s) => s.listStudioReviews(projectId));
 /** Whether migration 013 (asset vault, Brand Kit, private bucket) is applied. */
 export const useAssetVaultSchema = () => useStoreQuery(['asset-vault-schema'], (s) => s.assetVaultAvailable());
-export const useStudioAssets = (projectId?: string) => useStoreQuery(['studio-assets', projectId ?? 'all'], (s) => s.listStudioAssets(projectId));
+export const useStudioAssets = (projectId?: string, enabled = true) => useStoreQuery(['studio-assets', projectId ?? 'all'], (s) => s.listStudioAssets(projectId), enabled);
 export const useStudioAssetEvents = (projectId?: string) => useStoreQuery(['studio-asset-events', projectId ?? 'all'], (s) => s.listStudioAssetEvents(projectId));
 export const useStudioAssetReferences = (projectId?: string) => useStoreQuery(['studio-asset-references', projectId ?? 'all'], (s) => s.listStudioAssetReferences(projectId));
 /** Whether migration 014 (creative briefs, directions, reviews) is applied. */

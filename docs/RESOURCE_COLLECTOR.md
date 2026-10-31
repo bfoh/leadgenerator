@@ -66,6 +66,47 @@ encyclopaedia exclusion, and acceptance (rename with the Place ID kept, activity
 acceptance, unreadable evidence and cross-record isolation). The search and the page reader are mocked
 throughout; no live provider was called.
 
+## Kit readiness, visual references and the pre-export review
+
+A kit can always be downloaded, but an empty collection that looks like a finished pack wastes a
+designer's time. **Resource kit readiness** at the top of the collector grades the evidence behind the
+download and states what it would and would not contain:
+
+- Four states, computed from export-eligible material only: *empty*, *research pending*, *partial* and
+  *ready*. `ready` needs a verified identity, a readable observation and both an export-permitted logo
+  and photograph, because that is the point at which a designer can work without inventing facts or
+  images. A Place-ID-only reference stays at *research pending* however confident a Google match looked.
+- Identity standing is *independently supported* (a source of record or a verified identity
+  observation), *recorded, unconfirmed* or *reference only*; the last one links to **Identify this
+  business** rather than implying the name is settled.
+- Five visual groups are counted separately: Google Places previews (0 exportable by construction),
+  social references (links only, none carrying contact details), independently licensed imagery,
+  business-owned photographs and branding, and original concept imagery (always labelled illustrative).
+  Withheld files are counted, not quietly dropped.
+- The same `kitReadiness()` drives the screen, the pre-export dialog and `manifest.json` (`ready`,
+  `readiness`, `visualReferences`, `documents`), so the card cannot promise a complete kit the file does
+  not deliver. `DEVELOPMENT-BRIEF.md` gains a `Kit status:` and a `Carried material:` line, and the
+  download button reads **Download incomplete kit** whenever the review is not complete.
+- Every ZIP carries `visual-references.json` (`dof-visual-references/1`): permitted groups with their
+  reuse rule, social profile links, the files actually carried, and an explicit
+  `excluded: { googlePreviews: true, socialImages: true }` refusal. Only a Place ID is ever retained from
+  Google; no preview, author credit or byte of Places content enters the sheet or the ZIP.
+
+Verification on 31 October 2026, with Supabase and provider credentials blanked and no live call:
+
+| Check | Result |
+| --- | --- |
+| TypeScript, ESLint | Passed; zero warnings |
+| Complete unit/database suite | **1055 passed**, 66 files; PGlite only |
+| `tests/unit/resource-readiness.test.ts` | 15 tests: identity standing (placeholder, restricted source, verified observation, revocation), inventory (withheld/unapproved/Google-origin files, licence gaps, link-only social references), all four readiness states, Studio handoff and the sheet's Google/social exclusion |
+| Collector browser flows | Both website/no-website cases through the readiness card and the pre-export dialog; the review says *This download is incomplete* and the ZIP carries `visual-references.json` and `Kit status:` |
+| Production build / client secret scan | Passed; 182 client files, five key formats, service-role tokens and three configured values, zero matches |
+
+Evidence screenshots were regenerated from that run: [desktop without
+website](evidence/resource-collector/desktop-no-website.jpg), [desktop
+redesign](evidence/resource-collector/desktop-redesign.jpg). The phone evidence predates this card and
+still shows the previous collector header.
+
 ## Verification
 
 Implemented:

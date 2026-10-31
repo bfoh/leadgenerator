@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Checkbox, Field, FormError, Input, Select, Textarea } from '@/components/ui/field';
 import { Notice, PageSkeleton } from '@/components/ui/misc';
 import { StudioAssetVault } from '@/components/studio/asset-vault';
+import { KitReadinessCard } from '@/components/resources/kit-readiness';
 import { SocialResearchPanel } from '@/components/resources/social-research';
 import { addResourceEntry, downloadWebsiteResourceKit, openResourceVault } from '@/lib/data/resource-services';
 import { RESOURCE_CATEGORIES, resourceConflicts, websiteResourceCandidates, type GoogleResourceListing, type ResourceEntry, type ResourceEntryInsert, type WebsiteResources } from '@/lib/domain/business-resources';
@@ -47,9 +48,9 @@ function Workspace({ business }: { business: Business }) {
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><Link href={`/prospects/${business.id}`} className="text-sm text-accent">← Prospect profile</Link><h1 className="mt-2 text-xl font-semibold">Collect Business Resources</h1><p className="mt-1 text-sm text-subtle">{business.name} · Google listing, independent sources and authorized files.</p></div>
-      {can('data.export') && <Button variant="primary" loading={exportKit.pending} onClick={() => void exportKit.run()}>Download Website Resource Kit</Button>}
     </div>
     <Notice title="Build manually or continue in Studio" tone="info">Collect and export resources without a Brand Kit, creative direction or generated website. Google previews stay out of the download; only approved files and independently verified entries with export rights are included.</Notice>
+    <KitReadinessCard business={business} entries={entries} project={project} canExport={can('data.export')} pending={exportKit.pending} onDownload={async () => Boolean(await exportKit.run())} />
     <GoogleViewer business={business} entries={entries} website={website} editable={can('studio.write')} />
     <WebsiteViewer business={business} editable={can('studio.write')} onResult={setWebsite} />
     <SocialResearchPanel business={business} editable={can('studio.write')} available={socialSchema.data === true} />
