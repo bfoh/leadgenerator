@@ -236,6 +236,21 @@ describe('kit readiness', () => {
     expect(readiness.studio.ready).toBe(true);
   });
 
+  it('does not count an original concept illustration as a photograph of the business', () => {
+    const readiness = grade({
+      business: supported,
+      resources: [entry()],
+      observations: [observation()],
+      assets: [asset({ kind: 'logo' }), asset({ kind: 'illustration', origin: 'our_work' })],
+      hasVault: true,
+    });
+    expect(readiness.state).toBe('partial');
+    expect(readiness.counts).toMatchObject({ images: 2, logo: 1, photography: 0 });
+    expect(readiness.visual.conceptImages).toBe(1);
+    expect(readiness.missing.map((m) => m.key)).toContain('photography');
+    expect(readiness.studio.ready).toBe(true);
+  });
+
   it('never lets a withheld file or entry count towards ready', () => {
     const readiness = grade({
       business: supported,

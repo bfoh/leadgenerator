@@ -79,8 +79,8 @@ start at all. A reference label is not a business name, so a check without a typ
   still be a Place-ID-only record owned by the caller's organization). The browser's copy of the profile is
   used only in demo mode, where there is no store to read.
 - Every check runs the single-record path unchanged: the same bounded searches, the same guarded reader,
-  the same `place-identity/1` evidence and the same acceptance rules. A batch writes nothing — acceptance
-  stays one record at a time, and each reading is re-validated against the record as it stands.
+  the same `place-identity/1` evidence and the same acceptance rules. The run itself writes nothing; the
+  readings it returns are approved together only through the reviewed batch described below.
 - A blocked check (quota, budget, missing key or an unreadable search) halts the whole batch rather than
   spending on the rest, and the response says which one stopped it.
 - Duplicate selections in the same run are dropped with a reason instead of searching twice.
@@ -89,6 +89,55 @@ Verification: `tests/unit/identity-batch.test.ts` and `tests/unit/identity-batch
 (29 cases) cover eligibility and skip reasons, the 20-record ceiling, chunking and concurrency, the halt on
 a blocked check, the ownership re-read, and the absence of any write. `tests/e2e/identity-batch.spec.ts`
 names two references in one batch in demo mode and confirms the records are untouched afterwards.
+
+## Approving several identities together
+
+A finished batch used to end in twenty separate accept buttons. It now ends in a review table: the existing
+prospect and Place ID, the proposed name, the independent site that publishes it, where on the page the name
+was read, the verification state and confidence, the conflicts worth reading, and any prospect already using
+the name. Each row carries three decisions — **Approve**, **Reject**, **Needs more evidence** — plus
+**Select all N eligible** and **Deselect all**. Pressing a decision twice clears it, so nothing is approved by
+a stray click.
+
+Only an independently supported identity is eligible. A row is held back, with the reason shown in place of
+a usable decision, when:
+
+- the reading is ambiguous (more than one site could be the business, a foreign page, or another branch);
+- the only source is Google or a social platform, which are references, not sources of record;
+- the check is more than a week old (`identityIsStale`);
+- renaming would duplicate another prospect (an `exact` or `likely` `findDuplicates` match);
+- the record already carries the proposed details.
+
+**Approve N identities** opens a confirmation step that lists exactly the records that will change, each with
+its current name, its Place ID tail and the proposed name. Nothing is written before that confirmation, and
+the batch never runs as a background job.
+
+Each confirmed record then goes through the single-record acceptance path again, in order, through
+`approveIdentityBatch` → `acceptPlaceIdentity`:
+
+1. the record is re-read from the caller's own store, so a record from another organization is simply not
+   found (and RLS applies in cloud mode);
+2. its Place ID must still equal the one the person reviewed, or the update is refused as stale;
+3. the evidence is re-parsed and re-judged (`acceptanceFor`), so staleness, a changed profile and an
+   unreadable check are refused at write time, not only on screen;
+4. duplicates are re-checked against the workspace as the previous approvals left it — a conflict blocks the
+   record and never merges anything;
+5. an approval that would change nothing returns **Already applied**: no second write, no second audit entry,
+   so repeat approvals are idempotent;
+6. the audit entry records the reviewer (`id` and label), `approvedVia: 'batch'`, `approvedAt`, the Place ID,
+   the previous and new identity, the source site and URL, the published name, its evidence type, the
+   confidence and the ownership score. Prospect ID, Place ID, research history and permissions are untouched.
+
+A failure stops that record only: results are per record (**Approved**, **Already applied**, **Not applied**
+with the reason), each with a link to the updated prospect, so a partial batch never loses the approvals that
+landed.
+
+Verification: `tests/unit/identity-approval.test.ts` (18 cases) covers the 20-row review, Google-only
+rejection, conflicting evidence, stale checks, duplicate blocking (and a `possible` near-name not blocking),
+the already-applied row, selection and deselection, a two-record approval with the full audit trail, the
+Place ID guard, cross-workspace refusal, partial failure, idempotent re-approval and the 20-record ceiling.
+`tests/e2e/identity-batch.spec.ts` approves two simulated references in demo mode through the review,
+confirmation and per-record results, then opens the renamed prospect and finds its Place ID intact.
 
 ## Kit readiness, visual references and the pre-export review
 
@@ -131,7 +180,37 @@ website](evidence/resource-collector/desktop-no-website.jpg), [desktop
 redesign](evidence/resource-collector/desktop-redesign.jpg). The phone evidence predates this card and
 still shows the previous collector header.
 
-## Verification
+## Visual Resource Intelligence audit (31 October 2026)
+
+Read against the code and the tests, not the plan. Nothing below was rebuilt for this audit; no new media
+store, provider or image pipeline was added.
+
+| Requirement | Status | Where it lives |
+| --- | --- | --- |
+| Google photo previews, maximum six | Implemented | `providers/google-places.ts` maps `photos.slice(0, 6)`; each preview is a separate authorized `/api/resources` call with a validated provider photo name, rendered straight from `googleusercontent` with no Next image optimisation, no rehosting and no database row |
+| Social-media visual references | Implemented, links only | `BusinessSocialSource` stores the canonical profile URL, platform, status and retention basis; `visualResourceInventory` counts them as `links` with `exportable: 0`, and no platform image is fetched or stored anywhere |
+| Independent licensed imagery | Implemented | Vault kind `licensed_image` with licence name, reference, expiry, rights holder and attribution; excluded unless approved, export-permitted, unexpired and attributed |
+| Business-owned photographs | Implemented | `product_photo`, `venue_photo`, `logo` and `brand_mark`, with the same export rules; supplying a file never implies publication or contact permission |
+| Existing Asset Vault permissions | Implemented | Five separate permissions (inspect/store/prototype/export/publish) with `assetPermits`, `assetExportProblems` and `assetUsableInPrototype`; the collector uses the same vault component with `allowAuthorizedImport` |
+| Approved exportable assets | Implemented | `assetExports` = no export problems; the kit carries only those, de-duplicated by SHA-256, and counts the rest as `excludedAssets`/`withheldFiles` |
+| Visual-reference manifests | Implemented | `visual-references.json` (`dof-visual-references/1`) + `manifest.visualReferences` with `googlePreviewsExported: 0`, `socialImagesExported: 0`, per-group reuse rules and `withheld` counts |
+| Resource Kit readiness indicators | Implemented | `kitReadiness()` drives the card, the pre-export review and `manifest.readiness`; `empty`, `research_pending`, `partial`, `ready` |
+| Website Studio asset handoff | Implemented, one-way | The kit exports the project's authorized asset pack through `exportStudioAssetPack` and states `readiness.studio.ready`; Studio reads the vault, never the kit's research documents |
+
+Known gaps, deliberately left for a separate milestone: no illustration or image-generation pipeline; no
+visual similarity or duplicate-image detection; Studio does not import `visual-references.json` as a design
+input (it reads the vault directly); and social imagery is never archived, by policy.
+
+## Resource kit acceptance
+
+| Question | Answer today |
+| --- | --- |
+| Is an empty kit identified? | Yes: `empty` (no export-permitted evidence), the card says so and the download button reads **Download incomplete kit** |
+| Do partial kits explain what is missing? | Yes: `missing[]` (identity, logo, photography, services, website, phone, address, town) and `permissionGaps[]` (unapproved files, withheld entries, contact-bearing social references, missing licences, no vault) |
+| Do ready kits hold approved, export-permitted material only? | Yes: `ready` requires a verified identity, an observation and both a logo and a photograph that pass `assetExportProblems` |
+| Do manifests separate reference-only imagery from reusable assets? | Yes: `visual-references.json` carries each group's `reuse` (`preview_only`, `link_only`, `permitted`, `illustrative`), plus `excluded.googlePreviews` and `excluded.socialImages` |
+| Are contact details without export permission excluded? | Yes: contact-channel observations, notes containing a number or email, and social sources whose handle or evidence is contact material are withheld, and the counts are in the manifest |
+| Can Google listing content or unauthorized images enter an export? | No: Google previews are never export inputs, Google/social origins are rejected by `assetExportProblems` and `restrictedResourceUrl`, and only Place IDs are retained |
 
 Implemented:
 
@@ -219,3 +298,24 @@ Machine-readable verification: [verification.json](evidence/resource-collector/v
 The implementation commit is recorded after the final focused review. Nothing has been pushed,
 deployed, applied to production or sent to customers. The original Adwoa creative gate remains pending;
 no Quick Concept or other showcase redesign was started.
+
+## Verification on 31 October 2026 (bulk identity approval and the visual audit)
+
+Supabase and provider credentials blanked, `SIMULATE_EXTERNAL_TOOLS=true`, PGlite only, no paid call.
+
+| Check | Result |
+| --- | --- |
+| TypeScript / ESLint | `TSC_EXIT=0`, `LINT_EXIT=0`; zero warnings |
+| Complete unit/database suite | **1103 passed**, 69 files |
+| `tests/unit/identity-approval.test.ts` | 18 tests: 20-row review, Google-only rejection, conflicting evidence, stale check, duplicate blocking (a `possible` near-name does not block), already-applied row, select/deselect, two-record approval, audit trail contents, Place ID guard, cross-workspace refusal, partial failure, idempotent re-approval, 20-record ceiling |
+| `tests/unit/resource-readiness.test.ts` | 16 tests, including a new one: an original concept illustration is not counted as a photograph of the business |
+| Production build / client secret scan | `BUILD_EXIT=0`; 183 client files, five key formats, service-role tokens, three configured values, zero matches |
+| Complete Playwright suite | **134 passed, 2 flaky** in `adwoa-experience.spec.ts` (showcase scroll-mask timing and an axe contrast run under full-suite load); that spec passes **7/7** when run alone |
+| `tests/e2e/identity-batch.spec.ts` | 2 passed: the read-only batch, and the review → confirmation → per-record results → renamed prospect with its Place ID intact |
+| `tests/e2e/responsive.spec.ts` | Phone-width review: no horizontal overflow, labelled fields per row, decision buttons expose `aria-pressed`, Select all gates the confirmation and Deselect all disables it |
+
+One small integration defect was found in the audit and fixed: `visualResourceInventory` counted original
+concept illustrations towards `photography`, so a kit with a logo and an illustration could grade *ready*
+while still listing Photography as missing. Only `product_photo`, `venue_photo` and `licensed_image` count
+now, and the missing-resource rule uses the same definition. No media store, provider or image pipeline
+was added.

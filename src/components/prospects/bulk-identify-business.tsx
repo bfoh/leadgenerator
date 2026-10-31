@@ -3,10 +3,9 @@
 import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
-import { acceptPlaceIdentity } from '@/lib/data/identity-services';
+import { approveIdentityBatch, type IdentityApprovalRequest, type IdentityApprovalResult } from '@/lib/data/identity-services';
 import {
   IDENTITY_BATCH_LIMIT,
-  IDENTITY_JOB_META,
   identityBatchEligibility,
   identityBatchEstimate,
   identityBatchProgress,
@@ -23,12 +22,26 @@ import {
   type IdentityCheckResult,
   type IdentityJob,
 } from '@/lib/domain/identity-batch';
-import { PLACE_IDENTITY_STATUS_META, identityPatch } from '@/lib/domain/place-identity';
+import {
+  IDENTITY_APPROVAL_DECISION_META,
+  IDENTITY_APPROVAL_DECISIONS,
+  IDENTITY_VERIFICATION_META,
+  deselectAll,
+  duplicateNoticeLabel,
+  eligibleIdentityRows,
+  identityApprovalPreview,
+  identityReviewRows,
+  rowsNeedingMoreEvidence,
+  selectAllEligible,
+  type IdentityApprovalDecision,
+  type IdentityApprovalPreview,
+  type IdentityReviewRow,
+} from '@/lib/domain/identity-approval';
 import type { Business } from '@/lib/domain/types';
 import { CONFIDENCE_BAND_META } from '@/lib/domain/website-assessment';
 import { errorMessage } from '@/lib/utils';
 import { api, useServerStatus } from '@/lib/workspace/api';
-import { useAction } from '@/lib/workspace/hooks';
+import { useAction, useBusinesses } from '@/lib/workspace/hooks';
 import { useWorkspace } from '@/lib/workspace/workspace-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,29 +58,36 @@ interface BatchResponse {
 
 /**
  * Identifies several Google references at once. The selection bar opens a plan first: which records
- * can be checked, the name each check will search for, and what the run will cost. The batch writes
- * nothing — every identified record is accepted separately, from its own evidence.
+ * can be checked, the name each check will search for, and what the run will cost. The checks write
+ * nothing; the readings they return are approved together, from a reviewed selection, once confirmed.
+ *
+ * The dialog keeps its own copy of the selection it opened with. Approving renames the records, and a
+ * renamed record may drop out of the list's filter or stop being a reference, so the live selection is
+ * not a safe thing to re-read while the person is still looking at the results.
  */
 export function BulkIdentifyBusiness({ businesses, onDone }: { businesses: Business[]; onDone: () => void }) {
   const { can } = useWorkspace();
-  const [open, setOpen] = useState(false);
+  const [batch, setBatch] = useState<Business[] | null>(null);
   const eligible = useMemo(() => businesses.filter((business) => identityBatchEligibility(business).eligible).length, [businesses]);
-  if (!can('prospects.write') || eligible === 0) return null;
+  if (!can('prospects.write')) return null;
+  if (!batch && eligible === 0) return null;
 
   return (
     <>
-      <Button
-        size="sm"
-        onClick={() => setOpen(true)}
-        title={`Name up to ${IDENTITY_BATCH_LIMIT} Google references from independent public sources.`}
-      >
-        <Search aria-hidden /> Identify {eligible} reference{eligible === 1 ? '' : 's'}
-      </Button>
-      {open && (
+      {!batch && (
+        <Button
+          size="sm"
+          onClick={() => setBatch(businesses)}
+          title={`Name up to ${IDENTITY_BATCH_LIMIT} Google references from independent public sources.`}
+        >
+          <Search aria-hidden /> Identify {eligible} reference{eligible === 1 ? '' : 's'}
+        </Button>
+      )}
+      {batch && (
         <BatchIdentifyDialog
-          businesses={businesses}
+          businesses={batch}
           onClose={() => {
-            setOpen(false);
+            setBatch(null);
             onDone();
           }}
         />
@@ -95,26 +115,65 @@ function BatchIdentifyDialog({ businesses, onClose }: { businesses: Business[]; 
   const [stopped, setStopped] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [accepted, setAccepted] = useState<Set<string>>(() => new Set());
+  const [decisions, setDecisions] = useState<Record<string, IdentityApprovalDecision>>({});
+  const [confirming, setConfirming] = useState(false);
+  const [approval, setApproval] = useState<{ results: IdentityApprovalResult[]; at: string } | null>(null);
   const stopRequested = useRef(false);
 
+  // Duplicates are judged against the whole workspace, not the selection: renaming a reference into a
+  // name another prospect already holds is the duplicate this workspace refuses to create.
+  const { data: workspaceBusinesses = businesses } = useBusinesses();
   const rows = jobs ?? plan.jobs;
   const progress = identityBatchProgress(rows);
-  const retryable = retryableIdentityJobs(rows);
+  const reviews = useMemo(
+    () =>
+      identityReviewRows(
+        rows.map((job) => ({
+          businessId: job.businessId,
+          placeId: job.placeId,
+          recordName: job.recordName,
+          searchedName: job.name,
+          profile: job.profile,
+          state: job.state,
+          evidence: job.evidence,
+          reason: job.reason,
+        })),
+        workspaceBusinesses,
+      ),
+    [rows, workspaceBusinesses],
+  );
+  const preview = identityApprovalPreview(reviews, decisions);
+  const retryable = [...new Set([...retryableIdentityJobs(rows), ...rowsNeedingMoreEvidence(reviews, decisions)])];
   const canRun = !running && estimate.checks > 0 && confirmed;
 
-  const accept = useAction(
-    async (ctx, job: IdentityJob) => {
-      // The service re-reads the record and re-judges the evidence, so a stale row cannot write.
-      const business = await ctx.store.getBusiness(job.businessId);
-      if (!business) throw new Error('That record is no longer in this workspace.');
-      return acceptPlaceIdentity(ctx, business, job.evidence);
-    },
+  const approve = useAction(
+    async (ctx, requests: IdentityApprovalRequest[]) => approveIdentityBatch(ctx, requests),
     {
-      success: (result) => `Identified ${result.business.name}`,
-      onSuccess: (result) => setAccepted((current) => new Set(current).add(result.business.id)),
+      success: (results) => {
+        const done = results.filter((result) => result.state !== 'failed').length;
+        const failed = results.length - done;
+        return failed
+          ? `${done} approved, ${failed} could not be applied`
+          : `${done} identit${done === 1 ? 'y' : 'ies'} approved`;
+      },
+      onSuccess: (results) => {
+        setApproval({ results, at: new Date().toISOString() });
+        setConfirming(false);
+        // The served reading no longer matches the records it named, so the review cannot be reused.
+        setDecisions({});
+      },
     },
   );
+
+  function approveSelected() {
+    const requests: IdentityApprovalRequest[] = preview.selected.map((row) => ({
+      businessId: row.businessId,
+      placeId: row.placeId,
+      evidence: rows.find((job) => job.businessId === row.businessId)?.evidence ?? null,
+    }));
+    if (!requests.length) return;
+    void approve.run(requests);
+  }
 
   /**
    * Runs the plan in chunks. Between chunks it looks at whether the person stopped it or the server
@@ -195,14 +254,30 @@ function BatchIdentifyDialog({ businesses, onClose }: { businesses: Business[]; 
           <Button variant="outline-danger" onClick={() => (stopRequested.current = true)}>
             Stop the batch
           </Button>
+        ) : confirming ? (
+          <>
+            <Button onClick={() => setConfirming(false)}>Back to the review</Button>
+            <Button variant="primary" loading={approve.pending} onClick={approveSelected}>
+              Approve {preview.selected.length} and update the CRM
+            </Button>
+          </>
+        ) : approval ? (
+          <Button variant="primary" onClick={onClose}>
+            Done
+          </Button>
         ) : (
           <>
             <Button onClick={onClose}>Close</Button>
             {retryable.length > 0 && (
-              <Button variant="primary" onClick={() => void run(resetIdentityJobs(rows, retryable))}>
-                Check {retryable.length} again
-              </Button>
+              <Button onClick={() => void run(resetIdentityJobs(rows, retryable))}>Check {retryable.length} again</Button>
             )}
+            <Button
+              variant="primary"
+              disabled={preview.selected.length === 0}
+              onClick={() => setConfirming(true)}
+            >
+              Approve {preview.selected.length} identit{preview.selected.length === 1 ? 'y' : 'ies'}
+            </Button>
           </>
         )
       }
@@ -289,16 +364,29 @@ function BatchIdentifyDialog({ businesses, onClose }: { businesses: Business[]; 
               />
             </section>
           </>
+        ) : confirming ? (
+          <ConfirmSection preview={preview} />
+        ) : approval ? (
+          <ApprovalResults results={approval.results} at={approval.at} jobs={rows} />
         ) : (
-          <ResultsSection
-            jobs={rows}
+          <ReviewSection
+            reviews={reviews}
+            decisions={decisions}
             progress={progress}
             stopped={stopped}
             error={error}
             running={running}
-            accepted={accepted}
-            accepting={accept.pending}
-            onAccept={(job) => void accept.run(job)}
+            onDecide={(businessId, decision) =>
+              setDecisions((current) => {
+                // Pressing the same decision again clears it, so nothing is approved by a stray click.
+                const next = { ...current };
+                if (next[businessId] === decision) delete next[businessId];
+                else next[businessId] = decision;
+                return next;
+              })
+            }
+            onSelectAll={() => setDecisions((current) => selectAllEligible(reviews, current))}
+            onDeselectAll={() => setDecisions(deselectAll())}
           />
         )}
       </div>
@@ -306,20 +394,39 @@ function BatchIdentifyDialog({ businesses, onClose }: { businesses: Business[]; 
   );
 }
 
-interface ResultsSectionProps {
-  jobs: IdentityJob[];
+interface ReviewSectionProps {
+  reviews: IdentityReviewRow[];
+  decisions: Record<string, IdentityApprovalDecision>;
   progress: IdentityBatchProgress;
   stopped: string | null;
   error: string | null;
   running: boolean;
-  accepted: Set<string>;
-  accepting: boolean;
-  onAccept: (job: IdentityJob) => void;
+  onDecide: (businessId: string, decision: IdentityApprovalDecision) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
 }
 
-function ResultsSection({ jobs, progress, stopped, error, running, accepted, accepting, onAccept }: ResultsSectionProps) {
+/**
+ * The review table. Every checked record is shown with the source that stands for it, its evidence
+ * and verification, and the duplicates a rename would create; only rows that pass every rule offer a
+ * decision, and nothing is written until the whole selection is confirmed.
+ */
+function ReviewSection({
+  reviews,
+  decisions,
+  progress,
+  stopped,
+  error,
+  running,
+  onDecide,
+  onSelectAll,
+  onDeselectAll,
+}: ReviewSectionProps) {
+  const eligible = eligibleIdentityRows(reviews);
+  const selected = eligible.filter((review) => decisions[review.businessId] === 'approve').length;
+
   return (
-    <section aria-labelledby="identity-batch-progress" className="space-y-2">
+    <section aria-labelledby="identity-batch-progress" className="space-y-3" data-testid="identity-review">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 id="identity-batch-progress" className="text-xs font-semibold uppercase tracking-wide text-muted">
           Results
@@ -347,101 +454,226 @@ function ResultsSection({ jobs, progress, stopped, error, running, accepted, acc
         <p className="text-xs text-subtle">Checking in small groups. You can stop after the group that is running now.</p>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={onSelectAll} disabled={eligible.length === 0}>
+          Select all {eligible.length} eligible
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDeselectAll}>
+          Deselect all
+        </Button>
+        <span aria-live="polite" className="text-xs text-subtle">
+          {selected} of {eligible.length} selected for approval
+        </span>
+      </div>
+
       <ul className="divide-y divide-border rounded-lg border border-border">
-        {jobs.map((job) => (
-          <JobRow
-            key={job.businessId}
-            job={job}
-            accepted={accepted.has(job.businessId)}
-            accepting={accepting}
-            onAccept={() => onAccept(job)}
+        {reviews.map((review) => (
+          <ReviewRow
+            key={review.businessId}
+            review={review}
+            decision={decisions[review.businessId] ?? null}
+            onDecide={onDecide}
           />
         ))}
       </ul>
 
       <p className="text-xs text-subtle">
-        Accepting changes one record at a time and logs the site it came from. A record marked “Needs a person” has a candidate
-        worth reading, but no source that clearly stands for the place.
+        Only an independently supported identity can be approved: a Google listing is a reference, not a source. Approving re-reads
+        every record, re-checks its Place ID and duplicates, and logs the reviewer, the source and the name it replaced.
       </p>
     </section>
   );
 }
 
-function JobRow({ job, accepted, accepting, onAccept }: { job: IdentityJob; accepted: boolean; accepting: boolean; onAccept: () => void }) {
-  const meta = IDENTITY_JOB_META[job.state];
-  const reading = job.reading;
-  const proposal = reading?.proposal ?? null;
-  const patch = reading?.status === 'identified' ? identityPatch(job.profile, reading.proposal) : null;
-  const changes = patch
-    ? [
-        patch.renames ? { label: 'Name', from: job.profile.name, to: patch.name } : null,
-        patch.officialWebsite ? { label: 'Website', from: job.profile.website || 'Not recorded', to: patch.officialWebsite } : null,
-        patch.category ? { label: 'Category', from: job.profile.category || 'Not recorded', to: patch.category } : null,
-        patch.city ? { label: 'Town', from: job.profile.city || 'Not recorded', to: patch.city } : null,
-      ].filter((change): change is { label: string; from: string; to: string } => change !== null)
-    : [];
-  const acceptable = patch !== null && changes.length > 0 && job.evidence !== null;
-
+function ReviewRow({
+  review,
+  decision,
+  onDecide,
+}: {
+  review: IdentityReviewRow;
+  decision: IdentityApprovalDecision | null;
+  onDecide: (businessId: string, decision: IdentityApprovalDecision) => void;
+}) {
+  const verification = IDENTITY_VERIFICATION_META[review.verification];
   return (
-    <li className="space-y-1.5 p-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 truncate font-medium">{job.recordName}</span>
-        <Badge tone={meta.tone} dot>
-          {meta.label}
-        </Badge>
-        {reading && <Badge tone="neutral">{CONFIDENCE_BAND_META[reading.confidence].label}</Badge>}
-        {accepted && <Badge tone="success">Accepted</Badge>}
-        {reading && <span className="text-[11px] text-subtle">searched “{job.name}”</span>}
+    <li className="space-y-2 p-3" data-testid="identity-review-row" data-eligible={review.eligible}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="block truncate font-medium">{review.recordName}</span>
+          <span className="block font-mono text-[11px] text-subtle">Place ID …{review.placeId.slice(-6)}</span>
+          {review.searchedName && <span className="block text-[11px] text-subtle">searched “{review.searchedName}”</span>}
+        </div>
+        <div role="group" aria-label={`Decision for ${review.recordName}`} className="flex flex-wrap gap-1.5">
+          {IDENTITY_APPROVAL_DECISIONS.map((value) => {
+            const meta = IDENTITY_APPROVAL_DECISION_META[value];
+            const pressed = decision === value;
+            return (
+              <Button
+                key={value}
+                size="sm"
+                variant={pressed ? (value === 'reject' ? 'outline-danger' : value === 'approve' ? 'primary' : 'secondary') : 'ghost'}
+                aria-pressed={pressed}
+                disabled={!review.eligible && value === 'approve'}
+                title={review.eligible ? meta.description : (review.reason ?? meta.description)}
+                onClick={() => onDecide(review.businessId, value)}
+              >
+                {meta.label}
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
-      {reading?.status === 'identified' && proposal && (
-        <p className="text-xs text-muted">
-          {proposal.site} publishes {proposal.publishedName ? `“${proposal.publishedName}”` : 'the name'}
-          {proposal.nameMatch > 0 ? ` · name matches ${Math.round(proposal.nameMatch * 100)}%` : ''}{' '}
-          <a href={proposal.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-            Read the source
-          </a>
+      <dl className="grid gap-2 text-xs sm:grid-cols-2">
+        <div className="min-w-0">
+          <dt className="text-[11px] uppercase tracking-wide text-subtle">Proposed name</dt>
+          <dd className="flex flex-wrap items-center gap-1.5 font-medium">
+            {review.proposedName || 'No name proposed'}
+            {review.eligible && <Badge tone="success">Eligible</Badge>}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[11px] uppercase tracking-wide text-subtle">Independent supporting source</dt>
+          <dd className="break-words">
+            {review.sourceUrl ? (
+              <a href={review.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                {review.site}
+              </a>
+            ) : (
+              'No independent source'
+            )}
+            {review.evidenceFrom && <span className="text-subtle"> · read from the {review.evidenceFrom.toLowerCase()}</span>}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[11px] uppercase tracking-wide text-subtle">Verification</dt>
+          <dd className="flex flex-wrap items-center gap-1.5">
+            <Badge tone={verification.tone}>{verification.label}</Badge>
+            {review.confidence && <Badge tone="neutral">{CONFIDENCE_BAND_META[review.confidence].label} confidence</Badge>}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[11px] uppercase tracking-wide text-subtle">Possible CRM duplicates</dt>
+          <dd>
+            {review.duplicates.length === 0 ? (
+              'None found'
+            ) : (
+              <ul className="space-y-0.5">
+                {review.duplicates.slice(0, 3).map((duplicate) => (
+                  <li key={duplicate.businessId}>
+                    <span className="font-medium">{duplicate.name}</span>
+                    <span className="text-subtle"> · {duplicateNoticeLabel(duplicate)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {review.conflicts.length > 0 && (
+        <ul className="list-disc space-y-0.5 pl-4 text-xs text-subtle">
+          {review.conflicts.slice(0, 2).map((conflict) => (
+            <li key={conflict}>{conflict}</li>
+          ))}
+        </ul>
+      )}
+
+      {review.reason && <p className="text-xs text-muted">{review.reason}</p>}
+
+      <Link href={`/prospects/${review.businessId}`} className="text-xs text-subtle underline-offset-2 hover:underline">
+        Open the record
+      </Link>
+    </li>
+  );
+}
+
+
+/** The confirmation step: exactly which CRM records will change, before anything is written. */
+function ConfirmSection({ preview }: { preview: IdentityApprovalPreview }) {
+  return (
+    <section aria-labelledby="identity-approval-confirm" className="space-y-3" data-testid="identity-approval-confirm">
+      <h3 id="identity-approval-confirm" className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Confirm the records that will change
+      </h3>
+      <Notice tone="warning" title="This renames existing prospects">
+        Only the fields below change. Prospect IDs, Google Place IDs, research history and permissions stay as they are, and no
+        record is merged.
+      </Notice>
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {preview.selected.map((row) => (
+          <li key={row.businessId} className="grid gap-1.5 p-2.5 sm:grid-cols-[1fr_1fr] sm:items-center">
+            <div className="min-w-0">
+              <span className="block truncate font-medium">{row.recordName}</span>
+              <span className="block font-mono text-[11px] text-subtle">Place ID …{row.placeId.slice(-6)}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-subtle line-through">{row.recordName}</span>{' '}
+              <span aria-hidden>→</span>{' '}
+              <strong className="font-medium">{row.proposedName}</strong>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {preview.setAside.length > 0 && (
+        <p className="text-xs text-subtle">
+          {preview.setAside.length} eligible record{preview.setAside.length === 1 ? ' is' : 's are'} set aside and will not change.
         </p>
       )}
-      {reading && reading.status !== 'identified' && (
-        <p className="text-xs text-subtle">{PLACE_IDENTITY_STATUS_META[reading.status].description}</p>
-      )}
+    </section>
+  );
+}
 
-      {changes.length > 0 && (
-        <ul className="space-y-0.5 text-xs">
-          {changes.map((change) => (
-            <li key={change.label} className="grid grid-cols-[4.5rem_1fr] gap-2">
-              <span className="text-subtle">{change.label}</span>
-              <span>
-                <span className="text-subtle line-through">{change.from}</span> →{' '}
-                <strong className="font-medium">{change.to}</strong>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
 
-      {reading && reading.concerns.length > 0 && !accepted && (
-        <ul className="list-disc space-y-0.5 pl-4 text-xs text-subtle">
-          {reading.concerns.slice(0, 2).map((concern) => (
-            <li key={concern}>{concern}</li>
-          ))}
-        </ul>
-      )}
+const APPROVAL_STATE_META = {
+  approved: { label: 'Approved', tone: 'success' },
+  unchanged: { label: 'Already applied', tone: 'neutral' },
+  failed: { label: 'Not applied', tone: 'danger' },
+} as const;
 
-      {job.reason && reading === null && <p className="text-xs text-muted">{job.reason}</p>}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {acceptable && !accepted && (
-          <Button size="sm" variant="primary" loading={accepting} onClick={onAccept}>
-            Use this name and website
-          </Button>
-        )}
-        <Link href={`/prospects/${job.businessId}`} className="text-xs text-subtle underline-offset-2 hover:underline">
-          Open the record
-        </Link>
+/** Per-record results: what landed, what did not, and where the updated prospect is. */
+function ApprovalResults({ results, at, jobs }: { results: IdentityApprovalResult[]; at: string; jobs: IdentityJob[] }) {
+  const nameOf = new Map(jobs.map((job) => [job.businessId, job.recordName]));
+  const applied = results.filter((result) => result.state === 'approved').length;
+  const failed = results.filter((result) => result.state === 'failed').length;
+  return (
+    <section aria-labelledby="identity-approval-result" className="space-y-3" data-testid="identity-approval-result">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id="identity-approval-result" className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Approval results
+        </h3>
+        <p aria-live="polite" className="text-xs text-subtle">
+          {applied} changed{failed ? ` · ${failed} not applied` : ''} · {new Date(at).toLocaleTimeString()}
+        </p>
       </div>
-    </li>
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {results.map((result) => {
+          const meta = APPROVAL_STATE_META[result.state];
+          return (
+            <li key={result.businessId} className="space-y-1 p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 truncate font-medium">
+                  {nameOf.get(result.businessId) ?? result.business?.name ?? 'Record'}
+                </span>
+                <Badge tone={meta.tone}>{meta.label}</Badge>
+                {result.business && result.business.name !== nameOf.get(result.businessId) && (
+                  <span className="text-xs text-subtle">now “{result.business.name}”</span>
+                )}
+              </div>
+              {result.changed.length > 0 && <p className="text-xs text-muted">Changed: {result.changed.join(', ')}.</p>}
+              {result.reason && <p className="text-xs text-muted">{result.reason}</p>}
+              <Link href={`/prospects/${result.businessId}`} className="text-xs text-subtle underline-offset-2 hover:underline">
+                Open the updated prospect
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-xs text-subtle">
+        Every change is logged against the prospect with the reviewer, the source, the Place ID and the name it replaced. A record
+        that failed is unchanged and can be reviewed again.
+      </p>
+    </section>
   );
 }
 

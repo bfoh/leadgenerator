@@ -24,7 +24,6 @@ import type { ServiceContext } from '@/lib/data/services';
 import { acceptPlaceIdentity } from '@/lib/data/identity-services';
 import { HttpError } from '@/lib/server/http';
 import { runPlaceIdentityCheck, searchableName } from '@/lib/server/place-identity';
-import { StoreError } from '@/lib/data/store';
 
 // The search and page reading are the only paid/networked parts, so they are mocked here: every test
 // below uses fixed fixtures and no request leaves the process.
@@ -255,11 +254,17 @@ describe('Accepting an identification into the workspace', () => {
     expect(result.observationId).toBe(observations[0]?.id);
   });
 
-  it('refuses the same check a second time, and refuses evidence it cannot read', async () => {
+  it('applies the same check twice as one change, and refuses evidence it cannot read', async () => {
     const { store, ctx } = context();
     const business = await seed(store);
     await acceptPlaceIdentity(ctx, business, evidence());
-    await expect(acceptPlaceIdentity(ctx, business, evidence())).rejects.toBeInstanceOf(StoreError);
+    // A retry of the same reading changes nothing: no second write, no second audit entry, no error.
+    const again = await acceptPlaceIdentity(ctx, business, evidence());
+    expect(again.state).toBe('unchanged');
+    expect(again.business.name).toBe(SEARCHED);
+    expect(again.observationId).toBeNull();
+    const identified = (await store.listActivities(business.id)).filter((activity) => /Identified from an independent source/.test(activity.summary));
+    expect(identified).toHaveLength(1);
     await expect(acceptPlaceIdentity(ctx, business, { ...evidence(), schema: 2 } as never)).rejects.toThrow(/run it again/i);
   });
 

@@ -192,6 +192,8 @@ export const VISUAL_GROUP_META: Record<VisualReferenceGroupKey, VisualGroupMeta>
 
 const IMAGE_KINDS: readonly StudioAssetKind[] = ['logo', 'brand_mark', 'product_photo', 'venue_photo', 'licensed_image', 'illustration'];
 const LOGO_KINDS: readonly StudioAssetKind[] = ['logo', 'brand_mark'];
+/** Files that show the business itself. A concept illustration is not one, however polished. */
+const PHOTO_KINDS: readonly StudioAssetKind[] = ['product_photo', 'venue_photo', 'licensed_image'];
 
 export const isVisualAsset = (asset: Pick<StudioAsset, 'kind'>) => IMAGE_KINDS.includes(asset.kind);
 
@@ -256,7 +258,7 @@ export function visualResourceInventory(input: { socialSources: BusinessSocialSo
   const licensed = exported(licensedAll);
   const owned = exported(ownedAll);
   const logo = owned.filter((a) => LOGO_KINDS.includes(a.kind));
-  const photography = exportable.filter((a) => !LOGO_KINDS.includes(a.kind));
+  const photography = exportable.filter((a) => PHOTO_KINDS.includes(a.kind));
 
   return {
     groups: [
@@ -348,7 +350,7 @@ export function kitReadiness(input: KitReadinessInput): KitReadiness {
   if (visual.logo === 0) {
     missing.push({ key: 'logo', label: 'Logo', detail: 'An approved logo or brand mark with export permission.' });
   }
-  if (!visual.groups.some((g) => g.key === 'business_owned' && g.exportable > 0) && visual.licensedImages === 0) {
+  if (visual.photography === 0) {
     missing.push({
       key: 'photography',
       label: 'Photography',

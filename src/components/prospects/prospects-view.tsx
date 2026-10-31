@@ -95,7 +95,9 @@ export function ProspectsView() {
       .sort(SORTS[sort].compare);
   }, [all, query, city, category, website, stage, band, sort]);
 
-  const selectedRecords = filtered.filter((b) => selected.has(b.id));
+  // The selection survives a filter change or a rename: a person selects records, not the rows a
+  // filter happens to show, and a reviewed batch renames records while its own results are on screen.
+  const selectedRecords = all.filter((b) => selected.has(b.id));
   const allSelected = filtered.length > 0 && selectedRecords.length === filtered.length;
   const filtersActive = Boolean(query || city || category || website || band || stage !== 'open');
   const today = todayIso();

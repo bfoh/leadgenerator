@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Naming several Google references at once, in demo mode with SIMULATE_EXTERNAL_TOOLS=true: every
 // search and page read comes from the labelled simulated world, so nothing leaves the test server and
-// nothing is billed. A batch writes nothing — it returns a reading per record, and acceptance stays a
-// separate, per-record action.
+// nothing is billed. A batch run writes nothing — it returns a reading per record — and the readings are
+// written only when a person approves a reviewed selection and confirms it.
 
 /** Saves a Place ID reference, the way an operator creates one from a listing they cannot store. */
 async function addReference(page: Page, placeId: string) {
@@ -64,3 +64,66 @@ test('names two Google references in one batch, and writes nothing on its own', 
   await expect(page.getByText('Only the Place ID is stored.')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('approves two independently supported identities in one confirmed action', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await addReference(page, 'ChIJrTLr-GyuEmsRBfy61i59si0');
+  await addReference(page, 'ChIJN1t_tDeuEmsRUsoyG83frY4');
+
+  await page.goto('/prospects');
+  await page.getByLabel('Search prospects').fill('Unverified place');
+  await page.getByRole('checkbox', { name: 'Select Unverified place I59SI0' }).check();
+  await page.getByRole('checkbox', { name: 'Select Unverified place 83FRY4' }).check();
+  await page.getByRole('button', { name: 'Identify 2 references' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Identify Google references' });
+  await expect(dialog).toBeVisible();
+  // A single-token name is what the simulated world publishes about itself, so the reading is a real
+  // identification rather than a namesake: the source page is the only site that stands for the place.
+  await dialog.getByLabel('Business name for Unverified place I59SI0').fill('Adwoabakery');
+  await dialog.getByLabel('Business name for Unverified place 83FRY4').fill('Chalechops');
+  await dialog.getByRole('checkbox', { name: 'Run these 2 checks now' }).check();
+  await dialog.getByRole('button', { name: 'Check 2 records' }).click();
+
+  // The review names the source and the evidence for each row, and offers a decision on each.
+  const review = page.getByTestId('identity-review');
+  await expect(review.getByText('2 of 2 checked', { exact: false })).toBeVisible({ timeout: 60_000 });
+  await expect(review.getByText('Independently supported', { exact: true })).toHaveCount(2);
+  await expect(review.getByText('adwoabakery.com')).toBeVisible();
+
+  // Nothing is approved until the person selects it.
+  await expect(dialog.getByRole('button', { name: 'Approve 0 identities' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Select all 2 eligible' }).click();
+  await expect(dialog.getByRole('button', { name: 'Approve 2 identities' })).toBeEnabled();
+
+  // The confirmation names exactly the records that will change, with their Place IDs.
+  await dialog.getByRole('button', { name: 'Approve 2 identities' }).click();
+  const confirm = page.getByTestId('identity-approval-confirm');
+  await expect(confirm).toContainText('Unverified place I59SI0');
+  await expect(confirm).toContainText('Adwoabakery');
+  await expect(confirm).toContainText('Chalechops');
+  await expect(confirm).toContainText('Place ID …i59si0');
+  await dialog.getByRole('button', { name: 'Approve 2 and update the CRM' }).click();
+
+  // Per-record results, with a link to each updated prospect.
+  const results = page.getByTestId('identity-approval-result');
+  await expect(results.getByText('2 changed', { exact: false })).toBeVisible({ timeout: 30_000 });
+  await expect(results.getByText('Approved')).toHaveCount(2);
+  await expect(results.getByRole('link', { name: 'Open the updated prospect' })).toHaveCount(2);
+
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // The records really changed, and each still carries its Place ID.
+  await page.goto('/prospects');
+  await page.getByLabel('Search prospects').fill('Adwoabakery');
+  await page.getByRole('link', { name: 'Adwoabakery', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Adwoabakery' })).toBeVisible();
+  await expect(page.getByText('Only the Place ID is stored.')).toBeVisible();
+  await expect(page.getByText('ChIJrTLr-GyuEmsRBfy61i59si0')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
